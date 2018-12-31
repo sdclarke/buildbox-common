@@ -1,0 +1,46 @@
+image: debian:buster
+
+stages:
+  - build
+  - test
+
+build:
+  stage: build
+
+  script:
+    - apt-get update
+    - apt-get install -y
+        attr
+        cmake
+        gcc
+        g++
+        git
+        grpc++
+        libssl-dev
+        pkg-config
+        uuid-dev
+    - apt-get clean
+    - mkdir build && cd build && cmake .. && make
+
+  artifacts:
+    paths:
+      - build
+
+check-can-compile-after-installing:
+  stage: test
+
+  script:
+    - apt-get update
+    - apt-get install -y
+        attr
+        cmake
+        gcc
+        g++
+        git
+        grpc++
+        libssl-dev
+        pkg-config
+        uuid-dev
+    - cd build && make install && cd ..
+    - cd test/sample_project
+    - mkdir build && cd build && cmake .. && make && ./buildbox-common-test
