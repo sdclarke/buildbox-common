@@ -1,46 +1,39 @@
-image: debian:buster
+image: docker:stable
+services:
+  - docker:dind
 
 stages:
   - build
   - test
+  - release
+
+variables:
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_DRIVER: overlay2
+  CONTAINER_TEST_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+  CONTAINER_RELESE_IMAGE: $CI_REGISTRY_IMAGE:latest
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
 
 build:
   stage: build
 
   script:
-    - apt-get update
-    - apt-get install -y
-        attr
-        cmake
-        gcc
-        g++
-        git
-        grpc++
-        libssl-dev
-        pkg-config
-        uuid-dev
-    - apt-get clean
-    - mkdir build && cd build && cmake .. && make
+    - docker build --pull -t $CONTAINER_TEST_IMAGE .
+    - docker push $CONTAINER_TEST_IMAGE
 
-  artifacts:
-    paths:
-      - build
-
-check-can-compile-after-installing:
+test-compile-sample-project:
   stage: test
-
   script:
-    - apt-get update
-    - apt-get install -y
-        attr
-        cmake
-        gcc
-        g++
-        git
-        grpc++
-        libssl-dev
-        pkg-config
-        uuid-dev
-    - cd build && make install && cd ..
-    - cd test/sample_project
-    - mkdir build && cd build && cmake .. && make && ./buildbox-common-test
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker run -w /buildbox-common/test $CONTAINER_TEST_IMAGE ./compile_sample_project.sh
+
+release-image:
+  stage: release
+  script:
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker tag $CONTAINER_TEST_IMAGE $CONTAINER_RELEASE_IMAGE
+    - docker push $CONTAINER_RELEASE_IMAGE
+  only:
+    - master
