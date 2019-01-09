@@ -1,0 +1,39 @@
+find_program(PROTOC protoc)
+if (NOT PROTOC)
+    message(FATAL_ERROR "protoc not found")
+endif()
+
+find_program(GRPC_CPP_PLUGIN grpc_cpp_plugin)
+if (NOT GRPC_CPP_PLUGIN)
+    message(FATAL_ERROR "grpc_cpp_plugin not found")
+endif()
+
+set(PROTO_GEN_DIR ${CMAKE_CURRENT_BINARY_DIR})
+set(PROTOS
+    build/bazel/remote/execution/v2/remote_execution
+    build/bazel/semver/semver
+    google/api/annotations
+    google/api/http
+    google/bytestream/bytestream
+    google/longrunning/operations
+    google/rpc/code
+    google/rpc/status
+    google/devtools/remoteworkers/v1test2/bots
+    google/devtools/remoteworkers/v1test2/worker)
+set(PROTO_GENERATED_SRCS "")
+set(PROTO_GENERATED_HEADERS "")
+
+foreach(proto ${PROTOS})
+    add_custom_command(OUTPUT ${PROTO_GEN_DIR}/${proto}.pb.cc ${PROTO_GEN_DIR}/${proto}.pb.h
+        COMMAND ${PROTOC} --proto_path=${CMAKE_CURRENT_SOURCE_DIR} --cpp_out=${PROTO_GEN_DIR} ${proto}.proto
+        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${proto}.proto)
+    add_custom_command(OUTPUT ${PROTO_GEN_DIR}/${proto}.grpc.pb.cc ${PROTO_GEN_DIR}/${proto}.grpc.pb.h
+        COMMAND ${PROTOC} --proto_path=${CMAKE_CURRENT_SOURCE_DIR} --grpc_out=${PROTO_GEN_DIR}
+                --plugin=protoc-gen-grpc=${GRPC_CPP_PLUGIN} ${proto}.proto
+        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${proto}.proto)
+    list(APPEND PROTO_GENERATED_SRCS ${PROTO_GEN_DIR}/${proto}.pb.cc ${PROTO_GEN_DIR}/${proto}.grpc.pb.cc)
+endforeach()
+
+add_custom_target(generate_protobufs DEPENDS ${PROTO_GENERATED_SRCS})
+set(PROTO_GEN_DIR ${PROTO_GEN_DIR} PARENT_SCOPE)
+set(PROTO_GENERATED_SRCS ${PROTO_GENERATED_SRCS} PARENT_SCOPE)

@@ -27,7 +27,7 @@
 #include <grpcpp/create_channel.h>
 #include <grpcpp/security/credentials.h>
 
-#include <uuid.h>
+#include <uuid/uuid.h>
 
 #include "buildbox-common.h"
 
