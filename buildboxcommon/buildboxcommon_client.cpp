@@ -1,3 +1,4 @@
+// buildboxcommon_client.cpp                                          -*-C++-*-
 /*
  * Copyright 2018 Bloomberg Finance LP
  *
@@ -14,24 +15,27 @@
  * limitations under the License.
  */
 
+#include <buildboxcommon_client.h>
+
 #include <errno.h>
-#include <sys/stat.h>
-#include <unistd.h>
-
 #include <fstream>
-#include <string>
-
 #include <grpc/grpc.h>
 #include <grpcpp/channel.h>
 #include <grpcpp/client_context.h>
 #include <grpcpp/create_channel.h>
 #include <grpcpp/security/credentials.h>
-
+#include <string>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <uuid/uuid.h>
 
-#include "buildbox-common.h"
+namespace BloombergLP {
+namespace buildboxcommon {
 
-static std::string get_file_contents(const char *filename)
+#define BUILDBOXCOMMON_CLIENT_BUFFER_SIZE (1024 * 1024)
+
+namespace {
+static std::string getFileContents(const char *filename)
 {
     std::ifstream in(filename, std::ios::in | std::ios::binary);
     if (!in) {
@@ -55,7 +59,13 @@ static std::string get_file_contents(const char *filename)
     in.close();
     return contents;
 }
+} // close unnamed namespace
 
+// ============
+// class Client
+// ============
+
+// MANIPULATORS
 void Client::init(const char *remote_url, const char *server_cert,
                   const char *client_key, const char *client_cert)
 {
@@ -68,13 +78,13 @@ void Client::init(const char *remote_url, const char *server_cert,
     else if (strncmp(remote_url, "https://", strlen("https://")) == 0) {
         auto options = grpc::SslCredentialsOptions();
         if (server_cert) {
-            options.pem_root_certs = get_file_contents(server_cert);
+            options.pem_root_certs = getFileContents(server_cert);
         }
         if (client_key) {
-            options.pem_private_key = get_file_contents(client_key);
+            options.pem_private_key = getFileContents(client_key);
         }
         if (client_cert) {
-            options.pem_cert_chain = get_file_contents(client_cert);
+            options.pem_cert_chain = getFileContents(client_cert);
         }
         target = remote_url + strlen("https://");
         creds = grpc::SslCredentials(options);
@@ -83,41 +93,39 @@ void Client::init(const char *remote_url, const char *server_cert,
         throw std::runtime_error("Unsupported URL scheme");
     }
 
-    this->channel = grpc::CreateChannel(target, creds);
-    this->bytestream_client = ByteStream::NewStub(this->channel);
-    this->cas_client = ContentAddressableStorage::NewStub(this->channel);
-    this->capabilities_client = Capabilities::NewStub(this->channel);
+    this->d_channel = grpc::CreateChannel(target, creds);
+    this->d_bytestreamClient = ByteStream::NewStub(this->d_channel);
+    this->d_casClient = ContentAddressableStorage::NewStub(this->d_channel);
+    this->d_capabilitiesClient = Capabilities::NewStub(this->d_channel);
 
     // initialise update/read sizes
-    this->batch_update_size = 0;
-    this->batch_read_size = 0;
+    this->d_batchUpdateSize = 0;
+    this->d_batchReadSize = 0;
 
     /* The default limit for gRPC messages is 4 MiB.
      * Limit payload to 1 MiB to leave sufficient headroom for metadata. */
-    this->max_batch_total_size_bytes = BUFFER_SIZE;
+    this->d_maxBatchTotalSizeBytes = BUILDBOXCOMMON_CLIENT_BUFFER_SIZE;
 
     grpc::ClientContext context;
     GetCapabilitiesRequest request;
     ServerCapabilities response;
-    auto status = this->capabilities_client->GetCapabilities(&context, request,
-                                                             &response);
+    auto status = this->d_capabilitiesClient->GetCapabilities(
+        &context, request, &response);
     if (status.ok()) {
-        int64_t server_max_batch_total_size_bytes =
+        int64_t serverMaxBatchTotalSizeBytes =
             response.cache_capabilities().max_batch_total_size_bytes();
         /* 0 means no server limit */
-        if (server_max_batch_total_size_bytes > 0 &&
-            server_max_batch_total_size_bytes <
-                this->max_batch_total_size_bytes) {
-            this->max_batch_total_size_bytes =
-                server_max_batch_total_size_bytes;
+        if (serverMaxBatchTotalSizeBytes > 0 &&
+            serverMaxBatchTotalSizeBytes < this->d_maxBatchTotalSizeBytes) {
+            this->d_maxBatchTotalSizeBytes = serverMaxBatchTotalSizeBytes;
         }
     }
 
     /* Generate UUID to use for uploads */
     uuid_t uu;
     uuid_generate(uu);
-    this->uuid = std::string(36, 0);
-    uuid_unparse_lower(uu, &this->uuid[0]);
+    this->d_uuid = std::string(36, 0);
+    uuid_unparse_lower(uu, &this->d_uuid[0]);
 }
 
 void Client::download(int fd, const Digest &digest)
@@ -132,7 +140,7 @@ void Client::download(int fd, const Digest &digest)
     ReadRequest request;
     request.set_resource_name(resource_name);
     request.set_read_offset(0);
-    auto reader = this->bytestream_client->Read(&context, request);
+    auto reader = this->d_bytestreamClient->Read(&context, request);
     ReadResponse response;
     while (reader->Read(&response)) {
         if (write(fd, response.data().c_str(), response.data().length()) < 0) {
@@ -150,11 +158,11 @@ void Client::download(int fd, const Digest &digest)
 
 void Client::upload(int fd, const Digest &digest)
 {
-    std::vector<char> buffer(BUFFER_SIZE);
+    std::vector<char> buffer(BUILDBOXCOMMON_CLIENT_BUFFER_SIZE);
 
     std::string resource_name;
     resource_name.append("uploads/");
-    resource_name.append(this->uuid);
+    resource_name.append(this->d_uuid);
     resource_name.append("/blobs/");
     resource_name.append(digest.hash());
     resource_name.append("/");
@@ -164,11 +172,12 @@ void Client::upload(int fd, const Digest &digest)
 
     grpc::ClientContext context;
     WriteResponse response;
-    auto writer = this->bytestream_client->Write(&context, &response);
+    auto writer = this->d_bytestreamClient->Write(&context, &response);
     ssize_t offset = 0;
     bool last_chunk = false;
     while (!last_chunk) {
-        ssize_t bytes_read = read(fd, &buffer[0], BUFFER_SIZE);
+        ssize_t bytes_read =
+            read(fd, &buffer[0], BUILDBOXCOMMON_CLIENT_BUFFER_SIZE);
         if (bytes_read < 0) {
             throw std::system_error(errno, std::generic_category());
         }
@@ -204,12 +213,12 @@ void Client::upload(int fd, const Digest &digest)
     }
 }
 
-bool Client::batch_upload_add(const Digest &digest,
-                              const std::vector<char> &data)
+bool Client::batchUploadAdd(const Digest &digest,
+                            const std::vector<char> &data)
 {
     // check if batch size has got too large
-    int64_t new_batch_size = this->batch_update_size + digest.size_bytes();
-    if (new_batch_size > this->max_batch_total_size_bytes) {
+    int64_t new_batch_size = this->d_batchUpdateSize + digest.size_bytes();
+    if (new_batch_size > this->d_maxBatchTotalSizeBytes) {
         return false;
     }
 
@@ -219,91 +228,92 @@ bool Client::batch_upload_add(const Digest &digest,
     request.mutable_digest()->CopyFrom(digest);
     std::string d(data.begin(), data.begin() + digest.size_bytes());
     request.set_data(d);
-    this->batch_update_request.add_requests()->CopyFrom(request);
-    this->batch_update_size = new_batch_size;
+    this->d_batchUpdateRequest.add_requests()->CopyFrom(request);
+    this->d_batchUpdateSize = new_batch_size;
 
     return true;
 }
 
-bool Client::batch_upload()
+bool Client::batchUpload()
 {
     grpc::ClientContext context;
-    auto status = this->cas_client->BatchUpdateBlobs(
-        &context, this->batch_update_request, &this->batch_update_response);
+    auto status = this->d_casClient->BatchUpdateBlobs(
+        &context, this->d_batchUpdateRequest, &this->d_batchUpdateResponse);
     if (!status.ok()) {
         throw std::runtime_error("Batch upload failed");
     }
 
-    for (auto i : this->batch_update_response.responses()) {
+    for (auto i : this->d_batchUpdateResponse.responses()) {
         if (i.status().code() != GRPC_STATUS_OK) {
             throw std::runtime_error("Batch upload failed");
         }
     }
 
-    this->batch_update_request.Clear();
-    this->batch_update_size = 0;
+    this->d_batchUpdateRequest.Clear();
+    this->d_batchUpdateSize = 0;
     return true;
 }
 
-bool Client::batch_download_add(const Digest &digest)
+bool Client::batchDownloadAdd(const Digest &digest)
 {
-    assert(!this->batch_read_request_sent);
+    assert(!this->d_batchReadRequestSent);
 
-    int64_t new_batch_size = this->batch_read_size + digest.size_bytes();
-    if (new_batch_size > this->max_batch_total_size_bytes) {
+    int64_t new_batch_size = this->d_batchReadSize + digest.size_bytes();
+    if (new_batch_size > this->d_maxBatchTotalSizeBytes) {
         /* Not enough space left in current batch */
         return false;
     }
 
-    this->batch_read_request.add_digests()->CopyFrom(digest);
-    this->batch_read_size = new_batch_size;
+    this->d_batchReadRequest.add_digests()->CopyFrom(digest);
+    this->d_batchReadSize = new_batch_size;
 
     return true;
 }
 
-bool Client::batch_download_next(const Digest **digest,
-                                 const std::string **data)
+bool Client::batchDownloadNext(const Digest **digest, const std::string **data)
 {
-    if (!this->batch_read_request_sent) {
-        if (this->batch_read_request.digests_size() == 0) {
+    if (!this->d_batchReadRequestSent) {
+        if (this->d_batchReadRequest.digests_size() == 0) {
             /* Empty batch */
             return false;
         }
 
-        this->batch_read_context = std::make_unique<grpc::ClientContext>();
-        auto status = this->cas_client->BatchReadBlobs(
-            this->batch_read_context.get(), this->batch_read_request,
-            &this->batch_read_response);
+        this->d_batchReadContext = std::make_unique<grpc::ClientContext>();
+        auto status = this->d_casClient->BatchReadBlobs(
+            this->d_batchReadContext.get(), this->d_batchReadRequest,
+            &this->d_batchReadResponse);
         if (!status.ok()) {
             throw std::runtime_error("Batch download failed");
         }
-        this->batch_read_request_sent = true;
-        this->batch_read_response_index = 0;
+        this->d_batchReadRequestSent = true;
+        this->d_batchReadResponseIndex = 0;
     }
 
-    if (this->batch_read_response_index >=
-        this->batch_read_response.responses_size()) {
+    if (this->d_batchReadResponseIndex >=
+        this->d_batchReadResponse.responses_size()) {
         /* End of batch */
-        this->batch_read_context = nullptr;
-        this->batch_read_request.Clear();
-        this->batch_read_response.Clear();
-        this->batch_read_request_sent = false;
-        this->batch_read_response_index = 0;
-        this->batch_read_size = 0;
+        this->d_batchReadContext = nullptr;
+        this->d_batchReadRequest.Clear();
+        this->d_batchReadResponse.Clear();
+        this->d_batchReadRequestSent = false;
+        this->d_batchReadResponseIndex = 0;
+        this->d_batchReadSize = 0;
         return false;
     }
 
     /* Return next entry */
-    this->batch_read_blob_response =
-        this->batch_read_response.responses(this->batch_read_response_index);
+    this->d_batchReadBlobResponse =
+        this->d_batchReadResponse.responses(this->d_batchReadResponseIndex);
 
-    if (this->batch_read_blob_response.status().code() != GRPC_STATUS_OK) {
+    if (this->d_batchReadBlobResponse.status().code() != GRPC_STATUS_OK) {
         throw std::runtime_error("Batch download failed");
     }
 
-    *digest = &this->batch_read_blob_response.digest();
-    *data = &this->batch_read_blob_response.data();
+    *digest = &this->d_batchReadBlobResponse.digest();
+    *data = &this->d_batchReadBlobResponse.data();
 
-    this->batch_read_response_index++;
+    this->d_batchReadResponseIndex++;
     return true;
 }
+} // close package namespace
+} // close enterprise namespace

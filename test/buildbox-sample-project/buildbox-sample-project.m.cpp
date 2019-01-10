@@ -1,3 +1,4 @@
+// buildbox-sample-project.m.cpp                                      -*-C++-*-
 /*
  * Copyright 2018 Bloomberg Finance LP
  *
@@ -14,33 +15,32 @@
  * limitations under the License.
  */
 
-#include <iostream>
+#include <buildboxcommon_client.h>
 
-// Check that we can include buildbox-common headers
-#include <buildbox-common.h>
 #include <build/bazel/remote/execution/v2/remote_execution.grpc.pb.h>
 #include <google/api/http.pb.h>
-
-// Check that we can include a gRPC header
 #include <grpcpp/grpcpp.h>
+#include <iostream>
+
+using namespace BloombergLP::buildboxcommon;
 
 int main(int argc, char **argv)
 {
-	// Try using a protobuf
-	build::bazel::remote::execution::v2::Digest digest;
-	digest.set_hash("abcdef");
-	if (digest.hash() != "abcdef") {
-		std::cerr << "Failed to set digest hash!" << std::endl;
-		return 1;
-	}
+    // Try using a protobuf
+    Digest digest;
+    digest.set_hash("abcdef");
+    if (digest.hash() != "abcdef") {
+        std::cerr << "Failed to set digest hash!" << std::endl;
+        return 1;
+    }
 
-	if (argc > 1) {
-		// Try initializing a CAS client
-		Client client;
-		client.init(argv[1], nullptr, nullptr, nullptr);
-	}
+    if (argc > 1) {
+        // Try initializing a CAS client
+        Client client;
+        client.init(argv[1], nullptr, nullptr, nullptr);
+    }
 
-        std::cerr << "gRPC version: " << grpc::Version() << std::endl;
-	std::cerr << "Tests passed!" << std::endl;
-	return 0;
+    std::cerr << "gRPC version: " << grpc::Version() << std::endl;
+    std::cerr << "Tests passed!" << std::endl;
+    return 0;
 }

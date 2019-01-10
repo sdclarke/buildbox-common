@@ -7,7 +7,6 @@ ColumnLimit: 79
 BreakBeforeBraces: Stroustrup
 IndentCaseLabels: true
 
-ReflowComments: true
 SortIncludes: true
 SortUsingDeclarations: true
-FixNamespaceComments: true
+FixNamespaceComments: false
