@@ -37,3 +37,15 @@ release-image:
     - docker push $CONTAINER_RELEASE_IMAGE
   only:
     - master
+
+check_formatting:
+    image: ubuntu:bionic
+    stage: build
+    before_script:
+        - apt-get update && apt-get install -y clang-format-6.0 git-core
+    script:
+        - echo `which clang-format-6.0`
+        - ln -s `which clang-format-6.0` /usr/bin/clang-format
+        - linter_errors=$(git-clang-format-6.0 --commit "HEAD~1" -q --diff --style file | grep -v --color=never "no modified files to format" || true)
+        - echo "$linter_errors"
+        - if [ ! -z "$linter_errors" ]; then echo "Detected formatting issues; please fix"; exit 1; else echo "Formatting is correct"; exit 0; fi
