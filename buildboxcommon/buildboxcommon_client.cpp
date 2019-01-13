@@ -66,27 +66,27 @@ static std::string getFileContents(const char *filename)
 // ============
 
 // MANIPULATORS
-void Client::init(const char *remote_url, const char *server_cert,
-                  const char *client_key, const char *client_cert)
+void Client::init(const char *remoteUrl, const char *serverCert,
+                  const char *clientKey, const char *clientCert)
 {
     std::string target;
     std::shared_ptr<grpc::ChannelCredentials> creds;
-    if (strncmp(remote_url, "http://", strlen("http://")) == 0) {
-        target = remote_url + strlen("http://");
+    if (strncmp(remoteUrl, "http://", strlen("http://")) == 0) {
+        target = remoteUrl + strlen("http://");
         creds = grpc::InsecureChannelCredentials();
     }
-    else if (strncmp(remote_url, "https://", strlen("https://")) == 0) {
+    else if (strncmp(remoteUrl, "https://", strlen("https://")) == 0) {
         auto options = grpc::SslCredentialsOptions();
-        if (server_cert) {
-            options.pem_root_certs = getFileContents(server_cert);
+        if (serverCert) {
+            options.pem_root_certs = getFileContents(serverCert);
         }
-        if (client_key) {
-            options.pem_private_key = getFileContents(client_key);
+        if (clientKey) {
+            options.pem_private_key = getFileContents(clientKey);
         }
-        if (client_cert) {
-            options.pem_cert_chain = getFileContents(client_cert);
+        if (clientCert) {
+            options.pem_cert_chain = getFileContents(clientCert);
         }
-        target = remote_url + strlen("https://");
+        target = remoteUrl + strlen("https://");
         creds = grpc::SslCredentials(options);
     }
     else {
@@ -102,8 +102,8 @@ void Client::init(const char *remote_url, const char *server_cert,
     this->d_batchUpdateSize = 0;
     this->d_batchReadSize = 0;
 
-    /* The default limit for gRPC messages is 4 MiB.
-     * Limit payload to 1 MiB to leave sufficient headroom for metadata. */
+    // The default limit for gRPC messages is 4 MiB.
+    // Limit payload to 1 MiB to leave sufficient headroom for metadata.
     this->d_maxBatchTotalSizeBytes = BUILDBOXCOMMON_CLIENT_BUFFER_SIZE;
 
     grpc::ClientContext context;
@@ -114,14 +114,14 @@ void Client::init(const char *remote_url, const char *server_cert,
     if (status.ok()) {
         int64_t serverMaxBatchTotalSizeBytes =
             response.cache_capabilities().max_batch_total_size_bytes();
-        /* 0 means no server limit */
+        // 0 means no server limit
         if (serverMaxBatchTotalSizeBytes > 0 &&
             serverMaxBatchTotalSizeBytes < this->d_maxBatchTotalSizeBytes) {
             this->d_maxBatchTotalSizeBytes = serverMaxBatchTotalSizeBytes;
         }
     }
 
-    /* Generate UUID to use for uploads */
+    // Generate UUID to use for uploads
     uuid_t uu;
     uuid_generate(uu);
     this->d_uuid = std::string(36, 0);
@@ -130,15 +130,15 @@ void Client::init(const char *remote_url, const char *server_cert,
 
 void Client::download(int fd, const Digest &digest)
 {
-    std::string resource_name;
-    resource_name.append("blobs/");
-    resource_name.append(digest.hash());
-    resource_name.append("/");
-    resource_name.append(std::to_string(digest.size_bytes()));
+    std::string resourceName;
+    resourceName.append("blobs/");
+    resourceName.append(digest.hash());
+    resourceName.append("/");
+    resourceName.append(std::to_string(digest.size_bytes()));
 
     grpc::ClientContext context;
     ReadRequest request;
-    request.set_resource_name(resource_name);
+    request.set_resource_name(resourceName);
     request.set_read_offset(0);
     auto reader = this->d_bytestreamClient->Read(&context, request);
     ReadResponse response;
@@ -160,13 +160,13 @@ void Client::upload(int fd, const Digest &digest)
 {
     std::vector<char> buffer(BUILDBOXCOMMON_CLIENT_BUFFER_SIZE);
 
-    std::string resource_name;
-    resource_name.append("uploads/");
-    resource_name.append(this->d_uuid);
-    resource_name.append("/blobs/");
-    resource_name.append(digest.hash());
-    resource_name.append("/");
-    resource_name.append(std::to_string(digest.size_bytes()));
+    std::string resourceName;
+    resourceName.append("uploads/");
+    resourceName.append(this->d_uuid);
+    resourceName.append("/blobs/");
+    resourceName.append(digest.hash());
+    resourceName.append("/");
+    resourceName.append(std::to_string(digest.size_bytes()));
 
     lseek(fd, 0, SEEK_SET);
 
@@ -174,27 +174,27 @@ void Client::upload(int fd, const Digest &digest)
     WriteResponse response;
     auto writer = this->d_bytestreamClient->Write(&context, &response);
     ssize_t offset = 0;
-    bool last_chunk = false;
-    while (!last_chunk) {
-        ssize_t bytes_read =
+    bool lastChunk = false;
+    while (!lastChunk) {
+        ssize_t bytesRead =
             read(fd, &buffer[0], BUILDBOXCOMMON_CLIENT_BUFFER_SIZE);
-        if (bytes_read < 0) {
+        if (bytesRead < 0) {
             throw std::system_error(errno, std::generic_category());
         }
 
         WriteRequest request;
-        request.set_resource_name(resource_name);
+        request.set_resource_name(resourceName);
         request.set_write_offset(offset);
-        request.set_data(&buffer[0], bytes_read);
+        request.set_data(&buffer[0], bytesRead);
 
-        if (offset + bytes_read < digest.size_bytes()) {
-            if (bytes_read == 0) {
+        if (offset + bytesRead < digest.size_bytes()) {
+            if (bytesRead == 0) {
                 throw std::runtime_error("Upload of " + digest.hash() +
                                          " failed: unexpected end of file");
             }
         }
         else {
-            last_chunk = true;
+            lastChunk = true;
             request.set_finish_write(true);
         }
 
@@ -203,7 +203,7 @@ void Client::upload(int fd, const Digest &digest)
                                      " failed: broken stream");
         }
 
-        offset += bytes_read;
+        offset += bytesRead;
     }
 
     writer->WritesDone();
@@ -217,8 +217,8 @@ bool Client::batchUploadAdd(const Digest &digest,
                             const std::vector<char> &data)
 {
     // check if batch size has got too large
-    int64_t new_batch_size = this->d_batchUpdateSize + digest.size_bytes();
-    if (new_batch_size > this->d_maxBatchTotalSizeBytes) {
+    int64_t newBatchSize = this->d_batchUpdateSize + digest.size_bytes();
+    if (newBatchSize > this->d_maxBatchTotalSizeBytes) {
         return false;
     }
 
@@ -229,7 +229,7 @@ bool Client::batchUploadAdd(const Digest &digest,
     std::string d(data.begin(), data.begin() + digest.size_bytes());
     request.set_data(d);
     this->d_batchUpdateRequest.add_requests()->CopyFrom(request);
-    this->d_batchUpdateSize = new_batch_size;
+    this->d_batchUpdateSize = newBatchSize;
 
     return true;
 }
@@ -258,14 +258,14 @@ bool Client::batchDownloadAdd(const Digest &digest)
 {
     assert(!this->d_batchReadRequestSent);
 
-    int64_t new_batch_size = this->d_batchReadSize + digest.size_bytes();
-    if (new_batch_size > this->d_maxBatchTotalSizeBytes) {
-        /* Not enough space left in current batch */
+    int64_t newBatchSize = this->d_batchReadSize + digest.size_bytes();
+    if (newBatchSize > this->d_maxBatchTotalSizeBytes) {
+        // Not enough space left in current batch
         return false;
     }
 
     this->d_batchReadRequest.add_digests()->CopyFrom(digest);
-    this->d_batchReadSize = new_batch_size;
+    this->d_batchReadSize = newBatchSize;
 
     return true;
 }
@@ -274,7 +274,7 @@ bool Client::batchDownloadNext(const Digest **digest, const std::string **data)
 {
     if (!this->d_batchReadRequestSent) {
         if (this->d_batchReadRequest.digests_size() == 0) {
-            /* Empty batch */
+            // Empty batch
             return false;
         }
 
@@ -291,7 +291,7 @@ bool Client::batchDownloadNext(const Digest **digest, const std::string **data)
 
     if (this->d_batchReadResponseIndex >=
         this->d_batchReadResponse.responses_size()) {
-        /* End of batch */
+        // End of batch
         this->d_batchReadContext = nullptr;
         this->d_batchReadRequest.Clear();
         this->d_batchReadResponse.Clear();
@@ -301,7 +301,7 @@ bool Client::batchDownloadNext(const Digest **digest, const std::string **data)
         return false;
     }
 
-    /* Return next entry */
+    // Return next entry
     this->d_batchReadBlobResponse =
         this->d_batchReadResponse.responses(this->d_batchReadResponseIndex);
 

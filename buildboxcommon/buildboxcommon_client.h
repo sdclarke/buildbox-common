@@ -53,7 +53,8 @@ using namespace build::bazel::remote::execution::v2;
 
 class Client {
     // This class implements a mechanism to communicate with remote CAS
-    // servers.
+    // servers. It includes data members which keep track of an ongoing
+    // batch upload or batch download request.
     //
     // This class is *exception* *neutral* with no guarantee of rollback:
     // If an exception is thrown during the invocation of a method on a
@@ -85,11 +86,11 @@ class Client {
 
   public:
     // MANIPULATORS
-    void init(const char *remote_url, const char *server_cert = nullptr,
-              const char *client_key = nullptr,
-              const char *client_cert = nullptr);
-    // Connect to the CAS server with the specified 'remote_url'.
-    // Optionally specify a 'server_cert', 'client_key', and 'client_cert'
+    void init(const char *remoteURL, const char *serverCert = nullptr,
+              const char *clientKey = nullptr,
+              const char *clientCert = nullptr);
+    // Connect to the CAS server with the specified 'remoteURL'.
+    // Optionally specify a 'serverCert', 'clientKey', and 'clientCert'
     // to configure a secure connection.
 
     void download(int fd, const Digest &digest);
@@ -102,9 +103,28 @@ class Client {
     // blob cannot be uploaded successfully.
 
     bool batchUploadAdd(const Digest &digest, const std::vector<char> &data);
+    // Add the specified digest and data to the current batch upload request.
+    // Return false if the additional data would cause the batch upload's size
+    // to exceed the maximum, and true otherwise.
+
     bool batchUpload();
+    // Send the current batch upload request to the server. Return true if all
+    // requests in the batch succeeded, and throw an exception otherwise.
+    // After the request is sent, the client's batch upload state is reset so
+    // a subsequent call to `batchUpload` would send an empty request.
+
     bool batchDownloadAdd(const Digest &digest);
+    // Add the specified digest to the current batch download request. Return
+    // false if the additional data would cause the batch download response's
+    // size to exceed the maximum, and true otherwise.
+
     bool batchDownloadNext(const Digest **digest, const std::string **data);
+    // Send the current batch download request to the server if it hasn't been
+    // sent already. Load a digest and its corresponding data from the response
+    // into the specified `digest` and `data` and return true. If there are no
+    // entries left in the current batch, return false without modifying
+    // `digest` or `data`.
+
     void setMaxBatchTotalSizeBytes(int64_t maxBatchTotalSizeBytes);
     // Set the maximum total size of a batch upload or download.
 
@@ -113,9 +133,9 @@ class Client {
     // Return the maximum total size of a batch upload or download.
 };
 
-// ============================================================================
+//============================================================================
 //                 INLINE DEFINITIONS
-// ============================================================================
+//============================================================================
 // MANIPULATORS
 inline void Client::setMaxBatchTotalSizeBytes(int64_t maxBatchTotalSizeBytes)
 {
