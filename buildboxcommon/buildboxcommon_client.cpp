@@ -1,4 +1,3 @@
-// buildboxcommon_client.cpp                                          -*-C++-*-
 /*
  * Copyright 2018 Bloomberg Finance LP
  *
@@ -59,13 +58,8 @@ static std::string getFileContents(const char *filename)
     in.close();
     return contents;
 }
-} // close unnamed namespace
+} // namespace
 
-// ============
-// class Client
-// ============
-
-// MANIPULATORS
 void Client::init(const char *remoteUrl, const char *serverCert,
                   const char *clientKey, const char *clientCert)
 {
@@ -315,5 +309,5 @@ bool Client::batchDownloadNext(const Digest **digest, const std::string **data)
     this->d_batchReadResponseIndex++;
     return true;
 }
-} // close package namespace
-} // close enterprise namespace
+} // namespace buildboxcommon
+} // namespace BloombergLP
