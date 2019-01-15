@@ -17,6 +17,8 @@
 #ifndef INCLUDED_BUILDBOXCOMMON_CLIENT
 #define INCLUDED_BUILDBOXCOMMON_CLIENT
 
+#include <buildboxcommon_connectionoptions.h>
+
 #include <build/bazel/remote/execution/v2/remote_execution.grpc.pb.h>
 #include <google/bytestream/bytestream.grpc.pb.h>
 
@@ -53,14 +55,9 @@ class Client {
 
   public:
     /**
-     * Connect to the CAS server with the given remote URL.
-     *
-     * If a serverCert, clientKey, and clientCert are provided, they're used
-     * to configure a secure connection.
+     * Connect to the CAS server with the given connection options.
      */
-    void init(const char *remoteURL, const char *serverCert = nullptr,
-              const char *clientKey = nullptr,
-              const char *clientCert = nullptr);
+    void init(const ConnectionOptions &options);
 
     /**
      * Download the blob with the given digest to the given file descriptor.

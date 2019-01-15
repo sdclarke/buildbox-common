@@ -16,6 +16,7 @@
  */
 
 #include <buildboxcommon_client.h>
+#include <buildboxcommon_connectionoptions.h>
 
 #include <build/bazel/remote/execution/v2/remote_execution.grpc.pb.h>
 #include <google/api/http.pb.h>
@@ -36,11 +37,20 @@ int main(int argc, char **argv)
 
     if (argc > 1) {
         // Try initializing a CAS client
+        ConnectionOptions opts;
+        for (int i = 1; i < argc; ++i) {
+            if (!opts.parseArg(argv[i])) {
+                std::cerr << "Ignoring unexpected argument: " << argv[1]
+                          << std::endl;
+            }
+        }
         Client client;
-        client.init(argv[1], nullptr, nullptr, nullptr);
+        client.init(opts);
     }
 
     std::cerr << "gRPC version: " << grpc::Version() << std::endl;
+    std::cerr << "ConnectionOptions argument help:" << std::endl;
+    ConnectionOptions::printArgHelp(30);
     std::cerr << "Tests passed!" << std::endl;
     return 0;
 }
