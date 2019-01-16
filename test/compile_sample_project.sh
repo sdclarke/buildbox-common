@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -e
 
-cd sample_project
+cd buildbox-sample-project
 mkdir -p build
 cd build
 cmake ..
 make
-./buildbox-common-test
+./buildbox-sample-project
