@@ -65,3 +65,8 @@ install(
     DESTINATION lib/cmake/BuildboxCommon
 )
 
+include(CTest)
+if(BUILD_TESTING)
+    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/buildboxcommon ${PROTO_GEN_DIR})
+    add_subdirectory(test)
+endif()

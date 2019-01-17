@@ -23,6 +23,12 @@ build:
     - docker build --pull -t $CONTAINER_TEST_IMAGE .
     - docker push $CONTAINER_TEST_IMAGE
 
+tests:
+  stage: test
+  script:
+    - docker pull $CONTAINER_TEST_IMAGE
+    - docker run -w /buildbox-common/build $CONTAINER_TEST_IMAGE sh -c 'cmake -DBUILD_TESTING=ON .. && make && make test'
+
 test-compile-sample-project:
   stage: test
   script:
