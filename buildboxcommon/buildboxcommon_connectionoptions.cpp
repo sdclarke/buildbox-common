@@ -67,7 +67,7 @@ bool ConnectionOptions::parseArg(const char *arg, const char *prefix)
     }
     arg += 2;
     if (prefix != nullptr) {
-        int prefixLen = strlen(prefix);
+        const int prefixLen = strlen(prefix);
         if (strncmp(arg, prefix, prefixLen) != 0) {
             return false;
         }
@@ -75,7 +75,7 @@ bool ConnectionOptions::parseArg(const char *arg, const char *prefix)
     }
     const char *assign = strchr(arg, '=');
     if (assign) {
-        int keyLen = assign - arg;
+        const int keyLen = assign - arg;
         const char *value = assign + 1;
         if (strncmp(arg, "remote", keyLen) == 0) {
             this->d_url = value;
@@ -100,7 +100,7 @@ bool ConnectionOptions::parseArg(const char *arg, const char *prefix)
 void ConnectionOptions::putArgs(std::vector<std::string> *out,
                                 const char *prefix) const
 {
-    std::string p(prefix == nullptr ? "" : prefix);
+    const std::string p(prefix == nullptr ? "" : prefix);
     if (this->d_url != nullptr) {
         out->push_back("--" + p + "remote=" + std::string(this->d_url));
     }

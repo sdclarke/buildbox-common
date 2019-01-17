@@ -111,7 +111,7 @@ TEST(ConnectionOptionsTest, PutArgsEmpty)
 
     opts.putArgs(&result);
     opts.putArgs(&result, "--cas");
-    std::vector<std::string> expected;
+    const std::vector<std::string> expected;
     EXPECT_EQ(result, expected);
 }
 
