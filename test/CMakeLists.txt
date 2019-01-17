@@ -38,3 +38,7 @@ endif()
 add_executable(client_tests buildboxcommon_client.t.cpp buildboxcommon_tests.m.cpp)
 target_link_libraries(client_tests buildboxcommon ${GMOCK_TARGET})
 add_test(NAME client_tests COMMAND client_tests)
+
+add_executable(connectionoptions_tests buildboxcommon_connectionoptions.t.cpp buildboxcommon_tests.m.cpp)
+target_link_libraries(connectionoptions_tests buildboxcommon ${GTEST_TARGET})
+add_test(NAME connectionoptions_tests COMMAND connectionoptions_tests)
