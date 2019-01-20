@@ -17,15 +17,11 @@
 #ifndef INCLUDED_BUILDBOXCOMMON_CLIENT
 #define INCLUDED_BUILDBOXCOMMON_CLIENT
 
+#include <buildboxcommon_cashash.h>
 #include <buildboxcommon_connectionoptions.h>
-
-#include <build/bazel/remote/execution/v2/remote_execution.grpc.pb.h>
-#include <google/bytestream/bytestream.grpc.pb.h>
+#include <buildboxcommon_protos.h>
 
 namespace buildboxcommon {
-
-using namespace google::bytestream;
-using namespace build::bazel::remote::execution::v2;
 
 /**
  * Implements a mechanism to communicate with remote CAS servers, and includes
@@ -34,6 +30,8 @@ using namespace build::bazel::remote::execution::v2;
  */
 class Client {
   private:
+    std::string makeResourceName(const Digest &digest, bool is_upload);
+
     std::shared_ptr<grpc::Channel> d_channel;
     std::unique_ptr<ByteStream::Stub> d_bytestreamClient;
     std::unique_ptr<ContentAddressableStorage::Stub> d_casClient;
@@ -60,12 +58,26 @@ class Client {
     void init(const ConnectionOptions &options);
 
     /**
+     * Download the blob with the given digest and return it.
+     *
+     * If the size of the received blob does not match the digest, throw an
+     * exception.
+     */
+    std::string fetchString(const Digest &digest);
+
+    /**
      * Download the blob with the given digest to the given file descriptor.
      *
      * If the file descriptor cannot be written to, or the size of the
      * received blob does not match the digest, throw an exception.
      */
     void download(int fd, const Digest &digest);
+
+    /**
+     * Upload the given string. If it can't be uploaded successfully, throw
+     * an exception.
+     */
+    void upload(const std::string &str, const Digest &digest);
 
     /**
      * Upload a blob from the given file descriptor. If it can't be uploaded
@@ -106,6 +118,30 @@ class Client {
      * instead of modifying `digest` or `data`.
      */
     bool batchDownloadNext(const Digest **digest, const std::string **data);
+
+    /**
+     * Fetch the Protocol Buffer message of the given type and digest and
+     * deserialize it.
+     */
+    template <typename Msg> inline Msg fetchMessage(const Digest &digest)
+    {
+        Msg result;
+        if (!result.ParseFromString(this->fetchString(digest))) {
+            throw std::runtime_error("Could not deserialize fetched message");
+        }
+        return result;
+    }
+
+    /**
+     * Upload the given Protocol Buffer message to CAS and return its Digest.
+     */
+    template <typename Msg> inline Digest uploadMessage(const Msg &msg)
+    {
+        const std::string str = msg.SerializeAsString();
+        const Digest digest = CASHash::hash(str);
+        this->upload(str, digest);
+        return digest;
+    }
 
     int64_t d_maxBatchTotalSizeBytes;
 };

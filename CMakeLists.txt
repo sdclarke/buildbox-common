@@ -10,8 +10,12 @@ pkg_check_modules(grpc++ REQUIRED IMPORTED_TARGET grpc++>=1.10)
 add_subdirectory(protos)
 
 add_library(buildboxcommon STATIC
+    buildboxcommon/buildboxcommon_cashash.cpp
     buildboxcommon/buildboxcommon_client.cpp
     buildboxcommon/buildboxcommon_connectionoptions.cpp
+    buildboxcommon/buildboxcommon_fallbackstageddirectory.cpp
+    buildboxcommon/buildboxcommon_runner.cpp
+    buildboxcommon/buildboxcommon_stageddirectory.cpp
     ${PROTO_GENERATED_SRCS})
 
 target_link_libraries(buildboxcommon PkgConfig::protobuf PkgConfig::grpc++)
@@ -35,8 +39,13 @@ install(
     INCLUDES DESTINATION include/buildbox
 )
 install(FILES
+    buildboxcommon/buildboxcommon_cashash.h
     buildboxcommon/buildboxcommon_client.h
     buildboxcommon/buildboxcommon_connectionoptions.h
+    buildboxcommon/buildboxcommon_fallbackstageddirectory.h
+    buildboxcommon/buildboxcommon_protos.h
+    buildboxcommon/buildboxcommon_runner.h
+    buildboxcommon/buildboxcommon_stageddirectory.h
     DESTINATION include/buildbox)
 install(DIRECTORY ${PROTO_GEN_DIR}/google DESTINATION include/buildbox FILES_MATCHING PATTERN "*.h*")
 install(DIRECTORY ${PROTO_GEN_DIR}/build DESTINATION include/buildbox FILES_MATCHING PATTERN "*.h*")
