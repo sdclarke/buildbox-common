@@ -1,4 +1,3 @@
-// buildbox-sample-project.m.cpp                                      -*-C++-*-
 /*
  * Copyright 2018 Bloomberg Finance LP
  *
@@ -25,6 +24,8 @@
 
 using namespace buildboxcommon;
 
+static const int SAMPLE_USAGE_PAD_WIDTH = 30;
+
 int main(int argc, char **argv)
 {
     // Try using a protobuf
@@ -50,7 +51,7 @@ int main(int argc, char **argv)
 
     std::cerr << "gRPC version: " << grpc::Version() << std::endl;
     std::cerr << "ConnectionOptions argument help:" << std::endl;
-    ConnectionOptions::printArgHelp(30);
+    ConnectionOptions::printArgHelp(SAMPLE_USAGE_PAD_WIDTH);
     std::cerr << "Tests passed!" << std::endl;
     return 0;
 }
