@@ -22,7 +22,6 @@
 #include <grpcpp/security/credentials.h>
 #include <stdexcept>
 
-namespace BloombergLP {
 namespace buildboxcommon {
 
 namespace {
@@ -166,4 +165,3 @@ void ConnectionOptions::printArgHelp(int padWidth, const char *serviceName,
 }
 
 } // namespace buildboxcommon
-} // namespace BloombergLP

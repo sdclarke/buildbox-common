@@ -22,7 +22,6 @@
 #include <string>
 #include <vector>
 
-namespace BloombergLP {
 namespace buildboxcommon {
 
 struct ConnectionOptions {
@@ -71,5 +70,4 @@ struct ConnectionOptions {
 };
 
 } // namespace buildboxcommon
-} // namespace BloombergLP
 #endif

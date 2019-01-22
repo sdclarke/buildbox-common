@@ -18,7 +18,7 @@
 
 #include <gtest/gtest.h>
 
-using namespace BloombergLP::buildboxcommon;
+using namespace buildboxcommon;
 
 TEST(ConnectionOptionsTest, DefaultsToNullptrs)
 {
