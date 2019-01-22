@@ -14,7 +14,6 @@ else()
     else()
         # Attempt to locate GTest using CMake's FindGTest module
         find_package(GTest MODULE REQUIRED)
-        find_package(Threads REQUIRED)
 
         # CMake's FindGTest module doesn't include easy support for locating GMock
         # (see https://gitlab.kitware.com/cmake/cmake/issues/17365),
@@ -28,7 +27,7 @@ else()
         set_target_properties(GMock::GMock PROPERTIES
             IMPORTED_LOCATION ${GMOCK_LIBRARY}
             INTERFACE_INCLUDE_DIRECTORIES "${GMOCK_INCLUDE_DIRS}"
-            INTERFACE_LINK_LIBRARIES Threads::Threads
+            INTERFACE_LINK_LIBRARIES GTest::GTest
         )
 
         set(GTEST_TARGET GTest::GTest)
