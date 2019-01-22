@@ -22,7 +22,7 @@
 #include <grpcpp/grpcpp.h>
 #include <iostream>
 
-using namespace BloombergLP::buildboxcommon;
+using namespace buildboxcommon;
 
 int main(int argc, char **argv)
 {

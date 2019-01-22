@@ -20,7 +20,6 @@
 #include <build/bazel/remote/execution/v2/remote_execution.grpc.pb.h>
 #include <google/bytestream/bytestream.grpc.pb.h>
 
-namespace BloombergLP {
 namespace buildboxcommon {
 
 using namespace google::bytestream;
@@ -115,6 +114,5 @@ class Client {
 };
 
 } // namespace buildboxcommon
-} // namespace BloombergLP
 
 #endif

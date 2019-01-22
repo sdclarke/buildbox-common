@@ -28,7 +28,6 @@
 #include <unistd.h>
 #include <uuid/uuid.h>
 
-namespace BloombergLP {
 namespace buildboxcommon {
 
 #define BUILDBOXCOMMON_CLIENT_BUFFER_SIZE (1024 * 1024)
@@ -310,4 +309,3 @@ bool Client::batchDownloadNext(const Digest **digest, const std::string **data)
     return true;
 }
 } // namespace buildboxcommon
-} // namespace BloombergLP

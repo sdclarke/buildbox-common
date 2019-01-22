@@ -18,6 +18,6 @@
 
 #include <gtest/gtest.h>
 
-using namespace BloombergLP::buildboxcommon;
+using namespace buildboxcommon;
 
 // TODO write some tests
