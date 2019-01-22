@@ -16,21 +16,28 @@
 
 #include <buildboxcommon_connectionoptions.h>
 
+#include <cerrno>
+#include <cstring>
 #include <fstream>
 #include <grpcpp/client_context.h>
 #include <grpcpp/create_channel.h>
 #include <grpcpp/security/credentials.h>
+#include <iomanip>
 #include <stdexcept>
 
 namespace buildboxcommon {
 
 namespace {
+static const char *HTTP_PREFIX = "http://";
+static const char *HTTPS_PREFIX = "https://";
+
 static std::string getFileContents(const char *filename)
 {
     std::ifstream in(filename, std::ios::in | std::ios::binary);
     if (!in) {
         throw std::runtime_error(std::string("Failed to open file ") +
-                                 filename);
+                                 filename + std::string(": ") +
+                                 std::strerror(errno));
     }
 
     std::string contents;
@@ -43,7 +50,8 @@ static std::string getFileContents(const char *filename)
     if (!in) {
         in.close();
         throw std::runtime_error(std::string("Failed to read file ") +
-                                 filename);
+                                 filename + std::string(": ") +
+                                 std::strerror(errno));
     }
 
     in.close();
@@ -52,10 +60,10 @@ static std::string getFileContents(const char *filename)
 
 static void printPadded(int padWidth, const std::string &str)
 {
-    std::cerr << "    " << str;
-    for (int i = str.length() + 4; i < padWidth; ++i) {
-        std::cerr << " ";
-    }
+    std::cerr << "    ";
+    std::cerr << std::left << std::setfill(' ') << std::setw(padWidth - 5)
+              << str;
+    std::cerr << " ";
 }
 } // namespace
 
@@ -121,11 +129,11 @@ std::shared_ptr<grpc::Channel> ConnectionOptions::createChannel() const
 {
     std::string target;
     std::shared_ptr<grpc::ChannelCredentials> creds;
-    if (strncmp(this->d_url, "http://", strlen("http://")) == 0) {
-        target = this->d_url + strlen("http://");
+    if (strncmp(this->d_url, HTTP_PREFIX, strlen(HTTP_PREFIX)) == 0) {
+        target = this->d_url + strlen(HTTP_PREFIX);
         creds = grpc::InsecureChannelCredentials();
     }
-    else if (strncmp(this->d_url, "https://", strlen("https://")) == 0) {
+    else if (strncmp(this->d_url, HTTPS_PREFIX, strlen(HTTPS_PREFIX)) == 0) {
         auto options = grpc::SslCredentialsOptions();
         if (this->d_serverCert) {
             options.pem_root_certs = getFileContents(this->d_serverCert);
@@ -136,7 +144,7 @@ std::shared_ptr<grpc::Channel> ConnectionOptions::createChannel() const
         if (this->d_clientCert) {
             options.pem_cert_chain = getFileContents(this->d_clientCert);
         }
-        target = this->d_url + strlen("https://");
+        target = this->d_url + strlen(HTTPS_PREFIX);
         creds = grpc::SslCredentials(options);
     }
     else {
