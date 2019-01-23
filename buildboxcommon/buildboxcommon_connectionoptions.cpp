@@ -23,6 +23,7 @@
 #include <grpcpp/create_channel.h>
 #include <grpcpp/security/credentials.h>
 #include <iomanip>
+#include <iostream>
 #include <stdexcept>
 
 namespace buildboxcommon {
@@ -60,10 +61,13 @@ static std::string getFileContents(const char *filename)
 
 static void printPadded(int padWidth, const std::string &str)
 {
+    char previousFill = std::cerr.fill(' ');
+    std::ios_base::fmtflags previousFlags(std::cerr.flags());
     std::cerr << "    ";
-    std::cerr << std::left << std::setfill(' ') << std::setw(padWidth - 5)
-              << str;
+    std::cerr << std::left << std::setw(padWidth - 5) << str;
     std::cerr << " ";
+    std::cerr.flags(previousFlags);
+    std::cerr.fill(previousFill);
 }
 } // namespace
 
