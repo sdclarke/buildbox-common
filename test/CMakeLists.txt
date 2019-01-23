@@ -50,3 +50,7 @@ add_test(
     COMMAND cashash_tests
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/data/
 )
+
+add_executable(runner_tests buildboxcommon_runner.t.cpp buildboxcommon_tests.m.cpp)
+target_link_libraries(runner_tests buildboxcommon ${GTEST_TARGET})
+add_test(NAME runner_tests COMMAND runner_tests)
