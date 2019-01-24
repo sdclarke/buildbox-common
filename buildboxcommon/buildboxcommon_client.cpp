@@ -19,10 +19,6 @@
 #include <errno.h>
 #include <fstream>
 #include <grpc/grpc.h>
-#include <grpcpp/channel.h>
-#include <grpcpp/client_context.h>
-#include <grpcpp/create_channel.h>
-#include <grpcpp/security/credentials.h>
 #include <string>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -32,61 +28,9 @@ namespace buildboxcommon {
 
 #define BUILDBOXCOMMON_CLIENT_BUFFER_SIZE (1024 * 1024)
 
-namespace {
-static std::string getFileContents(const char *filename)
+void Client::init(const ConnectionOptions &options)
 {
-    std::ifstream in(filename, std::ios::in | std::ios::binary);
-    if (!in) {
-        throw std::runtime_error(std::string("Failed to open file ") +
-                                 filename);
-    }
-
-    std::string contents;
-
-    in.seekg(0, std::ios::end);
-    contents.resize(in.tellg());
-
-    in.seekg(0, std::ios::beg);
-    in.read(&contents[0], contents.size());
-    if (!in) {
-        in.close();
-        throw std::runtime_error(std::string("Failed to read file ") +
-                                 filename);
-    }
-
-    in.close();
-    return contents;
-}
-} // namespace
-
-void Client::init(const char *remoteUrl, const char *serverCert,
-                  const char *clientKey, const char *clientCert)
-{
-    std::string target;
-    std::shared_ptr<grpc::ChannelCredentials> creds;
-    if (strncmp(remoteUrl, "http://", strlen("http://")) == 0) {
-        target = remoteUrl + strlen("http://");
-        creds = grpc::InsecureChannelCredentials();
-    }
-    else if (strncmp(remoteUrl, "https://", strlen("https://")) == 0) {
-        auto options = grpc::SslCredentialsOptions();
-        if (serverCert) {
-            options.pem_root_certs = getFileContents(serverCert);
-        }
-        if (clientKey) {
-            options.pem_private_key = getFileContents(clientKey);
-        }
-        if (clientCert) {
-            options.pem_cert_chain = getFileContents(clientCert);
-        }
-        target = remoteUrl + strlen("https://");
-        creds = grpc::SslCredentials(options);
-    }
-    else {
-        throw std::runtime_error("Unsupported URL scheme");
-    }
-
-    this->d_channel = grpc::CreateChannel(target, creds);
+    this->d_channel = options.createChannel();
     this->d_bytestreamClient = ByteStream::NewStub(this->d_channel);
     this->d_casClient = ContentAddressableStorage::NewStub(this->d_channel);
     this->d_capabilitiesClient = Capabilities::NewStub(this->d_channel);

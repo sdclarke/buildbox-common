@@ -1,4 +1,3 @@
-// buildbox-sample-project.m.cpp                                      -*-C++-*-
 /*
  * Copyright 2018 Bloomberg Finance LP
  *
@@ -16,6 +15,7 @@
  */
 
 #include <buildboxcommon_client.h>
+#include <buildboxcommon_connectionoptions.h>
 
 #include <build/bazel/remote/execution/v2/remote_execution.grpc.pb.h>
 #include <google/api/http.pb.h>
@@ -23,6 +23,8 @@
 #include <iostream>
 
 using namespace buildboxcommon;
+
+static const int SAMPLE_USAGE_PAD_WIDTH = 30;
 
 int main(int argc, char **argv)
 {
@@ -36,11 +38,20 @@ int main(int argc, char **argv)
 
     if (argc > 1) {
         // Try initializing a CAS client
+        ConnectionOptions opts;
+        for (int i = 1; i < argc; ++i) {
+            if (!opts.parseArg(argv[i])) {
+                std::cerr << "Ignoring unexpected argument: " << argv[1]
+                          << std::endl;
+            }
+        }
         Client client;
-        client.init(argv[1], nullptr, nullptr, nullptr);
+        client.init(opts);
     }
 
     std::cerr << "gRPC version: " << grpc::Version() << std::endl;
+    std::cerr << "ConnectionOptions argument help:" << std::endl;
+    ConnectionOptions::printArgHelp(SAMPLE_USAGE_PAD_WIDTH);
     std::cerr << "Tests passed!" << std::endl;
     return 0;
 }

@@ -11,6 +11,7 @@ add_subdirectory(protos)
 
 add_library(buildboxcommon STATIC
     buildboxcommon/buildboxcommon_client.cpp
+    buildboxcommon/buildboxcommon_connectionoptions.cpp
     ${PROTO_GENERATED_SRCS})
 
 target_link_libraries(buildboxcommon PkgConfig::protobuf PkgConfig::grpc++)
@@ -35,6 +36,7 @@ install(
 )
 install(FILES
     buildboxcommon/buildboxcommon_client.h
+    buildboxcommon/buildboxcommon_connectionoptions.h
     DESTINATION include/buildbox)
 install(DIRECTORY ${PROTO_GEN_DIR}/google DESTINATION include/buildbox FILES_MATCHING PATTERN "*.h*")
 install(DIRECTORY ${PROTO_GEN_DIR}/build DESTINATION include/buildbox FILES_MATCHING PATTERN "*.h*")
