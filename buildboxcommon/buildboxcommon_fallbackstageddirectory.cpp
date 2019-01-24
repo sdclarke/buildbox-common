@@ -67,6 +67,7 @@ FallbackStagedDirectory::~FallbackStagedDirectory()
 std::shared_ptr<OutputFile>
 FallbackStagedDirectory::captureFile(const char *relativePath)
 {
+    std::shared_ptr<OutputFile> result(new OutputFile());
     std::string file = this->d_path + std::string("/") + relativePath;
     int fd = open(file.c_str(), O_RDONLY);
     if (fd == -1) {
@@ -75,15 +76,20 @@ FallbackStagedDirectory::captureFile(const char *relativePath)
         }
         throw std::system_error(errno, std::system_category());
     }
-    std::shared_ptr<OutputFile> result(new OutputFile());
-    result->set_path(relativePath);
-    *(result->mutable_digest()) = CASHash::hash(fd);
-    this->d_casClient->upload(fd, result->digest());
+    try {
+        result->set_path(relativePath);
+        *(result->mutable_digest()) = CASHash::hash(fd);
+        this->d_casClient->upload(fd, result->digest());
 
-    // Check if the file is executable
-    struct stat statResult;
-    if (stat(file.c_str(), &statResult) == 0) {
-        result->set_is_executable((statResult.st_mode & S_IXUSR) != 0);
+        // Check if the file is executable
+        struct stat statResult;
+        if (stat(file.c_str(), &statResult) == 0) {
+            result->set_is_executable((statResult.st_mode & S_IXUSR) != 0);
+        }
+    }
+    catch (...) {
+        close(fd);
+        throw;
     }
 
     close(fd);
@@ -96,42 +102,49 @@ FallbackStagedDirectory::uploadDirectoryRecursively(Tree *tree, DIR *dirStream,
 {
     std::map<std::string, FileNode> files;
     std::map<std::string, DirectoryNode> directories;
-    // TODO symlinks?
-    for (auto entry = readdir(dirStream); entry != nullptr;
-         entry = readdir(dirStream)) {
-        if (strcmp(entry->d_name, ".") == 0 ||
-            strcmp(entry->d_name, "..") == 0) {
-            // Skip "." and ".."
-            continue;
-        }
-        std::string entryRelativePath =
-            relativePath + std::string("/") + entry->d_name;
+    try {
+        // TODO symlinks?
+        for (auto entry = readdir(dirStream); entry != nullptr;
+             entry = readdir(dirStream)) {
+            if (strcmp(entry->d_name, ".") == 0 ||
+                strcmp(entry->d_name, "..") == 0) {
+                // Skip "." and ".."
+                continue;
+            }
+            std::string entryRelativePath =
+                relativePath + std::string("/") + entry->d_name;
 
-        // Check if the path is a file.
-        auto outputFile = this->captureFile(entryRelativePath.c_str());
-        if (outputFile) {
-            FileNode fileNode;
-            fileNode.set_name(entry->d_name);
-            *(fileNode.mutable_digest()) = outputFile->digest();
-            fileNode.set_is_executable(outputFile->is_executable());
-            files[entry->d_name] = fileNode;
-            continue;
-        }
+            // Check if the path is a file.
+            auto outputFile = this->captureFile(entryRelativePath.c_str());
+            if (outputFile) {
+                FileNode fileNode;
+                fileNode.set_name(entry->d_name);
+                *(fileNode.mutable_digest()) = outputFile->digest();
+                fileNode.set_is_executable(outputFile->is_executable());
+                files[entry->d_name] = fileNode;
+                continue;
+            }
 
-        // Try uploading the path as a directory.
-        std::string entryAbsolutePath = this->d_path + "/" + entryRelativePath;
-        DIR *childDirStream = opendir(entryAbsolutePath.c_str());
-        if (childDirStream != nullptr) {
-            auto directory = uploadDirectoryRecursively(
-                tree, childDirStream, entryRelativePath.c_str());
-            DirectoryNode directoryNode;
-            directoryNode.set_name(entry->d_name);
-            *(directoryNode.mutable_digest()) =
-                this->d_casClient->uploadMessage(directory);
-            *(tree->add_children()) = directory;
-            directories[entry->d_name] = directoryNode;
-            continue;
+            // Try uploading the path as a directory.
+            std::string entryAbsolutePath =
+                this->d_path + "/" + entryRelativePath;
+            DIR *childDirStream = opendir(entryAbsolutePath.c_str());
+            if (childDirStream != nullptr) {
+                auto directory = uploadDirectoryRecursively(
+                    tree, childDirStream, entryRelativePath.c_str());
+                DirectoryNode directoryNode;
+                directoryNode.set_name(entry->d_name);
+                *(directoryNode.mutable_digest()) =
+                    this->d_casClient->uploadMessage(directory);
+                *(tree->add_children()) = directory;
+                directories[entry->d_name] = directoryNode;
+                continue;
+            }
         }
+    }
+    catch (...) {
+        closedir(dirStream);
+        throw;
     }
     closedir(dirStream);
     Directory result;
@@ -177,7 +190,13 @@ void FallbackStagedDirectory::downloadFile(const Digest &digest,
     if (fd == -1) {
         throw std::system_error(errno, std::system_category());
     }
-    this->d_casClient->download(fd, digest);
+    try {
+        this->d_casClient->download(fd, digest);
+    }
+    catch (...) {
+        close(fd);
+        throw;
+    }
     close(fd);
 }
 
