@@ -31,7 +31,11 @@ FallbackStagedDirectory::FallbackStagedDirectory(
     const Digest &digest, std::shared_ptr<Client> casClient)
     : d_casClient(casClient)
 {
-    this->d_path = "/tmp/buildboxrunXXXXXX";
+    const char *tmpdir = getenv("TMPDIR");
+    if (tmpdir == nullptr || tmpdir[0] == '\0') {
+        tmpdir = "/tmp";
+    }
+    this->d_path = tmpdir + std::string("/buildboxrunXXXXXX");
     this->downloadDirectory(digest, mkdtemp(&this->d_path[0]));
 }
 
