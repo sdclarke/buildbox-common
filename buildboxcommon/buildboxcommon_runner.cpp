@@ -32,6 +32,8 @@
 
 namespace buildboxcommon {
 
+#define BUILDBOXCOMMON_RUNNER_MAX_INLINED_OUTPUT (1024)
+
 namespace {
 static void writeAll(int fd, const char *buffer, ssize_t len)
 {
@@ -164,11 +166,8 @@ void Runner::executeAndStore(std::vector<std::string> command,
     char buffer[4096];
     while (FD_ISSET(stdoutPipeFds[0], &fdsToRead) ||
            FD_ISSET(stderrPipeFds[0], &fdsToRead)) {
-        struct timeval timeout;
-        timeout.tv_sec = 5;
-        timeout.tv_usec = 0;
         fd_set fdsSuccessfullyRead = fdsToRead;
-        select(FD_SETSIZE, &fdsSuccessfullyRead, nullptr, nullptr, &timeout);
+        select(FD_SETSIZE, &fdsSuccessfullyRead, nullptr, nullptr, nullptr);
         if (FD_ISSET(stdoutPipeFds[0], &fdsSuccessfullyRead)) {
             const auto bytesRead =
                 read(stdoutPipeFds[0], buffer, sizeof(buffer));
@@ -179,8 +178,7 @@ void Runner::executeAndStore(std::vector<std::string> command,
                 *(result->mutable_stdout_raw()) +=
                     std::string(buffer, bytesRead);
             }
-            else {
-                close(stdoutPipeFds[0]);
+            else if (!(bytesRead == -1 && errno == EINTR)) {
                 FD_CLR(stdoutPipeFds[0], &fdsToRead);
             }
         }
@@ -194,12 +192,18 @@ void Runner::executeAndStore(std::vector<std::string> command,
                 *(result->mutable_stderr_raw()) +=
                     std::string(buffer, bytesRead);
             }
-            else {
-                close(stderrPipeFds[0]);
+            else if (!(bytesRead == -1 && errno == EINTR)) {
                 FD_CLR(stderrPipeFds[0], &fdsToRead);
             }
         }
     }
+    close(stdoutPipeFds[0]);
+    close(stderrPipeFds[0]);
+
+    uploadIfNeeded(result->mutable_stdout_raw(),
+                   result->mutable_stdout_digest());
+    uploadIfNeeded(result->mutable_stderr_raw(),
+                   result->mutable_stderr_digest());
 
     int status;
     if (waitpid(pid, &status, 0) == -1) {
@@ -259,6 +263,15 @@ bool Runner::parseArguments(int argc, char *argv[])
         return false;
     }
     return true;
+}
+
+void Runner::uploadIfNeeded(std::string *str, Digest *digest)
+{
+    if (str->length() > BUILDBOXCOMMON_RUNNER_MAX_INLINED_OUTPUT) {
+        *digest = CASHash::hash(*str);
+        this->d_casClient->upload(*str, *digest);
+        str->clear();
+    }
 }
 
 } // namespace buildboxcommon

@@ -60,6 +60,12 @@ class Runner {
      */
     bool parseArguments(int argc, char *argv[]);
 
+    /**
+     * If the given string is larger than the maximum size, upload it to CAS,
+     * store its digest in the given digest pointer, and clear it.
+     */
+    void uploadIfNeeded(std::string *str, Digest *digest);
+
     ConnectionOptions d_casRemote;
     const char *d_inputPath;
     const char *d_outputPath;
