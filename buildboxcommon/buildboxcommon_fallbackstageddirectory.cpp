@@ -53,7 +53,15 @@ FallbackStagedDirectory::~FallbackStagedDirectory()
         perror(argv[0]);
         _Exit(1);
     }
-    waitpid(pid, nullptr, 0);
+    int statLoc;
+    if (waitpid(pid, &statLoc, 0) == -1) {
+        perror("buildbox-run warning: failed to unstage directory: ");
+    }
+    else if (WEXITSTATUS(statLoc) != 0) {
+        std::cerr << "buildbox-run warning: failed to unstage directory with "
+                     "exit code "
+                  << WEXITSTATUS(statLoc) << std::endl;
+    }
 }
 
 std::shared_ptr<OutputFile>
