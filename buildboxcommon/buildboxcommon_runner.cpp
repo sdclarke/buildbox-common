@@ -35,6 +35,17 @@ namespace buildboxcommon {
 #define BUILDBOXCOMMON_RUNNER_MAX_INLINED_OUTPUT (1024)
 
 namespace {
+static void markNonBlocking(int fd)
+{
+    int flags = fcntl(fd, F_GETFL);
+    if (flags == -1) {
+        throw std::system_error(errno, std::system_category());
+    }
+    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
+        throw std::system_error(errno, std::system_category());
+    }
+}
+
 static void writeAll(int fd, const char *buffer, ssize_t len)
 {
     while (len > 0) {
@@ -131,10 +142,12 @@ void Runner::executeAndStore(std::vector<std::string> command,
     if (pipe(stdoutPipeFds) == -1) {
         throw std::system_error(errno, std::system_category());
     }
+    markNonBlocking(stdoutPipeFds[0]);
     int stderrPipeFds[2] = {0};
     if (pipe(stderrPipeFds) == -1) {
         throw std::system_error(errno, std::system_category());
     }
+    markNonBlocking(stderrPipeFds[0]);
 
     // Fork and exec
     const auto pid = fork();
@@ -178,7 +191,8 @@ void Runner::executeAndStore(std::vector<std::string> command,
                 *(result->mutable_stdout_raw()) +=
                     std::string(buffer, bytesRead);
             }
-            else if (!(bytesRead == -1 && errno == EINTR)) {
+            else if (!(bytesRead == -1 &&
+                       (errno == EINTR || errno == EAGAIN))) {
                 FD_CLR(stdoutPipeFds[0], &fdsToRead);
             }
         }
@@ -192,7 +206,8 @@ void Runner::executeAndStore(std::vector<std::string> command,
                 *(result->mutable_stderr_raw()) +=
                     std::string(buffer, bytesRead);
             }
-            else if (!(bytesRead == -1 && errno == EINTR)) {
+            else if (!(bytesRead == -1 &&
+                       (errno == EINTR || errno == EAGAIN))) {
                 FD_CLR(stderrPipeFds[0], &fdsToRead);
             }
         }

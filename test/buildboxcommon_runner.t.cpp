@@ -71,3 +71,15 @@ TEST(RunnerTest, ExecuteAndStoreStderr)
     EXPECT_EQ(result.stderr_raw(), "world\n");
     EXPECT_EQ(result.exit_code(), 0);
 }
+
+TEST(RunnerTest, ExecuteAndStoreDontWriteImmediately)
+{
+    TestRunner runner;
+    ActionResult result;
+
+    runner.executeAndStore(
+        {"sh", "-c", "sleep 0.2; echo hello; echo world >&2"}, &result);
+    EXPECT_EQ(result.stdout_raw(), "hello\n");
+    EXPECT_EQ(result.stderr_raw(), "world\n");
+    EXPECT_EQ(result.exit_code(), 0);
+}
