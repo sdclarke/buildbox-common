@@ -236,7 +236,10 @@ bool Runner::parseArguments(int argc, char *argv[])
     while (argc > 0) {
         const char *arg = argv[0];
         const char *assign = strchr(arg, '=');
-        if (this->d_casRemote.parseArg(arg)) {
+        if (this->parseArg(arg)) {
+            // Argument was handled by a subclass's parseArg method.
+        }
+        else if (this->d_casRemote.parseArg(arg)) {
             // Argument was handled by ConnectionOptions.
         }
         else if (arg[0] == '-' && arg[1] == '-') {

@@ -33,6 +33,12 @@ class Runner {
     virtual ActionResult execute(const Command &command,
                                  const Digest &inputRootDigest) = 0;
 
+    /**
+     * Subclasses can override this to add support for special arguments.
+     * Return true if an argument was handled successfully.
+     */
+    virtual bool parseArg(const char *arg) { return false; }
+
     int main(int argc, char *argv[]);
     virtual ~Runner(){};
 
