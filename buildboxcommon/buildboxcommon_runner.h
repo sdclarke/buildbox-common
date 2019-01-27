@@ -39,6 +39,12 @@ class Runner {
      */
     virtual bool parseArg(const char *arg) { return false; }
 
+    /**
+     * Subclasses can override this to print a message after Runner prints
+     * its usage message.
+     */
+    virtual void printSpecialUsage() {}
+
     int main(int argc, char *argv[]);
     virtual ~Runner(){};
 

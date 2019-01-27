@@ -32,7 +32,8 @@
 
 namespace buildboxcommon {
 
-#define BUILDBOXCOMMON_RUNNER_MAX_INLINED_OUTPUT (1024)
+static const int BUILDBOXCOMMON_RUNNER_USAGE_PAD_WIDTH = 32;
+static const int BUILDBOXCOMMON_RUNNER_MAX_INLINED_OUTPUT = 1024;
 
 namespace {
 static void markNonBlocking(int fd)
@@ -65,7 +66,7 @@ static void usage(const char *name)
         << "    --action=PATH               Path to read input Action from\n";
     std::cerr << "    --action-result=PATH        Path to write output "
                  "ActionResult to\n";
-    ConnectionOptions::printArgHelp(32);
+    ConnectionOptions::printArgHelp(BUILDBOXCOMMON_RUNNER_USAGE_PAD_WIDTH);
 }
 
 } // namespace
@@ -74,6 +75,7 @@ int Runner::main(int argc, char *argv[])
 {
     if (!this->parseArguments(argc, argv)) {
         usage(argv[0]);
+        printSpecialUsage();
         return 1;
     }
     this->d_casClient->init(this->d_casRemote);
