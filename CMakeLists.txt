@@ -14,6 +14,7 @@ add_library(buildboxcommon STATIC
     buildboxcommon/buildboxcommon_client.cpp
     buildboxcommon/buildboxcommon_connectionoptions.cpp
     buildboxcommon/buildboxcommon_fallbackstageddirectory.cpp
+    buildboxcommon/buildboxcommon_fileutils.cpp
     buildboxcommon/buildboxcommon_runner.cpp
     buildboxcommon/buildboxcommon_stageddirectory.cpp
     ${PROTO_GENERATED_SRCS})
@@ -43,6 +44,7 @@ install(FILES
     buildboxcommon/buildboxcommon_client.h
     buildboxcommon/buildboxcommon_connectionoptions.h
     buildboxcommon/buildboxcommon_fallbackstageddirectory.h
+    buildboxcommon/buildboxcommon_fileutils.h
     buildboxcommon/buildboxcommon_protos.h
     buildboxcommon/buildboxcommon_runner.h
     buildboxcommon/buildboxcommon_stageddirectory.h
