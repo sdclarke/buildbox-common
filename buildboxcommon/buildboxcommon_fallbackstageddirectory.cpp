@@ -16,6 +16,8 @@
 
 #include <buildboxcommon_fallbackstageddirectory.h>
 
+#include <buildboxcommon_fileutils.h>
+
 #include <cstring>
 #include <fcntl.h>
 #include <map>
@@ -81,11 +83,7 @@ FallbackStagedDirectory::captureFile(const char *relativePath)
         *(result->mutable_digest()) = CASHash::hash(fd);
         this->d_casClient->upload(fd, result->digest());
 
-        // Check if the file is executable
-        struct stat statResult;
-        if (stat(file.c_str(), &statResult) == 0) {
-            result->set_is_executable((statResult.st_mode & S_IXUSR) != 0);
-        }
+        result->set_is_executable(is_executable(file.c_str()));
     }
     catch (...) {
         close(fd);
