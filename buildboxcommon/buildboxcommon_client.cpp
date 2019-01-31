@@ -65,13 +65,49 @@ void Client::init(const ConnectionOptions &options)
     uuid_unparse_lower(uu, &this->d_uuid[0]);
 }
 
-void Client::download(int fd, const Digest &digest)
+std::string Client::makeResourceName(const Digest &digest, bool isUpload)
 {
     std::string resourceName;
+    if (isUpload) {
+        resourceName.append("uploads/");
+        resourceName.append(this->d_uuid);
+        resourceName.append("/");
+    }
+
     resourceName.append("blobs/");
     resourceName.append(digest.hash());
     resourceName.append("/");
     resourceName.append(std::to_string(digest.size_bytes()));
+    return resourceName;
+}
+
+std::string Client::fetchString(const Digest &digest)
+{
+    std::string resourceName = this->makeResourceName(digest, false);
+
+    std::string result;
+
+    grpc::ClientContext context;
+    ReadRequest request;
+    request.set_resource_name(resourceName);
+    request.set_read_offset(0);
+    auto reader = this->d_bytestreamClient->Read(&context, request);
+    ReadResponse response;
+    while (reader->Read(&response)) {
+        result += response.data();
+    }
+
+    if (result.length() != digest.size_bytes()) {
+        throw std::runtime_error(
+            "Size of downloaded blob does not match digest");
+    }
+
+    return result;
+}
+
+void Client::download(int fd, const Digest &digest)
+{
+    std::string resourceName = this->makeResourceName(digest, false);
 
     grpc::ClientContext context;
     ReadRequest request;
@@ -93,17 +129,50 @@ void Client::download(int fd, const Digest &digest)
     }
 }
 
+void Client::upload(const std::string &str, const Digest &digest)
+{
+    if (digest.size_bytes() != str.length()) {
+        throw std::logic_error(
+            "Provided digest length does not match string length");
+    }
+    std::string resourceName = this->makeResourceName(digest, true);
+
+    grpc::ClientContext context;
+    WriteResponse response;
+    auto writer = this->d_bytestreamClient->Write(&context, &response);
+    ssize_t offset = 0;
+    bool lastChunk = false;
+    while (!lastChunk) {
+        WriteRequest request;
+        request.set_resource_name(resourceName);
+        request.set_write_offset(offset);
+        if (offset + BUILDBOXCOMMON_CLIENT_BUFFER_SIZE <= str.length()) {
+            request.set_data(&str[offset], str.length() - offset);
+            request.set_finish_write(true);
+            lastChunk = true;
+        }
+        else {
+            request.set_data(&str[offset], BUILDBOXCOMMON_CLIENT_BUFFER_SIZE);
+            offset += BUILDBOXCOMMON_CLIENT_BUFFER_SIZE;
+        }
+
+        if (!writer->Write(request)) {
+            throw std::runtime_error("Upload of " + digest.hash() +
+                                     " failed: broken stream");
+        }
+    }
+    writer->WritesDone();
+    auto status = writer->Finish();
+    if (!status.ok() || offset != digest.size_bytes()) {
+        throw std::runtime_error("Upload of " + digest.hash() + " failed");
+    }
+}
+
 void Client::upload(int fd, const Digest &digest)
 {
     std::vector<char> buffer(BUILDBOXCOMMON_CLIENT_BUFFER_SIZE);
 
-    std::string resourceName;
-    resourceName.append("uploads/");
-    resourceName.append(this->d_uuid);
-    resourceName.append("/blobs/");
-    resourceName.append(digest.hash());
-    resourceName.append("/");
-    resourceName.append(std::to_string(digest.size_bytes()));
+    std::string resourceName = this->makeResourceName(digest, true);
 
     lseek(fd, 0, SEEK_SET);
 
