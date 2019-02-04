@@ -83,7 +83,7 @@ FallbackStagedDirectory::captureFile(const char *relativePath)
         *(result->mutable_digest()) = CASHash::hash(fd);
         this->d_casClient->upload(fd, result->digest());
 
-        result->set_is_executable(is_executable(file.c_str()));
+        result->set_is_executable(FileUtils::is_executable(file.c_str()));
     }
     catch (...) {
         close(fd);

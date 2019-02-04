@@ -35,7 +35,9 @@ else()
     endif()
 endif()
 
-add_executable(client_tests buildboxcommon_client.t.cpp buildboxcommon_tests.m.cpp)
+add_executable(client_tests
+  buildboxcommon_client.t.cpp
+  buildboxcommon_tests.m.cpp)
 target_link_libraries(client_tests buildboxcommon ${GMOCK_TARGET})
 add_test(NAME client_tests COMMAND client_tests)
 
@@ -55,6 +57,23 @@ add_executable(runner_tests buildboxcommon_runner.t.cpp buildboxcommon_tests.m.c
 target_link_libraries(runner_tests buildboxcommon ${GTEST_TARGET})
 add_test(NAME runner_tests COMMAND runner_tests)
 
-add_executable(fileutils_tests buildboxcommon_fileutils.t.cpp buildboxcommon_tests.m.cpp)
+add_executable(fileutils_tests
+  buildboxcommon_fileutils.t.cpp
+  buildboxcommon_tests.m.cpp)
+
 target_link_libraries(fileutils_tests buildboxcommon ${GTEST_TARGET})
 add_test(NAME fileutils_tests COMMAND fileutils_tests)
+
+add_executable(temporarydirectory_tests
+  buildboxcommon_temporarydirectory.t.cpp
+  buildboxcommon_tests.m.cpp)
+
+target_link_libraries(temporarydirectory_tests buildboxcommon ${GTEST_TARGET})
+add_test(NAME temporarydirectory_tests COMMAND temporarydirectory_tests)
+
+add_executable(temporaryfile_tests
+  buildboxcommon_temporaryfile.t.cpp
+  buildboxcommon_tests.m.cpp)
+
+target_link_libraries(temporaryfile_tests buildboxcommon ${GTEST_TARGET})
+add_test(NAME temporaryfile_tests COMMAND temporaryfile_tests)
