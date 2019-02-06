@@ -23,55 +23,9 @@
 
 namespace buildboxcommon {
 
-TemporaryFile::TemporaryFile(const char *prefix)
-{
-    const char *tmpdir = getenv("TMPDIR");
-    if (tmpdir == nullptr || tmpdir[0] == '\0') {
-        tmpdir = "/tmp";
-    }
-    std::string name =
-        std::string(tmpdir) + "/" + std::string(prefix) + "XXXXXX";
-    this->d_fd = mkstemp(&name[0]);
-    if (this->d_fd == -1) {
-        throw std::system_error(errno, std::system_category());
-    }
-    this->d_name = name;
-}
+const char *FileUtilsDefaults::DEFAULT_TMP_PREFIX = "buildbox";
 
-TemporaryFile::~TemporaryFile()
-{
-    if (this->d_fd != -1) {
-        ::close(this->d_fd);
-    }
-    unlink(this->d_name.c_str());
-}
-
-void TemporaryFile::close()
-{
-    ::close(this->d_fd);
-    this->d_fd = -1;
-}
-
-TemporaryDirectory::TemporaryDirectory(const char *prefix)
-{
-    const char *tmpdir = getenv("TMPDIR");
-    if (tmpdir == nullptr || tmpdir[0] == '\0') {
-        tmpdir = "/tmp";
-    }
-    std::string name =
-        std::string(tmpdir) + "/" + std::string(prefix) + "XXXXXX";
-    if (mkdtemp(&name[0]) == nullptr) {
-        throw std::system_error(errno, std::system_category());
-    }
-    this->d_name = name;
-}
-
-TemporaryDirectory::~TemporaryDirectory()
-{
-    delete_directory(this->d_name.c_str());
-}
-
-void create_directory(const char *path)
+void FileUtils::create_directory(const char *path)
 {
     if (mkdir(path, 0777) != 0) {
         if (errno == EEXIST) {
@@ -95,7 +49,7 @@ void create_directory(const char *path)
     }
 }
 
-void delete_directory(const char *path)
+void FileUtils::delete_directory(const char *path)
 {
     DIR *dirStream = opendir(path);
     if (dirStream == nullptr) {
@@ -131,7 +85,7 @@ void delete_directory(const char *path)
     }
 }
 
-bool is_executable(const char *path)
+bool FileUtils::is_executable(const char *path)
 {
     struct stat statResult;
     if (stat(path, &statResult) == 0) {
@@ -140,7 +94,7 @@ bool is_executable(const char *path)
     throw std::system_error(errno, std::system_category());
 }
 
-void make_executable(const char *path)
+void FileUtils::make_executable(const char *path)
 {
     struct stat statResult;
     if (stat(path, &statResult) == 0) {

@@ -21,71 +21,34 @@
 
 namespace buildboxcommon {
 
-#define DEFAULT_TMP_PREFIX "buildbox"
-
-class TemporaryFile {
-  public:
-    /**
-     * Create a temporary file on disk. If a prefix is specified, it
-     * will be included in the name of the temporary file.
-     */
-    TemporaryFile(const char *prefix = DEFAULT_TMP_PREFIX);
-
-    /**
-     * Delete the temporary file.
-     */
-    ~TemporaryFile();
-
-    const char *name() const { return d_name.c_str(); };
-
-    const int fd() const { return d_fd; };
-
-    void close();
-
-  private:
-    std::string d_name;
-    int d_fd;
+struct FileUtilsDefaults {
+    // Provide default definitions for use with FileUtils.
+    static const char *DEFAULT_TMP_PREFIX;
 };
 
-class TemporaryDirectory {
-  public:
-    /**
-     * Create a temporary directory on disk. If a prefix is specified, it
-     * will be included in the name of the temporary directory.
-     */
-    TemporaryDirectory(const char *prefix = DEFAULT_TMP_PREFIX);
+struct FileUtils {
+    // Provide a namespace for file utilities.
 
     /**
-     * Delete the temporary directory.
+     * Create a directory if it doesn't already exist, including parents.
      */
-    ~TemporaryDirectory();
+    static void create_directory(const char *path);
 
-    const char *name() const { return d_name.c_str(); };
+    /**
+     * Delete an existing directory.
+     */
+    static void delete_directory(const char *path);
 
-  private:
-    std::string d_name;
+    /**
+     * Return true if the given file path is executable.
+     */
+    static bool is_executable(const char *path);
+
+    /**
+     * Make the given file executable.
+     */
+    static void make_executable(const char *path);
 };
-
-/**
- * Create a directory if it doesn't already exist, including parents.
- */
-void create_directory(const char *path);
-
-/**
- * Delete an existing directory.
- */
-void delete_directory(const char *path);
-
-/**
- * Return true if the given file path is executable.
- */
-bool is_executable(const char *path);
-
-/**
- * Make the given file executable.
- */
-void make_executable(const char *path);
-
 } // namespace buildboxcommon
 
 #endif
