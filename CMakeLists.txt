@@ -6,7 +6,15 @@ project(buildboxcommon VERSION 0.0.1 LANGUAGES CXX)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(libcrypto REQUIRED IMPORTED_TARGET libcrypto)
 pkg_check_modules(protobuf REQUIRED IMPORTED_TARGET protobuf>=3.5)
-pkg_check_modules(grpc++ REQUIRED IMPORTED_TARGET grpc++>=1.10)
+
+# Try to find gRPC with find_package and fall back to pkg_config
+find_package(gRPC)
+if(gRPC_FOUND)
+    set(GRPC_TARGET gRPC::grpc++)
+else()
+    pkg_check_modules(grpc++ REQUIRED IMPORTED_TARGET grpc++>=1.10)
+    set(GRPC_TARGET PkgConfig::grpc++)
+endif()
 add_subdirectory(protos)
 
 add_library(buildboxcommon STATIC
@@ -21,7 +29,7 @@ add_library(buildboxcommon STATIC
     buildboxcommon/buildboxcommon_stageddirectory.cpp
     ${PROTO_GENERATED_SRCS})
 
-target_link_libraries(buildboxcommon PkgConfig::protobuf PkgConfig::grpc++)
+target_link_libraries(buildboxcommon PkgConfig::protobuf ${GRPC_TARGET})
 target_link_libraries(buildboxcommon PkgConfig::libcrypto)
 if(NOT APPLE)
     # macOS includes UUID generation functionality in libc, but on other platforms
