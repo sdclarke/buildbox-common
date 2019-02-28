@@ -25,6 +25,15 @@ namespace buildboxcommon {
 
 const char *FileUtilsDefaults::DEFAULT_TMP_PREFIX = "buildbox";
 
+bool FileUtils::is_directory(const char *path)
+{
+    struct stat statResult;
+    if (stat(path, &statResult) == 0) {
+        return S_ISDIR(statResult.st_mode);
+    }
+    throw std::system_error(errno, std::system_category());
+}
+
 void FileUtils::create_directory(const char *path)
 {
     if (mkdir(path, 0777) != 0) {
@@ -67,7 +76,7 @@ void FileUtils::delete_directory(const char *path)
         std::string entryPath =
             std::string(path) + std::string("/") + entry->d_name;
 
-        if (entry->d_type == DT_DIR) {
+        if (is_directory(entryPath.c_str())) {
             DIR *entryStream = opendir(entryPath.c_str());
             if (dirStream != nullptr) {
                 delete_directory(entryPath.c_str());
