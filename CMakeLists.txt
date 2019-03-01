@@ -3,6 +3,12 @@ set(CMAKE_CXX_STANDARD 14)
 
 project(buildboxcommon VERSION 0.0.1 LANGUAGES CXX)
 
+## REQUIRED FOR AIX
+# gcc on AIX can't deal with -isystem that contains C++ .h files
+if(${CMAKE_SYSTEM_NAME} MATCHES "AIX" AND ${CMAKE_CXX_COMPILER_ID} MATCHES "GNU")
+    set(CMAKE_NO_SYSTEM_FROM_IMPORTED ON)
+endif()
+
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(libcrypto REQUIRED IMPORTED_TARGET libcrypto)
 pkg_check_modules(protobuf REQUIRED IMPORTED_TARGET protobuf>=3.5)
@@ -28,6 +34,16 @@ add_library(buildboxcommon STATIC
     buildboxcommon/buildboxcommon_runner.cpp
     buildboxcommon/buildboxcommon_stageddirectory.cpp
     ${PROTO_GENERATED_SRCS})
+
+if(${CMAKE_SYSTEM_NAME} MATCHES "AIX")
+    # AIX's sys/sysmacros.h defines a macro called major(). Bazel's semver
+    # protobuf defines a property called major, which produces a method called
+    # major() in the generated code.
+
+    # To resolve this, pass a flag to the compiler to prevent sys/sysmacros.h
+    # from defining anything.
+    target_compile_options(buildboxcommon PUBLIC -D_H_SYSMACROS)
+endif()
 
 target_link_libraries(buildboxcommon PkgConfig::protobuf ${GRPC_TARGET})
 target_link_libraries(buildboxcommon PkgConfig::libcrypto)
