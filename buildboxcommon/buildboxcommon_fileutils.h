@@ -30,6 +30,11 @@ struct FileUtils {
     // Provide a namespace for file utilities.
 
     /**
+     * Return true if the given file path is a directory.
+     */
+    static bool is_directory(const char *path);
+
+    /**
      * Create a directory if it doesn't already exist, including parents.
      */
     static void create_directory(const char *path);
