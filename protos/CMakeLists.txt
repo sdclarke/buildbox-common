@@ -12,6 +12,7 @@ set(PROTO_GEN_DIR ${CMAKE_CURRENT_BINARY_DIR})
 set(PROTOS
     build/bazel/remote/execution/v2/remote_execution
     build/bazel/semver/semver
+    build/buildgrid/local_cas
     google/api/annotations
     google/api/http
     google/bytestream/bytestream
