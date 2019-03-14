@@ -19,6 +19,7 @@
 
 #include <buildboxcommon_fileutils.h>
 #include <string>
+#include <unistd.h>
 
 namespace buildboxcommon {
 class TemporaryDirectory {
