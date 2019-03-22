@@ -66,6 +66,7 @@ static void usage(const char *name)
         << "    --action=PATH               Path to read input Action from\n";
     std::cerr << "    --action-result=PATH        Path to write output "
                  "ActionResult to\n";
+    std::cerr << "    --verbose                   Enable verbose logging\n";
     ConnectionOptions::printArgHelp(BUILDBOXCOMMON_RUNNER_USAGE_PAD_WIDTH);
 }
 
@@ -263,6 +264,9 @@ bool Runner::parseArguments(int argc, char *argv[])
             else {
                 if (strcmp(arg, "help") == 0) {
                     return false;
+                }
+                else if (strcmp(arg, "verbose") == 0) {
+                    this->d_verbose = true;
                 }
                 else {
                     std::cerr << "Invalid option " << argv[0] << "\n";

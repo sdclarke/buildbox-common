@@ -64,6 +64,8 @@ class Runner {
     std::shared_ptr<Client> d_casClient =
         std::shared_ptr<Client>(new Client());
 
+    bool d_verbose;
+
   private:
     /**
      * Attempt to parse all of the given arguments and update this object to
@@ -85,6 +87,11 @@ class Runner {
 
 #define BUILDBOX_RUNNER_MAIN(x)                                               \
     int main(int argc, char *argv[]) { x().main(argc, argv); }
+
+#define BUILDBOX_RUNNER_LOG_VERBOSE(x)                                        \
+    if (this->d_verbose) {                                                    \
+        std::cerr << x << std::endl;                                          \
+    }
 
 } // namespace buildboxcommon
 
