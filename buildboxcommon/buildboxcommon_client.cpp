@@ -321,4 +321,30 @@ bool Client::batchDownloadNext(const Digest **digest, const std::string **data)
     this->d_batchReadResponseIndex++;
     return true;
 }
+
+std::vector<Digest>
+Client::findMissingBlobs(const std::vector<Digest> &digests)
+{
+    grpc::ClientContext context;
+
+    FindMissingBlobsRequest request;
+    for (const auto &digest : digests) {
+        auto entry = request.add_blob_digests();
+        entry->CopyFrom(digest);
+    }
+
+    FindMissingBlobsResponse response;
+    const auto status =
+        this->d_casClient->FindMissingBlobs(&context, request, &response);
+
+    if (!status.ok()) {
+        throw std::runtime_error("FindMissingBlobs() request failed.");
+    }
+
+    std::vector<Digest> missing_blobs;
+    for (const auto &digest : response.missing_blob_digests()) {
+        missing_blobs.push_back(digest);
+    }
+    return missing_blobs;
+}
 } // namespace buildboxcommon

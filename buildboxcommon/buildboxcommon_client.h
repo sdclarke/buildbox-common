@@ -120,6 +120,15 @@ class Client {
     bool batchDownloadNext(const Digest **digest, const std::string **data);
 
     /**
+     * Given a list of digests, creates and sends a `FindMissingBlobsRequest`
+     * to the server.
+     *
+     * Returns a list of Digests that the remote server reports not having,
+     * or throws a runtime_exception if the request failed.
+     */
+    std::vector<Digest> findMissingBlobs(const std::vector<Digest> &digests);
+
+    /**
      * Fetch the Protocol Buffer message of the given type and digest and
      * deserialize it.
      */
