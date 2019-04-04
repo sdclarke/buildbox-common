@@ -31,7 +31,7 @@ bool FileUtils::is_directory(const char *path)
     if (stat(path, &statResult) == 0) {
         return S_ISDIR(statResult.st_mode);
     }
-    throw std::system_error(errno, std::system_category());
+    return false;
 }
 
 void FileUtils::create_directory(const char *path)
@@ -100,7 +100,7 @@ bool FileUtils::is_executable(const char *path)
     if (stat(path, &statResult) == 0) {
         return statResult.st_mode & S_IXUSR;
     }
-    throw std::system_error(errno, std::system_category());
+    return false;
 }
 
 void FileUtils::make_executable(const char *path)

@@ -15,5 +15,76 @@
  */
 
 #include <buildboxcommon_fileutils.h>
+#include <buildboxcommon_temporarydirectory.h>
+#include <gtest/gtest.h>
 
-// TODO
+// To create tempfiles
+#include <fstream>
+#include <iostream>
+
+using namespace buildboxcommon;
+
+bool path_exists(const char *path)
+{
+    struct stat statResult;
+    return stat(path, &statResult) == 0;
+}
+
+void touch_file(const char *path)
+{
+    std::fstream fs;
+    fs.open(path, std::ios::out);
+    fs.close();
+}
+
+TEST(FileUtilsTests, DirectoryTests)
+{
+    TemporaryDirectory tmpdir;
+    std::string pathStr = std::string(tmpdir.name()) + "/foodir/";
+    const char *path = pathStr.c_str();
+
+    ASSERT_FALSE(path_exists(path));
+    ASSERT_FALSE(FileUtils::is_directory(path));
+
+    FileUtils::create_directory(path);
+
+    ASSERT_TRUE(path_exists(path));
+    ASSERT_TRUE(FileUtils::is_directory(path));
+
+    FileUtils::delete_directory(path);
+
+    ASSERT_FALSE(path_exists(path));
+    ASSERT_FALSE(FileUtils::is_directory(path));
+}
+
+TEST(FileUtilsTests, DirectoryIsFileTest)
+{
+    TemporaryDirectory tmpdir;
+    std::string pathStr = std::string(tmpdir.name()) + "/foo.txt";
+    const char *path = pathStr.c_str();
+
+    touch_file(path);
+
+    ASSERT_TRUE(path_exists(path));
+    ASSERT_FALSE(FileUtils::is_directory(path));
+}
+
+TEST(FileUtilsTests, ExecutableTests)
+{
+    TemporaryDirectory tmpdir;
+    std::string pathStr = std::string(tmpdir.name()) + "/foo.sh";
+    const char *path = pathStr.c_str();
+
+    ASSERT_FALSE(path_exists(path));
+    ASSERT_FALSE(FileUtils::is_executable(path));
+
+    touch_file(path);
+
+    ASSERT_TRUE(path_exists(path));
+    ASSERT_FALSE(FileUtils::is_executable(path));
+
+    FileUtils::make_executable(path);
+
+    ASSERT_TRUE(path_exists(path));
+    ASSERT_TRUE(FileUtils::is_executable(path));
+}

@@ -66,7 +66,7 @@ TEST(TemporaryDirectoryTests, ExecutableFlag)
     TemporaryDirectory tempDir = TemporaryDirectory();
     std::string name = tempDir.name() + std::string("/test.py");
 
-    ASSERT_THROW(FileUtils::is_executable(name.c_str()), std::exception);
+    EXPECT_FALSE(FileUtils::is_executable(name.c_str()));
     ASSERT_THROW(FileUtils::make_executable(name.c_str()), std::exception);
 
     std::ofstream fileStream(name);
