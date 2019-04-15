@@ -15,6 +15,7 @@
  */
 
 #include <buildboxcommon_connectionoptions.h>
+#include <buildboxcommon_logging.h>
 
 #include <cerrno>
 #include <cstring>
@@ -131,6 +132,7 @@ void ConnectionOptions::putArgs(std::vector<std::string> *out,
 
 std::shared_ptr<grpc::Channel> ConnectionOptions::createChannel() const
 {
+    BUILDBOX_LOG_DEBUG("Creating grpc channel to " << this->d_url);
     std::string target;
     std::shared_ptr<grpc::ChannelCredentials> creds;
     if (strncmp(this->d_url, HTTP_PREFIX, strlen(HTTP_PREFIX)) == 0) {
@@ -164,16 +166,16 @@ void ConnectionOptions::printArgHelp(int padWidth, const char *serviceName,
     std::string p(prefix == nullptr ? "" : prefix);
 
     printPadded(padWidth, "--" + p + "remote=URL");
-    std::cerr << "URL for " << serviceName << " service\n";
+    std::clog << "URL for " << serviceName << " service\n";
 
     printPadded(padWidth, "--" + p + "server-cert=PATH");
-    std::cerr << "Public server certificate for TLS (PEM-encoded)\n";
+    std::clog << "Public server certificate for TLS (PEM-encoded)\n";
 
     printPadded(padWidth, "--" + p + "client-key=PATH");
-    std::cerr << "Private client key for TLS (PEM-encoded)\n";
+    std::clog << "Private client key for TLS (PEM-encoded)\n";
 
     printPadded(padWidth, "--" + p + "client-cert=PATH");
-    std::cerr << "Public client certificate for TLS (PEM-encoded)\n";
+    std::clog << "Public client certificate for TLS (PEM-encoded)\n";
 }
 
 } // namespace buildboxcommon

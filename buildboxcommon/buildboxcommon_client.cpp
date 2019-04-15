@@ -15,11 +15,13 @@
  */
 
 #include <buildboxcommon_client.h>
+#include <buildboxcommon_logging.h>
 
 #include <algorithm>
 #include <errno.h>
 #include <fstream>
 #include <grpc/grpc.h>
+#include <sstream>
 #include <string>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -95,6 +97,7 @@ std::string Client::makeResourceName(const Digest &digest, bool isUpload)
 
 std::string Client::fetchString(const Digest &digest)
 {
+    BUILDBOX_LOG_DEBUG("Downloading " << digest.hash() << " to string");
     std::string resourceName = this->makeResourceName(digest, false);
 
     std::string result;
@@ -110,15 +113,21 @@ std::string Client::fetchString(const Digest &digest)
     }
 
     if (result.length() != digest.size_bytes()) {
-        throw std::runtime_error(
-            "Size of downloaded blob does not match digest");
+        std::stringstream errorMsg;
+        errorMsg << "Expected " << digest.size_bytes()
+                 << " bytes, but downloaded blob was " << result.length()
+                 << " bytes";
+        throw std::runtime_error(errorMsg.str());
     }
 
+    BUILDBOX_LOG_DEBUG(resourceName << ": " << result.length()
+                                    << " bytes retrieved");
     return result;
 }
 
 void Client::download(int fd, const Digest &digest)
 {
+    BUILDBOX_LOG_DEBUG("Downloading " << digest.hash() << " to file");
     std::string resourceName = this->makeResourceName(digest, false);
 
     grpc::ClientContext context;
@@ -136,16 +145,25 @@ void Client::download(int fd, const Digest &digest)
     struct stat st;
     fstat(fd, &st);
     if (st.st_size != digest.size_bytes()) {
-        throw std::runtime_error(
-            "Size of downloaded blob does not match digest");
+        std::stringstream errorMsg;
+        errorMsg << "Expected " << digest.size_bytes()
+                 << " bytes, but downloaded blob was " << st.st_size
+                 << " bytes";
+        throw std::runtime_error(errorMsg.str());
     }
+    BUILDBOX_LOG_DEBUG(resourceName << ": " << st.st_size
+                                    << " bytes retrieved");
 }
 
 void Client::upload(const std::string &str, const Digest &digest)
 {
+    BUILDBOX_LOG_DEBUG("Uploading " << digest.hash() << " from string");
     if (digest.size_bytes() != str.length()) {
-        throw std::logic_error(
-            "Provided digest length does not match string length");
+        std::stringstream errorMsg;
+        errorMsg << "Digest length of " << digest.size_bytes() << " bytes for "
+                 << digest.hash() << " does not match string length of "
+                 << str.length() << " bytes";
+        throw std::logic_error(errorMsg.str());
     }
     std::string resourceName = this->makeResourceName(digest, true);
 
@@ -179,13 +197,19 @@ void Client::upload(const std::string &str, const Digest &digest)
     writer->WritesDone();
     auto status = writer->Finish();
     if (!status.ok() || offset != digest.size_bytes()) {
-        throw std::runtime_error("Upload of " + digest.hash() + " failed");
+        std::stringstream errorMsg;
+        errorMsg << "Expected to upload " << digest.size_bytes()
+                 << " bytes for " << digest.hash()
+                 << ", but uploaded blob was " << offset << " bytes";
+        throw std::runtime_error(errorMsg.str());
     }
+    BUILDBOX_LOG_DEBUG(resourceName << ": " << offset << " bytes uploaded");
 }
 
 void Client::upload(int fd, const Digest &digest)
 {
     std::vector<char> buffer(BYTESTREAM_CHUNK_SIZE);
+    BUILDBOX_LOG_DEBUG("Uploading " << digest.hash() << " from file");
 
     std::string resourceName = this->makeResourceName(digest, true);
 
@@ -231,6 +255,7 @@ void Client::upload(int fd, const Digest &digest)
     if (!status.ok() || offset != digest.size_bytes()) {
         throw std::runtime_error("Upload of " + digest.hash() + " failed");
     }
+    BUILDBOX_LOG_DEBUG(resourceName << ": " << offset << " bytes uploaded");
 }
 
 Client::UploadResults

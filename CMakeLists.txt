@@ -23,16 +23,10 @@ else()
 endif()
 add_subdirectory(protos)
 
+file(GLOB BUILDBOXCOMMON_CPP "buildboxcommon/*.cpp")
+
 add_library(buildboxcommon STATIC
-    buildboxcommon/buildboxcommon_cashash.cpp
-    buildboxcommon/buildboxcommon_client.cpp
-    buildboxcommon/buildboxcommon_connectionoptions.cpp
-    buildboxcommon/buildboxcommon_fallbackstageddirectory.cpp
-    buildboxcommon/buildboxcommon_fileutils.cpp
-    buildboxcommon/buildboxcommon_temporaryfile.cpp
-    buildboxcommon/buildboxcommon_temporarydirectory.cpp
-    buildboxcommon/buildboxcommon_runner.cpp
-    buildboxcommon/buildboxcommon_stageddirectory.cpp
+    ${BUILDBOXCOMMON_CPP}
     ${PROTO_GENERATED_SRCS})
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "AIX")
@@ -65,17 +59,11 @@ install(
     ARCHIVE DESTINATION lib
     INCLUDES DESTINATION include/buildbox
 )
+
+file(GLOB BUILDBOXCOMMON_H "buildboxcommon/*.h")
+
 install(FILES
-    buildboxcommon/buildboxcommon_cashash.h
-    buildboxcommon/buildboxcommon_client.h
-    buildboxcommon/buildboxcommon_connectionoptions.h
-    buildboxcommon/buildboxcommon_fallbackstageddirectory.h
-    buildboxcommon/buildboxcommon_fileutils.h
-    buildboxcommon/buildboxcommon_temporaryfile.h
-    buildboxcommon/buildboxcommon_temporarydirectory.h
-    buildboxcommon/buildboxcommon_protos.h
-    buildboxcommon/buildboxcommon_runner.h
-    buildboxcommon/buildboxcommon_stageddirectory.h
+    ${BUILDBOXCOMMON_H}
     DESTINATION include/buildbox)
 install(DIRECTORY ${PROTO_GEN_DIR}/google DESTINATION include/buildbox FILES_MATCHING PATTERN "*.h*")
 install(DIRECTORY ${PROTO_GEN_DIR}/build DESTINATION include/buildbox FILES_MATCHING PATTERN "*.h*")
