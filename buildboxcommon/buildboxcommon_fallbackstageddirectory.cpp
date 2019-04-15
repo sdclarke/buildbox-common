@@ -17,6 +17,7 @@
 #include <buildboxcommon_fallbackstageddirectory.h>
 
 #include <buildboxcommon_fileutils.h>
+#include <buildboxcommon_logging.h>
 
 #include <cstring>
 #include <fcntl.h>
@@ -38,7 +39,9 @@ FallbackStagedDirectory::FallbackStagedDirectory(
         tmpdir = "/tmp";
     }
     this->d_path = tmpdir + std::string("/buildboxrunXXXXXX");
-    this->downloadDirectory(digest, mkdtemp(&this->d_path[0]));
+    char *tempdir = mkdtemp(&this->d_path[0]);
+    BUILDBOX_LOG_DEBUG("Downloading to " << std::string(tempdir));
+    this->downloadDirectory(digest, tempdir);
 }
 
 FallbackStagedDirectory::~FallbackStagedDirectory()
@@ -47,7 +50,8 @@ FallbackStagedDirectory::~FallbackStagedDirectory()
     const char *argv[] = {"rm", "-rf", this->d_path.c_str(), nullptr};
     const auto pid = fork();
     if (pid == -1) {
-        perror("buildbox-run warning: failed to unstage directory: ");
+        BUILDBOX_LOG_ERROR(
+            "buildbox-run warning: failed to unstage directory: ");
         return;
     }
     else if (pid == 0) {
@@ -57,18 +61,21 @@ FallbackStagedDirectory::~FallbackStagedDirectory()
     }
     int statLoc;
     if (waitpid(pid, &statLoc, 0) == -1) {
-        perror("buildbox-run warning: failed to unstage directory: ");
+        BUILDBOX_LOG_ERROR(
+            "buildbox-run warning: failed to unstage directory: ");
     }
     else if (WEXITSTATUS(statLoc) != 0) {
-        std::cerr << "buildbox-run warning: failed to unstage directory with "
-                     "exit code "
-                  << WEXITSTATUS(statLoc) << std::endl;
+        BUILDBOX_LOG_ERROR(
+            "buildbox-run warning: failed to unstage directory with "
+            "exit code "
+            << WEXITSTATUS(statLoc));
     }
 }
 
 std::shared_ptr<OutputFile>
 FallbackStagedDirectory::captureFile(const char *relativePath)
 {
+    BUILDBOX_LOG_DEBUG("Uploading " << relativePath);
     std::shared_ptr<OutputFile> result(new OutputFile());
     std::string file = this->d_path + std::string("/") + relativePath;
     int fd = open(file.c_str(), O_RDONLY);
@@ -98,6 +105,7 @@ Directory
 FallbackStagedDirectory::uploadDirectoryRecursively(Tree *tree, DIR *dirStream,
                                                     const char *relativePath)
 {
+    BUILDBOX_LOG_DEBUG("Uploading directory " << relativePath);
     std::map<std::string, FileNode> files;
     std::map<std::string, DirectoryNode> directories;
     try {
@@ -183,6 +191,7 @@ FallbackStagedDirectory::captureDirectory(const char *relativePath)
 void FallbackStagedDirectory::downloadFile(const Digest &digest,
                                            bool executable, const char *path)
 {
+    BUILDBOX_LOG_DEBUG("Downloading " << path);
     int fd =
         open(path, O_CREAT | O_WRONLY | O_TRUNC, executable ? 0755 : 0644);
     if (fd == -1) {
@@ -201,6 +210,7 @@ void FallbackStagedDirectory::downloadFile(const Digest &digest,
 void FallbackStagedDirectory::downloadDirectory(const Digest &digest,
                                                 const char *path)
 {
+    BUILDBOX_LOG_DEBUG("Downloading directory " << path);
     Directory directory = this->d_casClient->fetchMessage<Directory>(digest);
     for (const auto filenode : directory.files()) {
         const std::string name = path + std::string("/") + filenode.name();

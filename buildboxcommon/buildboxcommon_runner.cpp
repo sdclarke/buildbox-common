@@ -18,11 +18,13 @@
 
 #include <buildboxcommon_connectionoptions.h>
 #include <buildboxcommon_fallbackstageddirectory.h>
+#include <buildboxcommon_logging.h>
 
 #include <cerrno>
 #include <cstdio>
 #include <exception>
 #include <fcntl.h>
+#include <sstream>
 #include <stdlib.h>
 #include <sys/select.h>
 #include <sys/stat.h>
@@ -61,12 +63,12 @@ static void writeAll(int fd, const char *buffer, ssize_t len)
 
 static void usage(const char *name)
 {
-    std::cerr << "usage: " << name << " [OPTIONS]\n";
-    std::cerr
+    std::clog << "usage: " << name << " [OPTIONS]\n";
+    std::clog
         << "    --action=PATH               Path to read input Action from\n";
-    std::cerr << "    --action-result=PATH        Path to write output "
+    std::clog << "    --action-result=PATH        Path to write output "
                  "ActionResult to\n";
-    std::cerr << "    --verbose                   Enable verbose logging\n";
+    std::clog << "    --verbose                   Enable verbose logging\n";
     ConnectionOptions::printArgHelp(BUILDBOXCOMMON_RUNNER_USAGE_PAD_WIDTH);
 }
 
@@ -88,7 +90,7 @@ int Runner::main(int argc, char *argv[])
     }
     Action input;
     if (!input.ParseFromFileDescriptor(inFd)) {
-        std::cerr << "buildbox-run: failed to parse Action\n";
+        BUILDBOX_LOG_ERROR("buildbox-run: failed to parse Action");
         return 1;
     }
     close(inFd);
@@ -103,7 +105,7 @@ int Runner::main(int argc, char *argv[])
         result.set_exit_code(255);
         std::string msg =
             std::string("buildbox-run: ") + e.what() + std::string("\n");
-        std::cerr << msg;
+        BUILDBOX_LOG_ERROR(msg);
         *(result.mutable_stderr_raw()) += msg;
     }
 
@@ -114,7 +116,8 @@ int Runner::main(int argc, char *argv[])
             return 1;
         }
         if (!result.SerializeToFileDescriptor(outFd)) {
-            std::cerr << "buildbox-run: failed to serialize ActionResult\n";
+            BUILDBOX_LOG_ERROR(
+                "buildbox-run: failed to serialize ActionResult");
             return 1;
         }
         close(outFd);
@@ -133,6 +136,11 @@ std::unique_ptr<StagedDirectory> Runner::stage(const Digest &digest)
 void Runner::executeAndStore(std::vector<std::string> command,
                              ActionResult *result)
 {
+    std::stringstream logline;
+    for (const auto &token : command) {
+        logline << token << " ";
+    }
+    BUILDBOX_LOG_DEBUG("Executing command: " << logline.str())
     int argc = command.size();
     const char *argv[argc + 1];
     for (int i = 0; i < argc; ++i) {
@@ -257,7 +265,7 @@ bool Runner::parseArguments(int argc, char *argv[])
                     this->d_outputPath = value;
                 }
                 else {
-                    std::cerr << "Invalid option " << argv[0] << "\n";
+                    BUILDBOX_LOG_ERROR("Invalid option " << argv[0]);
                     return false;
                 }
             }
@@ -269,13 +277,13 @@ bool Runner::parseArguments(int argc, char *argv[])
                     this->d_verbose = true;
                 }
                 else {
-                    std::cerr << "Invalid option " << argv[0] << "\n";
+                    BUILDBOX_LOG_ERROR("Invalid option " << argv[0]);
                     return false;
                 }
             }
         }
         else {
-            std::cerr << "Unexpected argument " << arg << "\n";
+            BUILDBOX_LOG_ERROR("Unexpected argument " << arg);
             return false;
         }
         argv++;
@@ -283,7 +291,7 @@ bool Runner::parseArguments(int argc, char *argv[])
     }
 
     if (!this->d_casRemote.d_url) {
-        std::cerr << "CAS server URL is missing\n";
+        BUILDBOX_LOG_ERROR("CAS server URL is missing");
         return false;
     }
     return true;
