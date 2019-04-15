@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright 2018 Bloomberg Finance LP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,6 +16,7 @@
 
 #include <buildboxcommon_client.h>
 
+#include <algorithm>
 #include <errno.h>
 #include <fstream>
 #include <grpc/grpc.h>
@@ -26,22 +27,33 @@
 
 namespace buildboxcommon {
 
-#define BUILDBOXCOMMON_CLIENT_BUFFER_SIZE (1024 * 1024)
+#define BYTESTREAM_CHUNK_SIZE (1024 * 1024)
 
 void Client::init(const ConnectionOptions &options)
 {
-    this->d_channel = options.createChannel();
-    this->d_bytestreamClient = ByteStream::NewStub(this->d_channel);
-    this->d_casClient = ContentAddressableStorage::NewStub(this->d_channel);
-    this->d_capabilitiesClient = Capabilities::NewStub(this->d_channel);
+    std::shared_ptr<grpc::Channel> channel = options.createChannel();
+    this->d_channel = channel;
+    std::shared_ptr<ByteStream::Stub> bytestreamClient =
+        std::move(ByteStream::NewStub(this->d_channel));
+    std::shared_ptr<ContentAddressableStorage::Stub> casClient =
+        std::move(ContentAddressableStorage::NewStub(this->d_channel));
+    std::shared_ptr<Capabilities::Stub> capabilitiesClient =
+        std::move(Capabilities::NewStub(this->d_channel));
+    init(bytestreamClient, casClient, capabilitiesClient);
+}
 
-    // initialise update/read sizes
-    this->d_batchUpdateSize = 0;
-    this->d_batchReadSize = 0;
+void Client::init(
+    std::shared_ptr<ByteStream::StubInterface> bytestreamClient,
+    std::shared_ptr<ContentAddressableStorage::StubInterface> casClient,
+    std::shared_ptr<Capabilities::StubInterface> capabilitiesClient)
+{
+    this->d_bytestreamClient = bytestreamClient;
+    this->d_casClient = casClient;
+    this->d_capabilitiesClient = capabilitiesClient;
 
     // The default limit for gRPC messages is 4 MiB.
     // Limit payload to 1 MiB to leave sufficient headroom for metadata.
-    this->d_maxBatchTotalSizeBytes = BUILDBOXCOMMON_CLIENT_BUFFER_SIZE;
+    this->d_maxBatchTotalSizeBytes = BYTESTREAM_CHUNK_SIZE;
 
     grpc::ClientContext context;
     GetCapabilitiesRequest request;
@@ -146,14 +158,17 @@ void Client::upload(const std::string &str, const Digest &digest)
         WriteRequest request;
         request.set_resource_name(resourceName);
         request.set_write_offset(offset);
-        if (offset + BUILDBOXCOMMON_CLIENT_BUFFER_SIZE <= str.length()) {
-            request.set_data(&str[offset], str.length() - offset);
-            request.set_finish_write(true);
-            lastChunk = true;
-        }
-        else {
-            request.set_data(&str[offset], BUILDBOXCOMMON_CLIENT_BUFFER_SIZE);
-            offset += BUILDBOXCOMMON_CLIENT_BUFFER_SIZE;
+
+        int uploadLength =
+            std::min(static_cast<unsigned long>(BYTESTREAM_CHUNK_SIZE),
+                     str.length() - offset);
+
+        request.set_data(&str[offset], uploadLength);
+        offset += uploadLength;
+
+        lastChunk = (offset == str.length());
+        if (lastChunk) {
+            request.set_finish_write(lastChunk);
         }
 
         if (!writer->Write(request)) {
@@ -170,7 +185,7 @@ void Client::upload(const std::string &str, const Digest &digest)
 
 void Client::upload(int fd, const Digest &digest)
 {
-    std::vector<char> buffer(BUILDBOXCOMMON_CLIENT_BUFFER_SIZE);
+    std::vector<char> buffer(BYTESTREAM_CHUNK_SIZE);
 
     std::string resourceName = this->makeResourceName(digest, true);
 
@@ -182,8 +197,7 @@ void Client::upload(int fd, const Digest &digest)
     ssize_t offset = 0;
     bool lastChunk = false;
     while (!lastChunk) {
-        ssize_t bytesRead =
-            read(fd, &buffer[0], BUILDBOXCOMMON_CLIENT_BUFFER_SIZE);
+        ssize_t bytesRead = read(fd, &buffer[0], BYTESTREAM_CHUNK_SIZE);
         if (bytesRead < 0) {
             throw std::system_error(errno, std::generic_category());
         }
@@ -219,107 +233,225 @@ void Client::upload(int fd, const Digest &digest)
     }
 }
 
-bool Client::batchUploadAdd(const Digest &digest,
-                            const std::vector<char> &data)
+Client::UploadResults
+Client::uploadBlobs(const std::vector<UploadRequest> &requests)
 {
-    // check if batch size has got too large
-    int64_t newBatchSize = this->d_batchUpdateSize + digest.size_bytes();
-    if (newBatchSize > this->d_maxBatchTotalSizeBytes) {
-        return false;
+    UploadResults results;
+
+    // We first sort the requests by their sizes in ascending order, so that
+    // we can then iterate through that result greedily trying to add as many
+    // digests as possible to each request.
+    std::vector<UploadRequest> request_list(requests);
+    std::sort(request_list.begin(), request_list.end(),
+              [](const UploadRequest &r1, const UploadRequest &r2) {
+                  return r1.digest.size_bytes() < r2.digest.size_bytes();
+              });
+
+    // Grouping the requests into batches (we only need to look at the Digests
+    // for their sizes):
+    std::vector<Digest> digests;
+    for (const auto &r : request_list) {
+        digests.push_back(r.digest);
     }
 
-    // create and add BatchUpdateBlob request
-    BatchUpdateBlobsRequest_Request request =
-        BatchUpdateBlobsRequest_Request();
-    request.mutable_digest()->CopyFrom(digest);
-    std::string d(data.begin(), data.begin() + digest.size_bytes());
-    request.set_data(d);
-    this->d_batchUpdateRequest.add_requests()->CopyFrom(request);
-    this->d_batchUpdateSize = newBatchSize;
+    const auto batches = makeBatches(digests);
+    for (const auto &batch_range : batches) {
+        const size_t batch_start = batch_range.first;
+        const size_t batch_end = batch_range.second;
 
-    return true;
+        const std::vector<Digest> digests_not_uploaded =
+            batchUpload(request_list, batch_start, batch_end);
+        for (const auto &digest : digests_not_uploaded) {
+            results.push_back(digest);
+        }
+    }
+
+    // Fetching all those digests that might need to be uploaded using the
+    // Bytestream API. Those will be in the range [batch_end, batches.size()).
+    size_t batch_end;
+    if (batches.empty()) {
+        batch_end = 0;
+    }
+    else {
+        batch_end = batches.rbegin()->second;
+    }
+
+    for (auto d = batch_end; d < request_list.size(); d++) {
+        try {
+            upload(request_list[d].data, request_list[d].digest);
+        }
+        catch (const std::runtime_error &) {
+            results.push_back(request_list[d].digest);
+        }
+    }
+
+    return results;
 }
 
-bool Client::batchUpload()
+Client::DownloadedData
+Client::downloadBlobs(const std::vector<Digest> &digests)
 {
+    DownloadedData downloaded_data;
+
+    // We first sort the digests by their sizes in ascending order, so that
+    // we can then iterate through that result greedily trying to add as many
+    // digests as possible to each request.
+    auto request_list(digests);
+    std::sort(request_list.begin(), request_list.end(),
+              [](const Digest &d1, const Digest &d2) {
+                  return d1.size_bytes() < d2.size_bytes();
+              });
+
+    const auto batches = makeBatches(request_list);
+    for (const auto &batch_range : batches) {
+        const size_t batch_start = batch_range.first;
+        const size_t batch_end = batch_range.second;
+
+        // For each batch, we make the request and then store the successfully
+        // read data in the result:
+        try {
+            const auto download_results =
+                batchDownload(request_list, batch_start, batch_end);
+
+            for (const auto &download_result : download_results) {
+                const std::string digest_hash = download_result.first;
+                const std::string data = download_result.second;
+                downloaded_data[digest_hash] = data;
+            }
+        }
+        catch (const std::runtime_error &e) {
+            std::cerr << "Batch download failed: " + std::string(e.what())
+                      << std::endl;
+        }
+    }
+
+    // Fetching all those digests that might need to be downloaded using the
+    // Bytestream API. Those will be in the range [batch_end, batches.size()).
+    size_t batch_end;
+    if (batches.empty()) {
+        batch_end = 0;
+    }
+    else {
+        batch_end = batches.rbegin()->second;
+    }
+
+    for (auto d = batch_end; d < request_list.size(); d++) {
+        const Digest digest = request_list[d];
+        try {
+            const auto data = fetchString(digest);
+            downloaded_data[digest.hash()] = data;
+        }
+        catch (const std::runtime_error &e) {
+            std::cerr << "Error: fetchString(): " + std::string(e.what())
+                      << std::endl;
+        }
+    }
+
+    return downloaded_data;
+}
+
+Client::UploadResults
+Client::batchUpload(const std::vector<UploadRequest> &requests,
+                    const size_t start_index, const size_t end_index)
+{
+    assert(start_index <= end_index);
+    assert(end_index <= requests.size());
+
+    BatchUpdateBlobsRequest request;
+    for (auto d = start_index; d < end_index; d++) {
+        auto entry = request.add_requests();
+        entry->mutable_digest()->CopyFrom(requests[d].digest);
+        entry->set_data(requests[d].data);
+    }
+
     grpc::ClientContext context;
-    auto status = this->d_casClient->BatchUpdateBlobs(
-        &context, this->d_batchUpdateRequest, &this->d_batchUpdateResponse);
+    BatchUpdateBlobsResponse response;
+
+    const auto status =
+        this->d_casClient->BatchUpdateBlobs(&context, request, &response);
+
     if (!status.ok()) {
-        throw std::runtime_error("Batch upload failed");
+        throw std::runtime_error("BatchUpdateBlobs() request failed.");
     }
 
-    for (auto i : this->d_batchUpdateResponse.responses()) {
-        if (i.status().code() != GRPC_STATUS_OK) {
-            throw std::runtime_error("Batch upload failed");
+    UploadResults results;
+    for (const auto &response : response.responses()) {
+        if (response.status().code() != GRPC_STATUS_OK) {
+            results.push_back(response.digest());
         }
     }
-
-    this->d_batchUpdateRequest.Clear();
-    this->d_batchUpdateSize = 0;
-    return true;
+    return results;
 }
 
-bool Client::batchDownloadAdd(const Digest &digest)
+Client::DownloadedData Client::batchDownload(const std::vector<Digest> digests,
+                                             const size_t start_index,
+                                             const size_t end_index)
 {
-    assert(!this->d_batchReadRequestSent);
+    assert(start_index <= end_index);
+    assert(end_index <= digests.size());
 
-    int64_t newBatchSize = this->d_batchReadSize + digest.size_bytes();
-    if (newBatchSize > this->d_maxBatchTotalSizeBytes) {
-        // Not enough space left in current batch
-        return false;
+    BatchReadBlobsRequest request;
+    for (auto d = start_index; d < end_index; d++) {
+        auto digest = request.add_digests();
+        digest->CopyFrom(digests[d]);
     }
 
-    this->d_batchReadRequest.add_digests()->CopyFrom(digest);
-    this->d_batchReadSize = newBatchSize;
+    grpc::ClientContext context;
+    BatchReadBlobsResponse response;
 
-    return true;
+    const auto status =
+        this->d_casClient->BatchReadBlobs(&context, request, &response);
+
+    if (!status.ok()) {
+        throw std::runtime_error("BatchReadBlobs() request failed.");
+    }
+
+    DownloadedData data;
+    for (const auto &response : response.responses()) {
+        if (response.status().code() == GRPC_STATUS_OK) {
+            data[response.digest().hash()] = response.data();
+        }
+    }
+
+    return data;
 }
 
-bool Client::batchDownloadNext(const Digest **digest, const std::string **data)
+std::vector<std::pair<size_t, size_t>>
+Client::makeBatches(const std::vector<Digest> &digests)
 {
-    if (!this->d_batchReadRequestSent) {
-        if (this->d_batchReadRequest.digests_size() == 0) {
-            // Empty batch
-            return false;
+    std::vector<std::pair<size_t, size_t>> batches;
+
+    const auto max_batch_size = d_maxBatchTotalSizeBytes;
+
+    size_t batch_start = 0;
+    size_t batch_end = 0;
+    // A batch is contains digests inside [batch_start, batch_end).
+
+    while (batch_end < digests.size()) {
+        auto bytes_in_batch = 0;
+        if (digests[batch_end].size_bytes() > max_batch_size) {
+            // All digests from `batch_end` to the end of the list are
+            // larger than what we can request; stop.
+            return batches;
         }
 
-        this->d_batchReadContext = std::make_unique<grpc::ClientContext>();
-        auto status = this->d_casClient->BatchReadBlobs(
-            this->d_batchReadContext.get(), this->d_batchReadRequest,
-            &this->d_batchReadResponse);
-        if (!status.ok()) {
-            throw std::runtime_error("Batch download failed");
+        // Adding all the digests that we can until we run out or exceed the
+        // batch request limit...
+        while (batch_end < digests.size() &&
+               bytes_in_batch + digests[batch_end].size_bytes() <=
+                   max_batch_size) {
+            bytes_in_batch += digests[batch_end].size_bytes();
+            batch_end++;
         }
-        this->d_batchReadRequestSent = true;
-        this->d_batchReadResponseIndex = 0;
-    }
 
-    if (this->d_batchReadResponseIndex >=
-        this->d_batchReadResponse.responses_size()) {
-        // End of batch
-        this->d_batchReadContext = nullptr;
-        this->d_batchReadRequest.Clear();
-        this->d_batchReadResponse.Clear();
-        this->d_batchReadRequestSent = false;
-        this->d_batchReadResponseIndex = 0;
-        this->d_batchReadSize = 0;
-        return false;
-    }
+        batches.push_back(std::make_pair(batch_start, batch_end));
 
-    // Return next entry
-    this->d_batchReadBlobResponse =
-        this->d_batchReadResponse.responses(this->d_batchReadResponseIndex);
+        batch_start = batch_end;
+        batch_end = batch_start;
+        bytes_in_batch = 0;
+    };
 
-    if (this->d_batchReadBlobResponse.status().code() != GRPC_STATUS_OK) {
-        throw std::runtime_error("Batch download failed");
-    }
-
-    *digest = &this->d_batchReadBlobResponse.digest();
-    *data = &this->d_batchReadBlobResponse.data();
-
-    this->d_batchReadResponseIndex++;
-    return true;
+    return batches;
 }
 
 std::vector<Digest>

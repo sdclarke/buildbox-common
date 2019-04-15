@@ -109,5 +109,6 @@ install(
 include(CTest)
 if(BUILD_TESTING)
     include_directories(${CMAKE_CURRENT_SOURCE_DIR}/buildboxcommon ${PROTO_GEN_DIR})
+    include_directories(third_party/grpc/include)
     add_subdirectory(test)
 endif()

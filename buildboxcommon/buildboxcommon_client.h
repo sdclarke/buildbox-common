@@ -17,11 +17,15 @@
 #ifndef INCLUDED_BUILDBOXCOMMON_CLIENT
 #define INCLUDED_BUILDBOXCOMMON_CLIENT
 
+#include <unordered_map>
+
 #include <buildboxcommon_cashash.h>
 #include <buildboxcommon_connectionoptions.h>
 #include <buildboxcommon_protos.h>
 
 namespace buildboxcommon {
+
+#define BYTESTREAM_CHUNK_SIZE (1024 * 1024)
 
 /**
  * Implements a mechanism to communicate with remote CAS servers, and includes
@@ -33,29 +37,36 @@ class Client {
     std::string makeResourceName(const Digest &digest, bool is_upload);
 
     std::shared_ptr<grpc::Channel> d_channel;
-    std::unique_ptr<ByteStream::Stub> d_bytestreamClient;
-    std::unique_ptr<ContentAddressableStorage::Stub> d_casClient;
-    std::unique_ptr<Capabilities::Stub> d_capabilitiesClient;
+    std::shared_ptr<ByteStream::StubInterface> d_bytestreamClient;
+    std::shared_ptr<ContentAddressableStorage::StubInterface> d_casClient;
+    std::shared_ptr<Capabilities::StubInterface> d_capabilitiesClient;
 
     std::string d_uuid;
 
-    BatchUpdateBlobsRequest d_batchUpdateRequest;
-    BatchUpdateBlobsResponse d_batchUpdateResponse;
-    int64_t d_batchUpdateSize;
-
-    std::unique_ptr<grpc::ClientContext> d_batchReadContext;
-    BatchReadBlobsRequest d_batchReadRequest;
-    BatchReadBlobsResponse d_batchReadResponse;
-    BatchReadBlobsResponse_Response d_batchReadBlobResponse;
-    int64_t d_batchReadSize;
-    bool d_batchReadRequestSent;
-    int d_batchReadResponseIndex;
-
   public:
+    Client() {}
+
+    Client(std::shared_ptr<ByteStream::StubInterface> bytestreamClient,
+           std::shared_ptr<ContentAddressableStorage::StubInterface> casClient,
+           std::shared_ptr<Capabilities::StubInterface> capabilitiesClient,
+           int64_t maxBatchTotalSizeBytes = BYTESTREAM_CHUNK_SIZE)
+        : d_bytestreamClient(bytestreamClient), d_casClient(casClient),
+          d_capabilitiesClient(capabilitiesClient),
+          d_maxBatchTotalSizeBytes(maxBatchTotalSizeBytes)
+    {
+    }
     /**
      * Connect to the CAS server with the given connection options.
      */
     void init(const ConnectionOptions &options);
+
+    /**
+     * Connect to the CAS server with the given clients.
+     */
+    void
+    init(std::shared_ptr<ByteStream::StubInterface> bytestreamClient,
+         std::shared_ptr<ContentAddressableStorage::StubInterface> casClient,
+         std::shared_ptr<Capabilities::StubInterface> capabilitiesClient);
 
     /**
      * Download the blob with the given digest and return it.
@@ -85,39 +96,33 @@ class Client {
      */
     void upload(int fd, const Digest &digest);
 
-    /**
-     * Add the specified digest and data to the current batch upload request
-     * and return true. If the additional data would cause the batch upload's
-     * size to exceed the maximum, return false instead of adding it.
-     */
-    bool batchUploadAdd(const Digest &digest, const std::vector<char> &data);
+    struct UploadRequest {
+        Digest digest;
+        std::string data;
 
-    /**
-     * Send the current batch upload request to the server, and clear the
-     * state so a new batch upload request can be prepared/sent.
+        UploadRequest(const Digest &_digest, const std::string _data)
+            : digest(_digest), data(_data){};
+    };
+
+    typedef std::vector<Digest> UploadResults;
+
+    /* Upload multiple digests in an efficient way, allowing each digest to
+     * potentially fail separately.
      *
-     * Returns true if all requests in the batch succeeded and false
-     * otherwise.
+     * Return a list containing the Digests that failed to be uploaded.
+     * (An empty result indicates that all digests were uploaded.)
      */
-    bool batchUpload();
+    UploadResults uploadBlobs(const std::vector<UploadRequest> &requests);
 
-    /**
-     * Add the specified digest to the current batch download request and
-     * return true. If the additional data would cause the batch download
-     * response's size to exceed the maximum, return false instead of adding
-     * it.
-     */
-    bool batchDownloadAdd(const Digest &digest);
+    typedef std::unordered_map<std::string, std::string> DownloadedData;
 
-    /**
-     * Send the current batch download request to the server if it hasn't been
-     * sent already, store pointers to a digest and its corresponding data in
-     * the given `digest` and `data`, and return true.
+    /* Given a list of digests, download the data and return it in a map
+     * indexed by hash. Allow each digest to potentially fail separately.
      *
-     * If there are no entries left in the current batch, this returns false
-     * instead of modifying `digest` or `data`.
+     * The hashes that could *not* be fetched will *not* be defined in the
+     * returned map.
      */
-    bool batchDownloadNext(const Digest **digest, const std::string **data);
+    DownloadedData downloadBlobs(const std::vector<Digest> &digests);
 
     /**
      * Given a list of digests, creates and sends a `FindMissingBlobsRequest`
@@ -153,6 +158,32 @@ class Client {
     }
 
     int64_t d_maxBatchTotalSizeBytes;
+
+  private:
+    /* Uploads the requests contained in the range [start_index, end_index).
+     *
+     * The sum of bytes of the data in this range MUST NOT exceed the maximum
+     * batch size request allowed.
+     */
+    UploadResults batchUpload(const std::vector<UploadRequest> &requests,
+                              const size_t start_index,
+                              const size_t end_index);
+
+    /* Downloads the data for the Digests stored in the range
+     * [start_index, end_index) of the given vector.
+     *
+     * The sum of sizes inside the range MUST NOT exceed the maximum batch
+     * size request allowed.
+     */
+    DownloadedData batchDownload(const std::vector<Digest> digests,
+                                 const size_t start_index,
+                                 const size_t end_index);
+
+    /* Given a list of digests sorted by increasing size, forms batches
+     * according to the value of `d_maxBatchTotalSizeBytes`.
+     */
+    std::vector<std::pair<size_t, size_t>>
+    makeBatches(const std::vector<Digest> &digests);
 };
 
 } // namespace buildboxcommon
