@@ -400,9 +400,9 @@ Client::batchUpload(const std::vector<UploadRequest> &requests,
     }
 
     UploadResults results;
-    for (const auto &response : response.responses()) {
-        if (response.status().code() != GRPC_STATUS_OK) {
-            results.push_back(response.digest());
+    for (const auto &uploadResponse : response.responses()) {
+        if (uploadResponse.status().code() != GRPC_STATUS_OK) {
+            results.push_back(uploadResponse.digest());
         }
     }
     return results;
@@ -432,9 +432,9 @@ Client::DownloadedData Client::batchDownload(const std::vector<Digest> digests,
     }
 
     DownloadedData data;
-    for (const auto &response : response.responses()) {
-        if (response.status().code() == GRPC_STATUS_OK) {
-            data[response.digest().hash()] = response.data();
+    for (const auto &downloadResponse : response.responses()) {
+        if (downloadResponse.status().code() == GRPC_STATUS_OK) {
+            data[downloadResponse.digest().hash()] = downloadResponse.data();
         }
     }
 
