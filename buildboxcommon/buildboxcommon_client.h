@@ -71,16 +71,17 @@ class Client {
     /**
      * Download the blob with the given digest and return it.
      *
-     * If the size of the received blob does not match the digest, throw an
-     * exception.
+     * If the server returned an error, or the size of the received blob does
+     * not match the digest, throw an `std::runtime_error` exception.
      */
     std::string fetchString(const Digest &digest);
 
     /**
      * Download the blob with the given digest to the given file descriptor.
      *
-     * If the file descriptor cannot be written to, or the size of the
-     * received blob does not match the digest, throw an exception.
+     * If the file descriptor cannot be written to, the size of the
+     * received blob does not match the digest, or the server
+     * returned an error, throw an `std::runtime_error` exception.
      */
     void download(int fd, const Digest &digest);
 

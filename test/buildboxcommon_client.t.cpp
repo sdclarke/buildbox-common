@@ -146,6 +146,23 @@ TEST_F(ClientTestFixture, FetchStringSizeMismatch)
     EXPECT_THROW(client.fetchString(digest), std::runtime_error);
 }
 
+TEST_F(ClientTestFixture, FetchStringServerError)
+{
+    readResponse.set_data(content);
+    digest.set_size_bytes(content.length());
+
+    EXPECT_CALL(*bytestreamClient, ReadRaw(_, _)).WillOnce(Return(reader));
+
+    EXPECT_CALL(*reader, Read(_))
+        .WillOnce(DoAll(SetArgPointee<0>(readResponse), Return(true)))
+        .WillOnce(Return(false));
+    EXPECT_CALL(*reader, Finish())
+        .WillOnce(Return(
+            grpc::Status(grpc::StatusCode::NOT_FOUND, "Digest not found!")));
+
+    EXPECT_THROW(client.fetchString(digest), std::runtime_error);
+}
+
 TEST_F(ClientTestFixture, DownloadTest)
 {
     readResponse.set_data(content);
@@ -192,6 +209,23 @@ TEST_F(ClientTestFixture, DownloadSizeMismatch)
         .WillOnce(DoAll(SetArgPointee<0>(readResponse), Return(true)))
         .WillOnce(Return(false));
 
+    EXPECT_THROW(client.download(tmpfile.fd(), digest), std::runtime_error);
+}
+
+TEST_F(ClientTestFixture, DownloadServerError)
+{
+    readResponse.set_data(content);
+    digest.set_size_bytes(content.length());
+
+    EXPECT_CALL(*bytestreamClient, ReadRaw(_, _)).WillOnce(Return(reader));
+
+    EXPECT_CALL(*reader, Read(_))
+        .WillOnce(DoAll(SetArgPointee<0>(readResponse), Return(true)))
+        .WillOnce(Return(false));
+
+    EXPECT_CALL(*reader, Finish())
+        .WillOnce(Return(grpc::Status(grpc::StatusCode::UNAVAILABLE,
+                                      "Server stopped responding")));
     EXPECT_THROW(client.download(tmpfile.fd(), digest), std::runtime_error);
 }
 
