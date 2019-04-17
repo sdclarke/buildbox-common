@@ -112,6 +112,11 @@ std::string Client::fetchString(const Digest &digest)
         result += response.data();
     }
 
+    const auto read_status = reader->Finish();
+    if (!read_status.ok()) {
+        throw std::runtime_error("Error fetching string: " +
+                                 read_status.error_message());
+    }
     if (result.length() != digest.size_bytes()) {
         std::stringstream errorMsg;
         errorMsg << "Expected " << digest.size_bytes()
@@ -140,6 +145,12 @@ void Client::download(int fd, const Digest &digest)
         if (write(fd, response.data().c_str(), response.data().length()) < 0) {
             throw std::system_error(errno, std::generic_category());
         }
+    }
+
+    const auto read_status = reader->Finish();
+    if (!read_status.ok()) {
+        throw std::runtime_error("Error downloading blob: " +
+                                 read_status.error_message());
     }
 
     struct stat st;
