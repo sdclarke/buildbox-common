@@ -71,18 +71,19 @@ void writePrefixIfNecessary(std::ostream &ss, const std::string file,
 } // namespace buildboxcommon
 
 #define BUILDBOX_LOG_SET_LEVEL(logLevel)                                      \
-    LoggerState::getInstance().setLogLevel(logLevel);
+    buildboxcommon::LoggerState::getInstance().setLogLevel(logLevel);
 
 #define BUILDBOX_LOG_SET_FILE(filename)                                       \
-    LoggerState::getInstance().setLogFile(filename);
+    buildboxcommon::LoggerState::getInstance().setLogFile(filename);
 
 #define BUILDBOX_LOG_SET_STREAM(stream)                                       \
-    LoggerState::getInstance().setLogStream(stream);
+    buildboxcommon::LoggerState::getInstance().setLogStream(stream);
 
-#define BUILDBOX_LOG_ENABLE_PREFIX() LoggerState::getInstance().enablePrefix();
+#define BUILDBOX_LOG_ENABLE_PREFIX()                                          \
+    buildboxcommon::LoggerState::getInstance().enablePrefix();
 
 #define BUILDBOX_LOG_DISABLE_PREFIX()                                         \
-    LoggerState::getInstance().disablePrefix();
+    buildboxcommon::LoggerState::getInstance().disablePrefix();
 
 /*
  * These logger macros work by formatting the logline with a stringstream,
@@ -92,28 +93,40 @@ void writePrefixIfNecessary(std::ostream &ss, const std::string file,
 
 #define BUILDBOX_LOG_DEBUG(x)                                                 \
     {                                                                         \
-        if (LoggerState::getInstance().getLogLevel() <= DEBUG) {              \
-            auto os = LoggerState::getInstance().getOutputStream();           \
-            writePrefixIfNecessary(*os, __FILE__, __func__);                  \
-            *os << "[DEBUG] " << x << std::endl << std::flush;                \
+        if (buildboxcommon::LoggerState::getInstance().getLogLevel() <=       \
+            buildboxcommon::LogLevel::DEBUG) {                                \
+            auto _bb_log_os =                                                 \
+                buildboxcommon::LoggerState::getInstance().getOutputStream(); \
+            *_bb_log_os << "[DEBUG] ";                                        \
+            buildboxcommon::writePrefixIfNecessary(*_bb_log_os, __FILE__,     \
+                                                   __func__);                 \
+            *_bb_log_os << x << std::endl << std::flush;                      \
         }                                                                     \
     }
 
 #define BUILDBOX_LOG_INFO(x)                                                  \
     {                                                                         \
-        if (LoggerState::getInstance().getLogLevel() <= INFO) {               \
-            auto os = LoggerState::getInstance().getOutputStream();           \
-            writePrefixIfNecessary(*os, __FILE__, __func__);                  \
-            *os << "[INFO] " << x << std::endl << std::flush;                 \
+        if (buildboxcommon::LoggerState::getInstance().getLogLevel() <=       \
+            buildboxcommon::LogLevel::INFO) {                                 \
+            auto _bb_log_os =                                                 \
+                buildboxcommon::LoggerState::getInstance().getOutputStream(); \
+            *_bb_log_os << "[INFO] ";                                         \
+            buildboxcommon::writePrefixIfNecessary(*_bb_log_os, __FILE__,     \
+                                                   __func__);                 \
+            *_bb_log_os << x << std::endl << std::flush;                      \
         }                                                                     \
     }
 
 #define BUILDBOX_LOG_ERROR(x)                                                 \
     {                                                                         \
-        if (LoggerState::getInstance().getLogLevel() <= ERROR) {              \
-            auto os = LoggerState::getInstance().getOutputStream();           \
-            writePrefixIfNecessary(*os, __FILE__, __func__);                  \
-            *os << "[ERROR] " << x << std::endl << std::flush;                \
+        if (buildboxcommon::LoggerState::getInstance().getLogLevel() <=       \
+            buildboxcommon::LogLevel::ERROR) {                                \
+            auto _bb_log_os =                                                 \
+                buildboxcommon::LoggerState::getInstance().getOutputStream(); \
+            *_bb_log_os << "[ERROR] ";                                        \
+            buildboxcommon::writePrefixIfNecessary(*_bb_log_os, __FILE__,     \
+                                                   __func__);                 \
+            *_bb_log_os << x << std::endl << std::flush;                      \
         }                                                                     \
     }
 

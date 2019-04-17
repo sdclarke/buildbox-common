@@ -81,6 +81,8 @@ int Runner::main(int argc, char *argv[])
         printSpecialUsage();
         return 1;
     }
+
+    BUILDBOX_LOG_DEBUG("Initializing CAS " << this->d_casRemote.d_url);
     this->d_casClient->init(this->d_casRemote);
 
     const int inFd = open(this->d_inputPath, O_RDONLY);
@@ -97,8 +99,10 @@ int Runner::main(int argc, char *argv[])
 
     ActionResult result;
     try {
+        BUILDBOX_LOG_DEBUG("Fetching " << input.command_digest().hash());
         const Command command =
             this->d_casClient->fetchMessage<Command>(input.command_digest());
+        BUILDBOX_LOG_DEBUG("Executing command");
         result = this->execute(command, input.input_root_digest());
     }
     catch (const std::exception &e) {
@@ -140,7 +144,7 @@ void Runner::executeAndStore(std::vector<std::string> command,
     for (const auto &token : command) {
         logline << token << " ";
     }
-    BUILDBOX_LOG_DEBUG("Executing command: " << logline.str())
+    BUILDBOX_LOG_DEBUG("Executing command: " << logline.str());
     int argc = command.size();
     const char *argv[argc + 1];
     for (int i = 0; i < argc; ++i) {
@@ -225,6 +229,7 @@ void Runner::executeAndStore(std::vector<std::string> command,
     }
     close(stdoutPipeFds[0]);
     close(stderrPipeFds[0]);
+    BUILDBOX_LOG_DEBUG("Finished reading");
 
     uploadIfNeeded(result->mutable_stdout_raw(),
                    result->mutable_stdout_digest());
@@ -300,8 +305,10 @@ bool Runner::parseArguments(int argc, char *argv[])
 void Runner::uploadIfNeeded(std::string *str, Digest *digest)
 {
     if (str->length() > BUILDBOXCOMMON_RUNNER_MAX_INLINED_OUTPUT) {
+        BUILDBOX_LOG_DEBUG("Uploading " << digest->hash());
         *digest = CASHash::hash(*str);
         this->d_casClient->upload(*str, *digest);
+        BUILDBOX_LOG_DEBUG("Done uploading " << digest->hash());
         str->clear();
     }
 }
