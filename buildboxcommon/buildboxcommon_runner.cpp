@@ -20,6 +20,7 @@
 #include <buildboxcommon_fallbackstageddirectory.h>
 #include <buildboxcommon_logging.h>
 
+#include <algorithm>
 #include <cerrno>
 #include <cstdio>
 #include <exception>
@@ -63,12 +64,14 @@ static void writeAll(int fd, const char *buffer, ssize_t len)
 
 static void usage(const char *name)
 {
-    std::clog << "usage: " << name << " [OPTIONS]\n";
+    std::clog << "\nusage: " << name << " [OPTIONS]\n";
     std::clog
         << "    --action=PATH               Path to read input Action from\n";
     std::clog << "    --action-result=PATH        Path to write output "
                  "ActionResult to\n";
-    std::clog << "    --verbose                   Enable verbose logging\n";
+    std::clog << "    --log-level=LEVEL           (default: info) Log "
+                 "verbosity: debug, info, or error\n";
+    std::clog << "    --log-file=FILE             File to write log to\n";
     ConnectionOptions::printArgHelp(BUILDBOXCOMMON_RUNNER_USAGE_PAD_WIDTH);
 }
 
@@ -269,8 +272,30 @@ bool Runner::parseArguments(int argc, char *argv[])
                 else if (strncmp(arg, "action-result", key_len) == 0) {
                     this->d_outputPath = value;
                 }
+                else if (strncmp(arg, "log-level", key_len) == 0) {
+                    std::string level(value);
+                    std::transform(level.begin(), level.end(), level.begin(),
+                                   ::tolower);
+                    if (logging::stringToLogLevel.find(level) ==
+                        logging::stringToLogLevel.end()) {
+                        std::cerr << "Invalid log level." << std::endl;
+                        return false;
+                    }
+                    BUILDBOX_LOG_SET_LEVEL(
+                        logging::stringToLogLevel.at(level));
+                }
+                else if (strncmp(arg, "log-file", key_len) == 0) {
+                    FILE *fp = fopen(value, "w");
+                    if (fp == NULL) {
+                        std::cerr << "--log-file: unable to write to "
+                                  << std::string(value) << std::endl;
+                        return false;
+                    }
+                    fclose(fp);
+                    BUILDBOX_LOG_SET_FILE(value);
+                }
                 else {
-                    BUILDBOX_LOG_ERROR("Invalid option " << argv[0]);
+                    std::cerr << "Invalid option " << argv[0] << std::endl;
                     return false;
                 }
             }
@@ -278,17 +303,14 @@ bool Runner::parseArguments(int argc, char *argv[])
                 if (strcmp(arg, "help") == 0) {
                     return false;
                 }
-                else if (strcmp(arg, "verbose") == 0) {
-                    this->d_verbose = true;
-                }
                 else {
-                    BUILDBOX_LOG_ERROR("Invalid option " << argv[0]);
+                    std::cerr << "Invalid option " << argv[0] << std::endl;
                     return false;
                 }
             }
         }
         else {
-            BUILDBOX_LOG_ERROR("Unexpected argument " << arg);
+            std::cerr << "Unexpected argument " << arg << std::endl;
             return false;
         }
         argv++;
@@ -296,7 +318,7 @@ bool Runner::parseArguments(int argc, char *argv[])
     }
 
     if (!this->d_casRemote.d_url) {
-        BUILDBOX_LOG_ERROR("CAS server URL is missing");
+        std::cerr << "CAS server URL is missing." << std::endl;
         return false;
     }
     return true;
