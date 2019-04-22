@@ -29,6 +29,8 @@ struct ConnectionOptions {
     const char *d_serverCert = nullptr;
     const char *d_clientKey = nullptr;
     const char *d_clientCert = nullptr;
+    const char *d_retryLimit = "0";
+    const char *d_retryDelay = "100";
 
     /**
      * If the given argument is a server option, update this struct with

@@ -34,6 +34,8 @@ namespace buildboxcommon {
 void Client::init(const ConnectionOptions &options)
 {
     std::shared_ptr<grpc::Channel> channel = options.createChannel();
+    this->d_grpcRetryLimit = std::stoi(options.d_retryLimit);
+    this->d_grpcRetryDelay = std::stoi(options.d_retryDelay);
     this->d_channel = channel;
     std::shared_ptr<ByteStream::Stub> bytestreamClient =
         std::move(ByteStream::NewStub(this->d_channel));

@@ -110,8 +110,11 @@ TEST(ConnectionOptionsTest, PutArgsEmpty)
     std::vector<std::string> result;
 
     opts.putArgs(&result);
-    opts.putArgs(&result, "--cas");
-    const std::vector<std::string> expected;
+
+    opts.putArgs(&result, "cas-");
+    std::vector<std::string> expected = {
+        "--retry-limit=0", "--retry-delay=100", "--cas-retry-limit=0",
+        "--cas-retry-delay=100"};
     EXPECT_EQ(result, expected);
 }
 
@@ -122,13 +125,19 @@ TEST(ConnectionOptionsTest, PutArgsFull)
     opts.d_serverCert = "abc";
     opts.d_clientKey = "defg";
     opts.d_clientCert = "";
+    opts.d_retryLimit = "2";
+    opts.d_retryDelay = "200";
+
     std::vector<std::string> result;
 
     opts.putArgs(&result);
 
-    std::vector<std::string> expected = {
-        "--remote=http://example.com/", "--server-cert=abc",
-        "--client-key=defg", "--client-cert="};
+    std::vector<std::string> expected = {"--remote=http://example.com/",
+                                         "--server-cert=abc",
+                                         "--client-key=defg",
+                                         "--client-cert=",
+                                         "--retry-limit=2",
+                                         "--retry-delay=200"};
     EXPECT_EQ(result, expected);
 
     opts.putArgs(&result, "cas-");
@@ -136,6 +145,8 @@ TEST(ConnectionOptionsTest, PutArgsFull)
     expected.push_back("--cas-server-cert=abc");
     expected.push_back("--cas-client-key=defg");
     expected.push_back("--cas-client-cert=");
+    expected.push_back("--cas-retry-limit=2");
+    expected.push_back("--cas-retry-delay=200");
     EXPECT_EQ(result, expected);
 }
 
