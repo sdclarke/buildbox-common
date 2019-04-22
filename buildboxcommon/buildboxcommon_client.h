@@ -34,6 +34,9 @@ namespace buildboxcommon {
  */
 class Client {
   private:
+    int d_grpcRetryLimit;
+    int d_grpcRetryDelay;
+
     std::string makeResourceName(const Digest &digest, bool is_upload);
 
     std::shared_ptr<grpc::Channel> d_channel;

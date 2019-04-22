@@ -43,3 +43,10 @@ add_executable(temporaryfile_tests
   buildboxcommon_tests.m.cpp)
 target_link_libraries(temporaryfile_tests buildboxcommon ${GTEST_TARGET})
 add_test(NAME temporaryfile_tests COMMAND temporaryfile_tests)
+
+add_executable(grpcretry_tests
+  buildboxcommon_grpcretry.t.cpp
+  buildboxcommon_tests.m.cpp)
+
+target_link_libraries(grpcretry_tests buildboxcommon ${GTEST_TARGET})
+add_test(NAME grpcretry_tests COMMAND grpcretry_tests)

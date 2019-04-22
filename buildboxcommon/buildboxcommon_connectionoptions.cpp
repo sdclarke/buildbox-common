@@ -105,6 +105,14 @@ bool ConnectionOptions::parseArg(const char *arg, const char *prefix)
             this->d_clientCert = value;
             return true;
         }
+        else if (strncmp(arg, "retry-limit", keyLen) == 0) {
+            this->d_retryLimit = value;
+            return true;
+        }
+        else if (strncmp(arg, "retry-delay", keyLen) == 0) {
+            this->d_retryDelay = value;
+            return true;
+        }
     }
     return false;
 }
@@ -127,6 +135,14 @@ void ConnectionOptions::putArgs(std::vector<std::string> *out,
     if (this->d_clientCert != nullptr) {
         out->push_back("--" + p +
                        "client-cert=" + std::string(this->d_clientCert));
+    }
+    if (this->d_retryLimit != nullptr) {
+        out->push_back("--" + p +
+                       "retry-limit=" + std::string(this->d_retryLimit));
+    }
+    if (this->d_retryDelay != nullptr) {
+        out->push_back("--" + p +
+                       "retry-delay=" + std::string(this->d_retryDelay));
     }
 }
 
@@ -176,6 +192,12 @@ void ConnectionOptions::printArgHelp(int padWidth, const char *serviceName,
 
     printPadded(padWidth, "--" + p + "client-cert=PATH");
     std::clog << "Public client certificate for TLS (PEM-encoded)\n";
+
+    printPadded(padWidth, "--" + p + "retry-limit=INT");
+    std::clog << "Number of times to retry on grpc errors\n";
+
+    printPadded(padWidth, "--" + p + "retry-delay=SECONDS");
+    std::clog << "How long to wait between grpc retries\n";
 }
 
 } // namespace buildboxcommon
