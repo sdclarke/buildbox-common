@@ -24,10 +24,27 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 
 namespace buildboxcommon {
 
 enum LogLevel { DEBUG = 0, INFO = 1, ERROR = 2 };
+
+// TODO: Expand this namespace to encompass the whole file
+// Will require lots of MRs in dependent projects
+namespace logging {
+
+const std::unordered_map<std::string, LogLevel> stringToLogLevel = {
+    {"debug", LogLevel::DEBUG},
+    {"info", LogLevel::INFO},
+    {"error", LogLevel::ERROR}};
+
+const std::unordered_map<LogLevel, std::string, std::hash<int>>
+    logLevelToString = {{LogLevel::DEBUG, "debug"},
+                        {LogLevel::INFO, "info"},
+                        {LogLevel::ERROR, "error"}};
+
+} // namespace logging
 
 /**
  * Singleton class that maintains the logging state for the various logger
