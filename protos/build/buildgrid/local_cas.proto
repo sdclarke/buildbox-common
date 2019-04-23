@@ -99,7 +99,7 @@ service LocalContentAddressableStorage {
   // This imports the specified path from the local filesystem into CAS.
   //
   // If a CAS remote is configured, the blobs are uploaded.
-  // The `bypass_cache` parameter is a hint to indicate whether the blobs
+  // The `bypass_local_cache` parameter is a hint to indicate whether the blobs
   // shall be uploaded without first storing them in the local cache.
   rpc CaptureTree(CaptureTreeRequest) returns (CaptureTreeResponse) {}
 
@@ -108,7 +108,7 @@ service LocalContentAddressableStorage {
   // This imports the specified paths from the local filesystem into CAS.
   //
   // If a CAS remote is configured, the blobs are uploaded.
-  // The `bypass_cache` parameter is a hint to indicate whether the blobs
+  // The `bypass_local_cache` parameter is a hint to indicate whether the blobs
   // shall be uploaded without first storing them in the local cache.
   rpc CaptureFiles(CaptureFilesRequest) returns (CaptureFilesResponse) {}
 
@@ -316,7 +316,7 @@ message CaptureFilesRequest {
 
   // This is a hint whether the blobs shall be uploaded to the remote CAS
   // without first storing them in the local cache.
-  bool bypass_cache = 3;
+  bool bypass_local_cache = 3;
 }
 
 // A response message for
