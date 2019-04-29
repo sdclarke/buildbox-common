@@ -28,4 +28,31 @@ using namespace build::bazel::remote::execution::v2;
 using namespace build::buildgrid;
 
 } // namespace buildboxcommon
+
+// Allow Digests to be used as unordered_hash keys.
+namespace std {
+template <> struct hash<buildboxcommon::Digest> {
+    std::size_t operator()(const buildboxcommon::Digest &digest) const noexcept
+    {
+        return std::hash<std::string>{}(digest.hash());
+    }
+};
+} // namespace std
+
+namespace build {
+namespace bazel {
+namespace remote {
+namespace execution {
+namespace v2 {
+inline bool operator==(const buildboxcommon::Digest &a,
+                       const buildboxcommon::Digest &b)
+{
+    return a.hash() == b.hash() && a.size_bytes() == b.size_bytes();
+}
+} // namespace v2
+} // namespace execution
+} // namespace remote
+} // namespace bazel
+} // namespace build
+
 #endif

@@ -53,6 +53,11 @@ struct FileUtils {
      * Make the given file executable.
      */
     static void make_executable(const char *path);
+
+    /**
+     * Gets the contents of a file
+     */
+    static std::string get_file_contents(const char *path);
 };
 } // namespace buildboxcommon
 

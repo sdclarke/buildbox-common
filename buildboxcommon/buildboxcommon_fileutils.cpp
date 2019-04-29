@@ -14,11 +14,18 @@
 
 #include <buildboxcommon_fileutils.h>
 
+#include <algorithm>
+#include <cerrno>
+#include <cstdio>
 #include <cstring>
 #include <dirent.h>
+#include <fstream>
+#include <sstream>
+#include <stdexcept>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <system_error>
+
 #include <unistd.h>
 
 namespace buildboxcommon {
@@ -113,6 +120,23 @@ void FileUtils::make_executable(const char *path)
         }
     }
     throw std::system_error(errno, std::system_category());
+}
+
+std::string FileUtils::get_file_contents(const char *path)
+{
+    std::string contents;
+    std::ifstream fileStream;
+    fileStream.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+    fileStream.open(path, std::ios::in | std::ios::binary);
+    auto start = fileStream.tellg();
+    fileStream.seekg(0, std::ios::end);
+    auto size = fileStream.tellg() - start;
+    contents.resize(size);
+    fileStream.seekg(start);
+    if (fileStream) {
+        fileStream.read(&contents[0], contents.length());
+    }
+    return contents;
 }
 
 } // namespace buildboxcommon
