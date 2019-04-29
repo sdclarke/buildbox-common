@@ -143,7 +143,7 @@ std::string Client::fetchString(const Digest &digest)
 
         BUILDBOX_LOG_DEBUG(resourceName << ": " << result.length()
                                         << " bytes retrieved");
-        return reader->Finish();
+        return read_status;
     };
 
     grpcRetry(fetchLambda, this->d_grpcRetryLimit, this->d_grpcRetryDelay);
@@ -185,7 +185,7 @@ void Client::download(int fd, const Digest &digest)
         }
         BUILDBOX_LOG_DEBUG(resourceName << ": " << st.st_size
                                         << " bytes retrieved");
-        return reader->Finish();
+        return read_status;
     };
     grpcRetry(downloadLambda, this->d_grpcRetryLimit, this->d_grpcRetryDelay);
 }
