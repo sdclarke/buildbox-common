@@ -34,8 +34,10 @@ namespace buildboxcommon {
  */
 class Client {
   private:
-    int d_grpcRetryLimit;
-    int d_grpcRetryDelay;
+    // initialized here to prevent errors, incase options are not passed into
+    // init
+    int d_grpcRetryLimit = 0;
+    int d_grpcRetryDelay = 100;
 
     std::string makeResourceName(const Digest &digest, bool is_upload);
 

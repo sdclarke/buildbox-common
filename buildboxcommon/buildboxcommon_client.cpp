@@ -15,6 +15,7 @@
  */
 
 #include <buildboxcommon_client.h>
+#include <buildboxcommon_grpcretry.h>
 #include <buildboxcommon_logging.h>
 
 #include <algorithm>
@@ -59,19 +60,31 @@ void Client::init(
     // Limit payload to 1 MiB to leave sufficient headroom for metadata.
     this->d_maxBatchTotalSizeBytes = BYTESTREAM_CHUNK_SIZE;
 
-    grpc::ClientContext context;
-    GetCapabilitiesRequest request;
-    ServerCapabilities response;
-    auto status = this->d_capabilitiesClient->GetCapabilities(
-        &context, request, &response);
-    if (status.ok()) {
-        int64_t serverMaxBatchTotalSizeBytes =
-            response.cache_capabilities().max_batch_total_size_bytes();
-        // 0 means no server limit
-        if (serverMaxBatchTotalSizeBytes > 0 &&
-            serverMaxBatchTotalSizeBytes < this->d_maxBatchTotalSizeBytes) {
-            this->d_maxBatchTotalSizeBytes = serverMaxBatchTotalSizeBytes;
+    auto getCapabilitiesLambda = [&](grpc::ClientContext &context) {
+        GetCapabilitiesRequest request;
+        ServerCapabilities response;
+        auto status = this->d_capabilitiesClient->GetCapabilities(
+            &context, request, &response);
+        if (status.ok()) {
+            int64_t serverMaxBatchTotalSizeBytes =
+                response.cache_capabilities().max_batch_total_size_bytes();
+            // 0 means no server limit
+            if (serverMaxBatchTotalSizeBytes > 0 &&
+                serverMaxBatchTotalSizeBytes <
+                    this->d_maxBatchTotalSizeBytes) {
+                this->d_maxBatchTotalSizeBytes = serverMaxBatchTotalSizeBytes;
+            }
         }
+        return status;
+    };
+
+    try {
+        grpcRetry(getCapabilitiesLambda, this->d_grpcRetryLimit,
+                  this->d_grpcRetryDelay);
+    }
+
+    catch (std::runtime_error) {
+        BUILDBOX_LOG_DEBUG("Get capabilities request failed. Using default.");
     }
 
     // Generate UUID to use for uploads
@@ -104,31 +117,36 @@ std::string Client::fetchString(const Digest &digest)
 
     std::string result;
 
-    grpc::ClientContext context;
-    ReadRequest request;
-    request.set_resource_name(resourceName);
-    request.set_read_offset(0);
-    auto reader = this->d_bytestreamClient->Read(&context, request);
-    ReadResponse response;
-    while (reader->Read(&response)) {
-        result += response.data();
-    }
+    auto fetchLambda = [&](grpc::ClientContext &context) {
+        ReadRequest request;
+        request.set_resource_name(resourceName);
+        request.set_read_offset(0);
+        auto reader = this->d_bytestreamClient->Read(&context, request);
+        ReadResponse response;
+        while (reader->Read(&response)) {
+            result += response.data();
+        }
 
-    const auto read_status = reader->Finish();
-    if (!read_status.ok()) {
-        throw std::runtime_error("Error fetching string: " +
-                                 read_status.error_message());
-    }
-    if (result.length() != digest.size_bytes()) {
-        std::stringstream errorMsg;
-        errorMsg << "Expected " << digest.size_bytes()
-                 << " bytes, but downloaded blob was " << result.length()
-                 << " bytes";
-        throw std::runtime_error(errorMsg.str());
-    }
+        const auto read_status = reader->Finish();
+        if (!read_status.ok()) {
+            throw std::runtime_error("Error fetching string: " +
+                                     read_status.error_message());
+        }
 
-    BUILDBOX_LOG_DEBUG(resourceName << ": " << result.length()
-                                    << " bytes retrieved");
+        if (result.length() != digest.size_bytes()) {
+            std::stringstream errorMsg;
+            errorMsg << "Expected " << digest.size_bytes()
+                     << " bytes, but downloaded blob was " << result.length()
+                     << " bytes";
+            throw std::runtime_error(errorMsg.str());
+        }
+
+        BUILDBOX_LOG_DEBUG(resourceName << ": " << result.length()
+                                        << " bytes retrieved");
+        return reader->Finish();
+    };
+
+    grpcRetry(fetchLambda, this->d_grpcRetryLimit, this->d_grpcRetryDelay);
     return result;
 }
 
@@ -137,35 +155,39 @@ void Client::download(int fd, const Digest &digest)
     BUILDBOX_LOG_DEBUG("Downloading " << digest.hash() << " to file");
     std::string resourceName = this->makeResourceName(digest, false);
 
-    grpc::ClientContext context;
-    ReadRequest request;
-    request.set_resource_name(resourceName);
-    request.set_read_offset(0);
-    auto reader = this->d_bytestreamClient->Read(&context, request);
-    ReadResponse response;
-    while (reader->Read(&response)) {
-        if (write(fd, response.data().c_str(), response.data().length()) < 0) {
-            throw std::system_error(errno, std::generic_category());
+    auto downloadLambda = [&](grpc::ClientContext &context) {
+        ReadRequest request;
+        request.set_resource_name(resourceName);
+        request.set_read_offset(0);
+        auto reader = this->d_bytestreamClient->Read(&context, request);
+        ReadResponse response;
+        while (reader->Read(&response)) {
+            if (write(fd, response.data().c_str(), response.data().length()) <
+                0) {
+                throw std::system_error(errno, std::generic_category());
+            }
         }
-    }
 
-    const auto read_status = reader->Finish();
-    if (!read_status.ok()) {
-        throw std::runtime_error("Error downloading blob: " +
-                                 read_status.error_message());
-    }
+        const auto read_status = reader->Finish();
+        if (!read_status.ok()) {
+            throw std::runtime_error("Error downloading blob: " +
+                                     read_status.error_message());
+        }
 
-    struct stat st;
-    fstat(fd, &st);
-    if (st.st_size != digest.size_bytes()) {
-        std::stringstream errorMsg;
-        errorMsg << "Expected " << digest.size_bytes()
-                 << " bytes, but downloaded blob was " << st.st_size
-                 << " bytes";
-        throw std::runtime_error(errorMsg.str());
-    }
-    BUILDBOX_LOG_DEBUG(resourceName << ": " << st.st_size
-                                    << " bytes retrieved");
+        struct stat st;
+        fstat(fd, &st);
+        if (st.st_size != digest.size_bytes()) {
+            std::stringstream errorMsg;
+            errorMsg << "Expected " << digest.size_bytes()
+                     << " bytes, but downloaded blob was " << st.st_size
+                     << " bytes";
+            throw std::runtime_error(errorMsg.str());
+        }
+        BUILDBOX_LOG_DEBUG(resourceName << ": " << st.st_size
+                                        << " bytes retrieved");
+        return reader->Finish();
+    };
+    grpcRetry(downloadLambda, this->d_grpcRetryLimit, this->d_grpcRetryDelay);
 }
 
 void Client::upload(const std::string &str, const Digest &digest)
@@ -180,43 +202,47 @@ void Client::upload(const std::string &str, const Digest &digest)
     }
     std::string resourceName = this->makeResourceName(digest, true);
 
-    grpc::ClientContext context;
-    WriteResponse response;
-    auto writer = this->d_bytestreamClient->Write(&context, &response);
-    ssize_t offset = 0;
-    bool lastChunk = false;
-    while (!lastChunk) {
-        WriteRequest request;
-        request.set_resource_name(resourceName);
-        request.set_write_offset(offset);
+    auto uploadLambda = [&](grpc::ClientContext &context) {
+        WriteResponse response;
+        auto writer = this->d_bytestreamClient->Write(&context, &response);
+        ssize_t offset = 0;
+        bool lastChunk = false;
+        while (!lastChunk) {
+            WriteRequest request;
+            request.set_resource_name(resourceName);
+            request.set_write_offset(offset);
 
-        int uploadLength =
-            std::min(static_cast<unsigned long>(BYTESTREAM_CHUNK_SIZE),
-                     str.length() - offset);
+            int uploadLength =
+                std::min(static_cast<unsigned long>(BYTESTREAM_CHUNK_SIZE),
+                         str.length() - offset);
 
-        request.set_data(&str[offset], uploadLength);
-        offset += uploadLength;
+            request.set_data(&str[offset], uploadLength);
+            offset += uploadLength;
 
-        lastChunk = (offset == str.length());
-        if (lastChunk) {
-            request.set_finish_write(lastChunk);
+            lastChunk = (offset == str.length());
+            if (lastChunk) {
+                request.set_finish_write(lastChunk);
+            }
+
+            if (!writer->Write(request)) {
+                throw std::runtime_error("Upload of " + digest.hash() +
+                                         " failed: broken stream");
+            }
         }
-
-        if (!writer->Write(request)) {
-            throw std::runtime_error("Upload of " + digest.hash() +
-                                     " failed: broken stream");
+        writer->WritesDone();
+        auto status = writer->Finish();
+        if (offset != digest.size_bytes()) {
+            std::stringstream errorMsg;
+            errorMsg << "Expected to upload " << digest.size_bytes()
+                     << " bytes for " << digest.hash()
+                     << ", but uploaded blob was " << offset << " bytes";
+            throw std::runtime_error(errorMsg.str());
         }
-    }
-    writer->WritesDone();
-    auto status = writer->Finish();
-    if (!status.ok() || offset != digest.size_bytes()) {
-        std::stringstream errorMsg;
-        errorMsg << "Expected to upload " << digest.size_bytes()
-                 << " bytes for " << digest.hash()
-                 << ", but uploaded blob was " << offset << " bytes";
-        throw std::runtime_error(errorMsg.str());
-    }
-    BUILDBOX_LOG_DEBUG(resourceName << ": " << offset << " bytes uploaded");
+        BUILDBOX_LOG_DEBUG(resourceName << ": " << offset
+                                        << " bytes uploaded");
+        return status;
+    };
+    grpcRetry(uploadLambda, this->d_grpcRetryLimit, this->d_grpcRetryDelay);
 }
 
 void Client::upload(int fd, const Digest &digest)
@@ -228,47 +254,52 @@ void Client::upload(int fd, const Digest &digest)
 
     lseek(fd, 0, SEEK_SET);
 
-    grpc::ClientContext context;
-    WriteResponse response;
-    auto writer = this->d_bytestreamClient->Write(&context, &response);
-    ssize_t offset = 0;
-    bool lastChunk = false;
-    while (!lastChunk) {
-        ssize_t bytesRead = read(fd, &buffer[0], BYTESTREAM_CHUNK_SIZE);
-        if (bytesRead < 0) {
-            throw std::system_error(errno, std::generic_category());
-        }
-
-        WriteRequest request;
-        request.set_resource_name(resourceName);
-        request.set_write_offset(offset);
-        request.set_data(&buffer[0], bytesRead);
-
-        if (offset + bytesRead < digest.size_bytes()) {
-            if (bytesRead == 0) {
-                throw std::runtime_error("Upload of " + digest.hash() +
-                                         " failed: unexpected end of file");
+    auto uploadLambda = [&](grpc::ClientContext &context) {
+        WriteResponse response;
+        auto writer = this->d_bytestreamClient->Write(&context, &response);
+        ssize_t offset = 0;
+        bool lastChunk = false;
+        while (!lastChunk) {
+            ssize_t bytesRead = read(fd, &buffer[0], BYTESTREAM_CHUNK_SIZE);
+            if (bytesRead < 0) {
+                throw std::system_error(errno, std::generic_category());
             }
-        }
-        else {
-            lastChunk = true;
-            request.set_finish_write(true);
+
+            WriteRequest request;
+            request.set_resource_name(resourceName);
+            request.set_write_offset(offset);
+            request.set_data(&buffer[0], bytesRead);
+
+            if (offset + bytesRead < digest.size_bytes()) {
+                if (bytesRead == 0) {
+                    throw std::runtime_error(
+                        "Upload of " + digest.hash() +
+                        " failed: unexpected end of file");
+                }
+            }
+            else {
+                lastChunk = true;
+                request.set_finish_write(true);
+            }
+
+            if (!writer->Write(request)) {
+                throw std::runtime_error("Upload of " + digest.hash() +
+                                         " failed: broken stream");
+            }
+
+            offset += bytesRead;
         }
 
-        if (!writer->Write(request)) {
-            throw std::runtime_error("Upload of " + digest.hash() +
-                                     " failed: broken stream");
+        writer->WritesDone();
+        auto status = writer->Finish();
+        if (offset != digest.size_bytes()) {
+            throw std::runtime_error("Upload of " + digest.hash() + " failed");
         }
-
-        offset += bytesRead;
-    }
-
-    writer->WritesDone();
-    auto status = writer->Finish();
-    if (!status.ok() || offset != digest.size_bytes()) {
-        throw std::runtime_error("Upload of " + digest.hash() + " failed");
-    }
-    BUILDBOX_LOG_DEBUG(resourceName << ": " << offset << " bytes uploaded");
+        BUILDBOX_LOG_DEBUG(resourceName << ": " << offset
+                                        << " bytes uploaded");
+        return status;
+    };
+    grpcRetry(uploadLambda, this->d_grpcRetryLimit, this->d_grpcRetryDelay);
 }
 
 Client::UploadResults
@@ -402,15 +433,15 @@ Client::batchUpload(const std::vector<UploadRequest> &requests,
         entry->set_data(requests[d].data);
     }
 
-    grpc::ClientContext context;
     BatchUpdateBlobsResponse response;
+    auto batchUploadLamda = [&](grpc::ClientContext &context) {
+        const auto status =
+            this->d_casClient->BatchUpdateBlobs(&context, request, &response);
+        return status;
+    };
 
-    const auto status =
-        this->d_casClient->BatchUpdateBlobs(&context, request, &response);
-
-    if (!status.ok()) {
-        throw std::runtime_error("BatchUpdateBlobs() request failed.");
-    }
+    grpcRetry(batchUploadLamda, this->d_grpcRetryLimit,
+              this->d_grpcRetryDelay);
 
     UploadResults results;
     for (const auto &uploadResponse : response.responses()) {
@@ -434,15 +465,15 @@ Client::DownloadedData Client::batchDownload(const std::vector<Digest> digests,
         digest->CopyFrom(digests[d]);
     }
 
-    grpc::ClientContext context;
     BatchReadBlobsResponse response;
+    auto batchDownloadLamda = [&](grpc::ClientContext &context) {
+        const auto status =
+            this->d_casClient->BatchReadBlobs(&context, request, &response);
+        return status;
+    };
 
-    const auto status =
-        this->d_casClient->BatchReadBlobs(&context, request, &response);
-
-    if (!status.ok()) {
-        throw std::runtime_error("BatchReadBlobs() request failed.");
-    }
+    grpcRetry(batchDownloadLamda, this->d_grpcRetryLimit,
+              this->d_grpcRetryDelay);
 
     DownloadedData data;
     for (const auto &downloadResponse : response.responses()) {
