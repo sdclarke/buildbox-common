@@ -50,3 +50,11 @@ add_executable(grpcretry_tests
 
 target_link_libraries(grpcretry_tests buildboxcommon ${GTEST_TARGET})
 add_test(NAME grpcretry_tests COMMAND grpcretry_tests)
+add_executable(merklize_tests
+  buildboxcommon_merklize.t.cpp
+  buildboxcommon_tests.m.cpp)
+
+target_link_libraries(merklize_tests buildboxcommon ${GTEST_TARGET})
+add_test(NAME merklize_tests
+        COMMAND merklize_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/data/merklize)
