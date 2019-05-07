@@ -18,6 +18,7 @@
 #define INCLUDED_BUILDBOXCOMMON_TEMPORARYDIRECTORY
 
 #include <buildboxcommon_fileutils.h>
+#include <buildboxcommon_tempconstants.h>
 #include <string>
 #include <unistd.h>
 
@@ -29,7 +30,16 @@ class TemporaryDirectory {
      * will be included in the name of the temporary directory.
      */
     explicit TemporaryDirectory(
-        const char *prefix = FileUtilsDefaults::DEFAULT_TMP_PREFIX);
+        const char *prefix = TempDefaults::DEFAULT_TMP_PREFIX);
+
+    /* Allows configuring whether the actual directory should be deleted from
+     * disk once this instance is destructed. (By default, auto-remove is
+     * enabled).
+     *
+     * Setting this to `false` allows creating temporary directories in use
+     * cases where the responsibility of cleaning them is to be handed over.
+     */
+    void setAutoRemove(bool auto_remove);
 
     /**
      * Delete the temporary directory.
@@ -40,6 +50,15 @@ class TemporaryDirectory {
 
   private:
     std::string d_name;
+    bool d_auto_remove;
+
+    /* Creates a temporary file using `mkdtemp()` inside the given path.
+     * The created directory's name will contain the given prefix, which is
+     * allowed to be empty.
+     *
+     * If the creation fails, throws an `std::system_error` exception.
+     */
+    static std::string create(const char *path, const char *prefix);
 };
 
 } // namespace buildboxcommon

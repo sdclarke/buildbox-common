@@ -31,8 +31,6 @@
 
 namespace buildboxcommon {
 
-const char *FileUtilsDefaults::DEFAULT_TMP_PREFIX = "buildbox";
-
 bool FileUtils::is_directory(const char *path)
 {
     struct stat statResult;

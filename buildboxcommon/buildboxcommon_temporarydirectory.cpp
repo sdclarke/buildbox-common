@@ -19,22 +19,38 @@
 namespace buildboxcommon {
 
 TemporaryDirectory::TemporaryDirectory(const char *prefix)
+    : d_auto_remove(true)
 {
     const char *tmpdir = getenv("TMPDIR");
     if (tmpdir == nullptr || tmpdir[0] == '\0') {
-        tmpdir = "/tmp";
+        tmpdir = TempDefaults::DEFAULT_TMP_DIR;
     }
+
+    this->d_name = create(tmpdir, prefix);
+}
+
+std::string TemporaryDirectory::create(const char *path, const char *prefix)
+{
     std::string name =
-        std::string(tmpdir) + "/" + std::string(prefix) + "XXXXXX";
+        std::string(path) + "/" + std::string(prefix) + "XXXXXX";
+
     if (mkdtemp(&name[0]) == nullptr) {
         throw std::system_error(errno, std::system_category());
     }
-    this->d_name = name;
+
+    return name;
+}
+
+void TemporaryDirectory::setAutoRemove(bool auto_remove)
+{
+    d_auto_remove = auto_remove;
 }
 
 TemporaryDirectory::~TemporaryDirectory()
 {
-    FileUtils::delete_directory(this->d_name.c_str());
+    if (d_auto_remove) {
+        FileUtils::delete_directory(this->d_name.c_str());
+    }
 }
 
 } // namespace buildboxcommon

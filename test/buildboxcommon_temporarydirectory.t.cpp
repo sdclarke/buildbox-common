@@ -40,6 +40,27 @@ TEST(TemporaryDirectoryTests, TemporaryDirectory)
     ASSERT_NE(stat(name.c_str(), &statResult), 0);
 }
 
+TEST(TemporaryDirectoryTests, TemporaryDirectoryDisableAutoRemove)
+{
+    std::string name;
+    {
+        TemporaryDirectory tempDir = TemporaryDirectory("test-prefix");
+        name = std::string(tempDir.name());
+        EXPECT_NE(name.find("test-prefix"), std::string::npos);
+
+        // We disable auto remove:
+        tempDir.setAutoRemove(false);
+    }
+
+    // Verify that the directory still exists, even as `tempDir` was
+    // destructed:
+    struct stat statResult;
+    ASSERT_EQ(stat(name.c_str(), &statResult), 0);
+    ASSERT_TRUE(S_ISDIR(statResult.st_mode));
+
+    unlink(name.c_str());
+}
+
 TEST(TemporaryDirectoryTests, CreateDeleteDirectory)
 {
     TemporaryDirectory tempDir = TemporaryDirectory();

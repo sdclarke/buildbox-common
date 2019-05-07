@@ -18,6 +18,7 @@
 #define INCLUDED_BUILDBOXCOMMON_TEMPORARYFILE
 
 #include <buildboxcommon_fileutils.h>
+#include <buildboxcommon_tempconstants.h>
 
 namespace buildboxcommon {
 
@@ -33,7 +34,7 @@ class TemporaryFile {
      * Create a temporary file on disk. If a prefix is specified, it
      * will be included in the name of the temporary file.
      */
-    TemporaryFile(const char *prefix = FileUtilsDefaults::DEFAULT_TMP_PREFIX);
+    TemporaryFile(const char *prefix = TempDefaults::DEFAULT_TMP_PREFIX);
 
     /**
      * Create a temporary file on disk inside the given directory.
