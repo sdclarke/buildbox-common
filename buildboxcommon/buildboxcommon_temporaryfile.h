@@ -1,4 +1,4 @@
-/*
+﻿/*
  * Copyright 2018 Bloomberg Finance LP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,6 +21,10 @@
 
 namespace buildboxcommon {
 
+struct TemporaryFileDefaults {
+    static const char *DEFAULT_TMP_DIR;
+};
+
 class TemporaryFile {
     // Provide a TemporaryFile component that provides the facility for
     // temporary files that are scoped in an RAII fashion.
@@ -30,6 +34,12 @@ class TemporaryFile {
      * will be included in the name of the temporary file.
      */
     TemporaryFile(const char *prefix = FileUtilsDefaults::DEFAULT_TMP_PREFIX);
+
+    /**
+     * Create a temporary file on disk inside the given directory.
+     * The contents of `prefix` will be included in the name of the file.
+     */
+    TemporaryFile(const char *directory, const char *prefix);
 
     /**
      * Delete the temporary file.
@@ -45,6 +55,17 @@ class TemporaryFile {
   private:
     std::string d_name;
     int d_fd;
+
+    /* Returns the value of the $TMPDIR environment variable if set or
+     * `TemporaryFileDefaults::DEFAULT_TMP_DIR` if not.
+     */
+    static const char *tempDirectory();
+
+    /* Creates a temporary file using mkstemp() inside the directory.
+     * The file name will contain the given prefix, which is allowed to be
+     * empty. If the creation fails, throws an `std::system_error` exception.
+     */
+    void create(const char *directory, const char *prefix);
 };
 } // namespace buildboxcommon
 #endif
