@@ -19,19 +19,16 @@
 
 namespace buildboxcommon {
 
+const char *TemporaryFileDefaults::DEFAULT_TMP_DIR = "/tmp";
+
 TemporaryFile::TemporaryFile(const char *prefix)
 {
-    const char *tmpdir = getenv("TMPDIR");
-    if (tmpdir == nullptr || tmpdir[0] == '\0') {
-        tmpdir = "/tmp";
-    }
-    std::string name =
-        std::string(tmpdir) + "/" + std::string(prefix) + "XXXXXX";
-    this->d_fd = mkstemp(&name[0]);
-    if (this->d_fd == -1) {
-        throw std::system_error(errno, std::system_category());
-    }
-    this->d_name = name;
+    create(tempDirectory(), prefix);
+}
+
+TemporaryFile::TemporaryFile(const char *directory, const char *prefix)
+{
+    create(directory, prefix);
 }
 
 TemporaryFile::~TemporaryFile()
@@ -46,6 +43,27 @@ void TemporaryFile::close()
 {
     ::close(this->d_fd);
     this->d_fd = -1;
+}
+
+const char *TemporaryFile::tempDirectory()
+{
+    const char *tmpdir = getenv("TMPDIR");
+    if (tmpdir == nullptr || tmpdir[0] == '\0') {
+        return TemporaryFileDefaults::DEFAULT_TMP_DIR;
+    }
+    return tmpdir;
+}
+
+void TemporaryFile::create(const char *directory, const char *prefix)
+{
+    std::string name =
+        std::string(directory) + "/" + std::string(prefix) + "XXXXXX";
+
+    this->d_fd = mkstemp(&name[0]);
+    if (this->d_fd == -1) {
+        throw std::system_error(errno, std::system_category());
+    }
+    this->d_name = name;
 }
 
 } // namespace buildboxcommon
