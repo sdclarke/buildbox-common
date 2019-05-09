@@ -14,6 +14,8 @@
 
 #include <buildboxcommon_fileutils.h>
 
+#include <buildboxcommon_logging.h>
+
 #include <algorithm>
 #include <cerrno>
 #include <cstdio>
@@ -25,7 +27,6 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <system_error>
-
 #include <unistd.h>
 
 namespace buildboxcommon {
@@ -39,6 +40,35 @@ bool FileUtils::is_directory(const char *path)
         return S_ISDIR(statResult.st_mode);
     }
     return false;
+}
+
+bool FileUtils::directory_is_empty(const char *path)
+{
+    DIR *dir_stream = opendir(path);
+    if (dir_stream == nullptr) {
+        throw std::system_error(errno, std::system_category());
+    }
+
+    struct dirent *dir_entry;
+    errno = 0;
+    while ((dir_entry = readdir(dir_stream)) != nullptr) {
+        const std::string entry_name = dir_entry->d_name;
+        if (entry_name != "." && entry_name != "..") {
+            return false;
+        }
+    }
+    const auto readdir_status = errno; // (`nullptr` can be returned on errors)
+
+    if (closedir(dir_stream) != 0) {
+        BUILDBOX_LOG_ERROR("Could not closedir() " << path << ": "
+                                                   << std::strerror(errno));
+    }
+
+    if (readdir_status != 0) {
+        throw std::system_error(errno, std::system_category());
+    }
+
+    return true;
 }
 
 void FileUtils::create_directory(const char *path)

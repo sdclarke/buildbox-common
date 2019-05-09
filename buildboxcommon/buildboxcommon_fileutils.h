@@ -35,6 +35,11 @@ struct FileUtils {
     static bool is_directory(const char *path);
 
     /**
+     * Return true if the directory is empty.
+     */
+    static bool directory_is_empty(const char *path);
+
+    /**
      * Create a directory if it doesn't already exist, including parents.
      */
     static void create_directory(const char *path);
