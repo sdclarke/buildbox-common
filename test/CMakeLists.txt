@@ -58,3 +58,9 @@ target_link_libraries(merklize_tests buildboxcommon ${GTEST_TARGET})
 add_test(NAME merklize_tests
         COMMAND merklize_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/data/merklize)
+
+add_executable(protos_tests
+               buildboxcommon_protos.t.cpp
+               buildboxcommon_tests.m.cpp)
+target_link_libraries(protos_tests buildboxcommon ${GMOCK_TARGET})
+add_test(NAME protos_tests COMMAND protos_tests)
