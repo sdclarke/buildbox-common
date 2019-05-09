@@ -72,3 +72,16 @@ TEST(ProtosHeaderTest, DigestComparisonDifferent)
     ASSERT_FALSE(d1 == d2);
 }
 
+TEST(ProtosHeaderTest, DigestToString)
+{
+    const std::string data = "This is some content to hash.";
+    const Digest digest = buildboxcommon::CASHash::hash(data);
+
+    std::stringstream output;
+    output << digest;
+
+    std::string expected_output =
+        digest.hash() + "/" + std::to_string(digest.size_bytes());
+
+    ASSERT_EQ(output.str(), expected_output);
+}
