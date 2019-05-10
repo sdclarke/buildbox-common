@@ -21,11 +21,6 @@
 
 namespace buildboxcommon {
 
-struct FileUtilsDefaults {
-    // Provide default definitions for use with FileUtils.
-    static const char *DEFAULT_TMP_PREFIX;
-};
-
 struct FileUtils {
     // Provide a namespace for file utilities.
 
