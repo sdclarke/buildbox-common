@@ -49,6 +49,13 @@ inline bool operator==(const buildboxcommon::Digest &a,
 {
     return a.hash() == b.hash() && a.size_bytes() == b.size_bytes();
 }
+
+inline std::ostream &operator<<(std::ostream &os,
+                                const buildboxcommon::Digest &digest)
+{
+    return os << digest.hash() << "/" << digest.size_bytes();
+}
+
 } // namespace v2
 } // namespace execution
 } // namespace remote
