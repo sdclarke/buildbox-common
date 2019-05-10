@@ -88,3 +88,22 @@ TEST(FileUtilsTests, ExecutableTests)
     ASSERT_TRUE(path_exists(path));
     ASSERT_TRUE(FileUtils::is_executable(path));
 }
+
+TEST(FileUtilsTest, DirectoryIsEmptyTest)
+{
+    TemporaryDirectory dir;
+
+    ASSERT_TRUE(FileUtils::directory_is_empty(dir.name()));
+}
+
+TEST(FileUtilsTest, DirectoryIsNotEmptyTest)
+{
+    TemporaryDirectory dir;
+
+    const std::string file_path = std::string(dir.name()) + "/file.txt";
+
+    std::ofstream file(file_path);
+    file.close();
+
+    ASSERT_FALSE(FileUtils::directory_is_empty(dir.name()));
+}
