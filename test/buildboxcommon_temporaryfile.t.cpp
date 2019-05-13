@@ -14,12 +14,11 @@
  * limitations under the License.
  */
 
+#include <buildboxcommon_temporarydirectory.h>
 #include <buildboxcommon_temporaryfile.h>
 #include <fstream>
 #include <gtest/gtest.h>
 #include <iostream>
-
-#include <buildboxcommon_temporarydirectory.h>
 
 using namespace buildboxcommon;
 
@@ -27,6 +26,7 @@ TEST(TemporaryFileTests, TemporaryFile)
 {
     std::string file_name;
     {
+        unsetenv("TMPDIR");
         TemporaryFile tempFile;
         file_name = std::string(tempFile.name());
 
