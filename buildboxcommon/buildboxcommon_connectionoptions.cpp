@@ -32,6 +32,7 @@ namespace buildboxcommon {
 namespace {
 static const char *HTTP_PREFIX = "http://";
 static const char *HTTPS_PREFIX = "https://";
+static const char *UNIX_SOCKET_PREFIX = "unix:";
 
 static std::string getFileContents(const char *filename)
 {
@@ -168,6 +169,11 @@ std::shared_ptr<grpc::Channel> ConnectionOptions::createChannel() const
         }
         target = this->d_url + strlen(HTTPS_PREFIX);
         creds = grpc::SslCredentials(options);
+    }
+    else if (strncmp(this->d_url, UNIX_SOCKET_PREFIX,
+                     strlen(UNIX_SOCKET_PREFIX)) == 0) {
+        target = this->d_url;
+        creds = grpc::InsecureChannelCredentials();
     }
     else {
         throw std::runtime_error("Unsupported URL scheme");
