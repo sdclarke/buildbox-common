@@ -112,10 +112,7 @@ void FileUtils::delete_directory(const char *path)
             std::string(path) + std::string("/") + entry->d_name;
 
         if (is_directory(entryPath.c_str())) {
-            DIR *entryStream = opendir(entryPath.c_str());
-            if (dirStream != nullptr) {
-                delete_directory(entryPath.c_str());
-            }
+            delete_directory(entryPath.c_str());
         }
         else {
             unlink(entryPath.c_str());
