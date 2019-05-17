@@ -29,6 +29,12 @@ TemporaryDirectory::TemporaryDirectory(const char *prefix)
     this->d_name = create(tmpdir, prefix);
 }
 
+TemporaryDirectory::TemporaryDirectory(const char *path, const char *prefix)
+    : d_auto_remove(true)
+{
+    this->d_name = create(path, prefix);
+}
+
 std::string TemporaryDirectory::create(const char *path, const char *prefix)
 {
     std::string name =
