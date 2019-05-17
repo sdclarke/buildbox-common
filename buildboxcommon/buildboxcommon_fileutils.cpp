@@ -31,6 +31,15 @@
 
 namespace buildboxcommon {
 
+bool FileUtils::is_regular_file(const char *path)
+{
+    struct stat statResult;
+    if (stat(path, &statResult) == 0) {
+        return S_ISREG(statResult.st_mode);
+    }
+    return false;
+}
+
 bool FileUtils::is_directory(const char *path)
 {
     struct stat statResult;
