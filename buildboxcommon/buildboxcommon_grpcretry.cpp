@@ -28,7 +28,6 @@ void grpcRetry(
     int grpcRetryLimit, int grpcRetryDelay)
 {
     int nAttempts = 0;
-    bool refreshed = false;
     grpc::Status status;
     do {
         grpc::ClientContext context;

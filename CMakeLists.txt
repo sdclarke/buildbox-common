@@ -29,6 +29,15 @@ add_library(buildboxcommon STATIC
     ${BUILDBOXCOMMON_CPP}
     ${PROTO_GENERATED_SRCS})
 
+## Only add flags when compiling casd, not tests. PRIVATE specifies don't add these flags to libraries that link against this.
+if(CMAKE_CXX_COMPILER_ID EQUAL Clang)
+    target_compile_options(buildboxcommon PRIVATE -Wall -Werror=inconsistent-missing-override)
+elseif(CMAKE_CXX_COMPILER_ID EQUAL GNU)
+    target_compile_options(buildboxcommon PRIVATE -Wall -Werror=suggest-override)
+else()
+    target_compile_options(buildboxcommon PRIVATE -Wall)
+endif()
+
 if(${CMAKE_SYSTEM_NAME} MATCHES "AIX")
     # AIX's sys/sysmacros.h defines a macro called major(). Bazel's semver
     # protobuf defines a property called major, which produces a method called
