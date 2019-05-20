@@ -40,6 +40,50 @@ TEST(TemporaryDirectoryTests, TemporaryDirectory)
     ASSERT_NE(stat(name.c_str(), &statResult), 0);
 }
 
+TEST(TemporaryDirectoryTests, TemporaryDirectoryInPath)
+{
+    std::string name;
+    TemporaryDirectory directory = TemporaryDirectory();
+    const std::string directory_path(directory.name());
+
+    std::string subdirectory_path;
+
+    {
+        TemporaryDirectory subdirectory =
+            TemporaryDirectory(directory_path.c_str(), "prefix");
+
+        subdirectory_path = std::string(subdirectory.name());
+        EXPECT_TRUE(FileUtils::is_directory(subdirectory_path.c_str()));
+
+        EXPECT_EQ(subdirectory_path.substr(0, directory_path.size()),
+                  directory_path);
+    }
+
+    EXPECT_FALSE(FileUtils::is_directory(subdirectory_path.c_str()));
+}
+
+TEST(TemporaryDirectoryTests, TemporaryDirectoryInPathWithEmptyPrefix)
+{
+    std::string name;
+    TemporaryDirectory directory = TemporaryDirectory();
+    const std::string directory_path(directory.name());
+
+    std::string subdirectory_path;
+
+    {
+        TemporaryDirectory subdirectory =
+            TemporaryDirectory(directory_path.c_str(), "");
+
+        subdirectory_path = std::string(subdirectory.name());
+        EXPECT_TRUE(FileUtils::is_directory(subdirectory_path.c_str()));
+
+        EXPECT_EQ(subdirectory_path.substr(0, directory_path.size()),
+                  directory_path);
+    }
+
+    EXPECT_FALSE(FileUtils::is_directory(subdirectory_path.c_str()));
+}
+
 TEST(TemporaryDirectoryTests, TemporaryDirectoryDisableAutoRemove)
 {
     std::string name;

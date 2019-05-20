@@ -32,6 +32,11 @@ class TemporaryDirectory {
     explicit TemporaryDirectory(
         const char *prefix = TempDefaults::DEFAULT_TMP_PREFIX);
 
+    /**
+     * Create a temporary directory in the path specified on disk.
+     */
+    explicit TemporaryDirectory(const char *path, const char *prefix);
+
     /* Allows configuring whether the actual directory should be deleted from
      * disk once this instance is destructed. (By default, auto-remove is
      * enabled).
