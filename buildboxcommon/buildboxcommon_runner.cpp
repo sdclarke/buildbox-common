@@ -249,7 +249,6 @@ void Runner::executeAndStore(std::vector<std::string> command,
 
 bool Runner::parseArguments(int argc, char *argv[])
 {
-    char *prgname = argv[0];
     argv++;
     argc--;
 

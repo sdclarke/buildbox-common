@@ -39,11 +39,11 @@ void Client::init(const ConnectionOptions &options)
     this->d_grpcRetryDelay = std::stoi(options.d_retryDelay);
     this->d_channel = channel;
     std::shared_ptr<ByteStream::Stub> bytestreamClient =
-        std::move(ByteStream::NewStub(this->d_channel));
+        ByteStream::NewStub(this->d_channel);
     std::shared_ptr<ContentAddressableStorage::Stub> casClient =
-        std::move(ContentAddressableStorage::NewStub(this->d_channel));
+        ContentAddressableStorage::NewStub(this->d_channel);
     std::shared_ptr<Capabilities::Stub> capabilitiesClient =
-        std::move(Capabilities::NewStub(this->d_channel));
+        Capabilities::NewStub(this->d_channel);
     init(bytestreamClient, casClient, capabilitiesClient);
 }
 
@@ -83,8 +83,9 @@ void Client::init(
                   this->d_grpcRetryDelay);
     }
 
-    catch (std::runtime_error) {
-        BUILDBOX_LOG_DEBUG("Get capabilities request failed. Using default.");
+    catch (const std::runtime_error &e) {
+        BUILDBOX_LOG_DEBUG("Get capabilities request failed. Using default. "
+                           << e.what());
     }
 
     // Generate UUID to use for uploads
@@ -133,7 +134,7 @@ std::string Client::fetchString(const Digest &digest)
                                      read_status.error_message());
         }
 
-        if (result.length() != digest.size_bytes()) {
+        if ((int)result.length() != digest.size_bytes()) {
             std::stringstream errorMsg;
             errorMsg << "Expected " << digest.size_bytes()
                      << " bytes, but downloaded blob was " << result.length()
@@ -193,7 +194,7 @@ void Client::download(int fd, const Digest &digest)
 void Client::upload(const std::string &str, const Digest &digest)
 {
     BUILDBOX_LOG_DEBUG("Uploading " << digest.hash() << " from string");
-    if (digest.size_bytes() != str.length()) {
+    if (digest.size_bytes() != (int)str.length()) {
         std::stringstream errorMsg;
         errorMsg << "Digest length of " << digest.size_bytes() << " bytes for "
                  << digest.hash() << " does not match string length of "
@@ -219,7 +220,7 @@ void Client::upload(const std::string &str, const Digest &digest)
             request.set_data(&str[offset], uploadLength);
             offset += uploadLength;
 
-            lastChunk = (offset == str.length());
+            lastChunk = (offset == (ssize_t)str.length());
             if (lastChunk) {
                 request.set_finish_write(lastChunk);
             }

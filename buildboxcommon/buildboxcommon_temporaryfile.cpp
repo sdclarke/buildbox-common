@@ -19,7 +19,8 @@
 
 namespace buildboxcommon {
 
-const char *TemporaryFileDefaults::DEFAULT_TMP_DIR = "/tmp";
+const char *TemporaryFileDefaults::DEFAULT_TMP_DIR =
+    TempDefaults::DEFAULT_TMP_DIR;
 
 TemporaryFile::TemporaryFile(const char *prefix)
 {

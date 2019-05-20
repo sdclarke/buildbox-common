@@ -46,7 +46,6 @@ FallbackStagedDirectory::FallbackStagedDirectory(
 
 FallbackStagedDirectory::~FallbackStagedDirectory()
 {
-    int argc = 3;
     const char *argv[] = {"rm", "-rf", this->d_path.c_str(), nullptr};
     const auto pid = fork();
     if (pid == -1) {
