@@ -104,35 +104,12 @@ void FileUtils::create_directory(const char *path)
 
 void FileUtils::delete_directory(const char *path)
 {
-    DIR *dirStream = opendir(path);
-    if (dirStream == nullptr) {
-        throw std::system_error(errno, std::system_category());
-    }
+    delete_recursively(path, true);
+}
 
-    for (auto entry = readdir(dirStream); entry != nullptr;
-         entry = readdir(dirStream)) {
-        if (strcmp(entry->d_name, ".") == 0 ||
-            strcmp(entry->d_name, "..") == 0) {
-            // Skip "." and ".."
-            continue;
-        }
-
-        std::string entryPath =
-            std::string(path) + std::string("/") + entry->d_name;
-
-        if (is_directory(entryPath.c_str())) {
-            delete_directory(entryPath.c_str());
-        }
-        else {
-            unlink(entryPath.c_str());
-        }
-    }
-
-    closedir(dirStream);
-
-    if (rmdir(path) == -1) {
-        throw std::system_error(errno, std::system_category());
-    }
+void FileUtils::clear_directory(const char *path)
+{
+    delete_recursively(path, false);
 }
 
 bool FileUtils::is_executable(const char *path)
@@ -171,6 +148,43 @@ std::string FileUtils::get_file_contents(const char *path)
         fileStream.read(&contents[0], contents.length());
     }
     return contents;
+}
+
+void FileUtils::delete_recursively(const char *path,
+                                   const bool delete_root_directory)
+{
+    DIR *dirStream = opendir(path);
+    if (dirStream == nullptr) {
+        throw std::system_error(errno, std::system_category());
+    }
+
+    for (auto entry = readdir(dirStream); entry != nullptr;
+         entry = readdir(dirStream)) {
+        if (strcmp(entry->d_name, ".") == 0 ||
+            strcmp(entry->d_name, "..") == 0) {
+            // Skip "." and ".."
+            continue;
+        }
+
+        std::string entryPath =
+            std::string(path) + std::string("/") + entry->d_name;
+
+        if (is_directory(entryPath.c_str())) {
+            delete_recursively(entryPath.c_str(), true);
+        }
+        else {
+            unlink(entryPath.c_str());
+        }
+    }
+
+    closedir(dirStream);
+
+    if (delete_root_directory && rmdir(path) == -1) {
+        throw std::system_error(errno, std::system_category());
+    }
+    // (The value of `delete_root_directory` is only considered for the first
+    // call of this function, the recursive calls will all invoked with it set
+    // to true.)
 }
 
 } // namespace buildboxcommon
