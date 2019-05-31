@@ -17,6 +17,7 @@
 #ifndef INCLUDED_BUILDBOXCOMMON_RUNNER
 #define INCLUDED_BUILDBOXCOMMON_RUNNER
 
+#include <atomic>
 #include <buildboxcommon_client.h>
 #include <buildboxcommon_connectionoptions.h>
 #include <buildboxcommon_stageddirectory.h>
@@ -44,6 +45,8 @@ class Runner {
      * its usage message.
      */
     virtual void printSpecialUsage() {}
+    static void handleSignal(int signal);
+    static sig_atomic_t getSignalStatus();
 
     int main(int argc, char *argv[]);
     virtual ~Runner(){};
@@ -83,6 +86,7 @@ class Runner {
     ConnectionOptions d_casRemote;
     const char *d_inputPath;
     const char *d_outputPath;
+    static volatile sig_atomic_t d_signal_status;
 };
 
 #define BUILDBOX_RUNNER_MAIN(x)                                               \

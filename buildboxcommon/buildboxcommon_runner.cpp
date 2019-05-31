@@ -18,10 +18,12 @@
 
 #include <buildboxcommon_connectionoptions.h>
 #include <buildboxcommon_fallbackstageddirectory.h>
+#include <buildboxcommon_fileutils.h>
 #include <buildboxcommon_logging.h>
 
 #include <algorithm>
 #include <cerrno>
+#include <csignal>
 #include <cstdio>
 #include <exception>
 #include <fcntl.h>
@@ -78,8 +80,15 @@ static void usage(const char *name)
 
 } // namespace
 
+volatile sig_atomic_t Runner::d_signal_status = 0;
+void Runner::handleSignal(int signal) { d_signal_status = signal; }
+sig_atomic_t Runner::getSignalStatus() { return d_signal_status; }
+
 int Runner::main(int argc, char *argv[])
 {
+    std::signal(SIGINT, handleSignal);
+    std::signal(SIGTERM, handleSignal);
+
     if (!this->parseArguments(argc, argv)) {
         usage(argv[0]);
         printSpecialUsage();
@@ -106,6 +115,11 @@ int Runner::main(int argc, char *argv[])
         BUILDBOX_LOG_DEBUG("Fetching " << input.command_digest().hash());
         const Command command =
             this->d_casClient->fetchMessage<Command>(input.command_digest());
+        auto signal_status = getSignalStatus();
+        if (signal_status) {
+            // If signal is set here, then no clean up necessary, return.
+            return signal_status;
+        }
         BUILDBOX_LOG_DEBUG("Executing command");
         result = this->execute(command, input.input_root_digest());
     }
@@ -116,7 +130,6 @@ int Runner::main(int argc, char *argv[])
         BUILDBOX_LOG_ERROR(msg);
         *(result.mutable_stderr_raw()) += msg;
     }
-
     if (this->d_outputPath != nullptr && this->d_outputPath[0] != '\0') {
         int outFd = open(this->d_outputPath, O_WRONLY);
         if (outFd == -1) {
@@ -130,7 +143,12 @@ int Runner::main(int argc, char *argv[])
         }
         close(outFd);
     }
-
+    // At this point, if a signal is thrown, then execute has happend
+    // succesfully and the results have been written
+    if (getSignalStatus()) {
+        FileUtils::delete_directory(this->d_outputPath);
+        return getSignalStatus();
+    }
     return result.exit_code();
 }
 
