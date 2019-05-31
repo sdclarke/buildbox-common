@@ -114,3 +114,27 @@ TEST(FileUtilsTest, DirectoryIsNotEmptyTest)
 
     ASSERT_FALSE(FileUtils::directory_is_empty(dir.name()));
 }
+
+TEST(FileUtilsTests, ClearDirectoryTest)
+{
+    TemporaryDirectory directory;
+
+    // Populating the directory with a subdirectory and a file:
+    const std::string subdirectory_path =
+        std::string(directory.name()) + "/subdir";
+    FileUtils::create_directory(subdirectory_path.c_str());
+
+    ASSERT_TRUE(FileUtils::is_directory(subdirectory_path.c_str()));
+
+    const std::string file_in_subdirectory_path =
+        subdirectory_path + "/file1.txt";
+    std::ofstream file(file_in_subdirectory_path);
+    file.close();
+
+    ASSERT_FALSE(FileUtils::directory_is_empty(directory.name()));
+
+    FileUtils::clear_directory(directory.name());
+
+    ASSERT_TRUE(path_exists(directory.name()));
+    ASSERT_TRUE(FileUtils::directory_is_empty(directory.name()));
+}

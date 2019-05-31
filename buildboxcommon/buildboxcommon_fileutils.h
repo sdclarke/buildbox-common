@@ -50,6 +50,11 @@ struct FileUtils {
     static void delete_directory(const char *path);
 
     /**
+     * Delete the contents of an existing directory.
+     */
+    static void clear_directory(const char *path);
+
+    /**
      * Return true if the given file path is executable.
      */
     static bool is_executable(const char *path);
@@ -63,6 +68,15 @@ struct FileUtils {
      * Gets the contents of a file
      */
     static std::string get_file_contents(const char *path);
+
+  private:
+    /**
+     * Deletes the contents of an existing directory.
+     * `delete_parent_directory` allows specifying whether the top-level
+     * directory in `path` is to be deleted.
+     */
+    static void delete_recursively(const char *path,
+                                   const bool delete_parent_directory);
 };
 } // namespace buildboxcommon
 
