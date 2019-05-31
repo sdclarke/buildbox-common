@@ -45,19 +45,22 @@ TEST(FileUtilsTests, DirectoryTests)
 
     ASSERT_FALSE(path_exists(path));
     ASSERT_FALSE(FileUtils::is_directory(path));
+    ASSERT_FALSE(FileUtils::is_regular_file(path));
 
     FileUtils::create_directory(path);
 
     ASSERT_TRUE(path_exists(path));
     ASSERT_TRUE(FileUtils::is_directory(path));
+    ASSERT_FALSE(FileUtils::is_regular_file(path));
 
     FileUtils::delete_directory(path);
 
     ASSERT_FALSE(path_exists(path));
     ASSERT_FALSE(FileUtils::is_directory(path));
+    ASSERT_FALSE(FileUtils::is_regular_file(path));
 }
 
-TEST(FileUtilsTests, DirectoryIsFileTest)
+TEST(FileUtilsTests, IsFile)
 {
     TemporaryDirectory tmpdir;
     std::string pathStr = std::string(tmpdir.name()) + "/foo.txt";
@@ -66,6 +69,8 @@ TEST(FileUtilsTests, DirectoryIsFileTest)
     touch_file(path);
 
     ASSERT_TRUE(path_exists(path));
+
+    ASSERT_TRUE(FileUtils::is_regular_file(path));
     ASSERT_FALSE(FileUtils::is_directory(path));
 }
 
@@ -81,11 +86,13 @@ TEST(FileUtilsTests, ExecutableTests)
     touch_file(path);
 
     ASSERT_TRUE(path_exists(path));
+    ASSERT_TRUE(FileUtils::is_regular_file(path));
     ASSERT_FALSE(FileUtils::is_executable(path));
 
     FileUtils::make_executable(path);
 
     ASSERT_TRUE(path_exists(path));
+    ASSERT_TRUE(FileUtils::is_regular_file(path));
     ASSERT_TRUE(FileUtils::is_executable(path));
 }
 

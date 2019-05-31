@@ -30,6 +30,11 @@ struct FileUtils {
     static bool is_directory(const char *path);
 
     /**
+     * Return true if the given file path is a regular file.
+     */
+    static bool is_regular_file(const char *path);
+
+    /**
      * Return true if the directory is empty.
      */
     static bool directory_is_empty(const char *path);
