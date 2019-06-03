@@ -18,6 +18,8 @@
 #define INCLUDED_BUILDBOXCOMMON_RUNNER
 
 #include <atomic>
+#include <signal.h>
+
 #include <buildboxcommon_client.h>
 #include <buildboxcommon_connectionoptions.h>
 #include <buildboxcommon_stageddirectory.h>
