@@ -77,11 +77,14 @@ TEST(ProtosHeaderTest, DigestToString)
     const std::string data = "This is some content to hash.";
     const Digest digest = buildboxcommon::CASHash::hash(data);
 
-    std::stringstream output;
-    output << digest;
-
     std::string expected_output =
         digest.hash() + "/" + std::to_string(digest.size_bytes());
 
+    // toString():
+    ASSERT_EQ(toString(digest), expected_output);
+
+    // Operator `<<`:
+    std::stringstream output;
+    output << digest;
     ASSERT_EQ(output.str(), expected_output);
 }
