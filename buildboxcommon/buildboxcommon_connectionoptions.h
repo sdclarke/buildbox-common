@@ -26,6 +26,7 @@ namespace buildboxcommon {
 
 struct ConnectionOptions {
     const char *d_url = nullptr;
+    const char *d_instanceName = nullptr;
     const char *d_serverCert = nullptr;
     const char *d_clientKey = nullptr;
     const char *d_clientCert = nullptr;
@@ -36,8 +37,8 @@ struct ConnectionOptions {
      * If the given argument is a server option, update this struct with
      * it and return true. Otherwise, return false.
      *
-     * Valid server options are "--remote=URL", "--server-cert=PATH",
-     * "--client-key=PATH", and "--client-cert=PATH".
+     * Valid server options are "--remote=URL", "--instance=NAME",
+     * "--server-cert=PATH", "--client-key=PATH", and "--client-cert=PATH".
      *
      * If a prefix is passed, it's added to the name of each option.
      * (For example, passing a prefix of "cas-" would cause this method to
