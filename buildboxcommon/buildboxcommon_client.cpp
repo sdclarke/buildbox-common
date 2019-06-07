@@ -38,6 +38,11 @@ void Client::init(const ConnectionOptions &options)
     this->d_grpcRetryLimit = std::stoi(options.d_retryLimit);
     this->d_grpcRetryDelay = std::stoi(options.d_retryDelay);
     this->d_channel = channel;
+
+    if (options.d_instanceName != nullptr) {
+        this->d_instanceName = std::string(options.d_instanceName);
+    }
+
     std::shared_ptr<ByteStream::Stub> bytestreamClient =
         ByteStream::NewStub(this->d_channel);
     std::shared_ptr<ContentAddressableStorage::Stub> casClient =
@@ -62,6 +67,8 @@ void Client::init(
 
     auto getCapabilitiesLambda = [&](grpc::ClientContext &context) {
         GetCapabilitiesRequest request;
+        request.set_instance_name(d_instanceName);
+
         ServerCapabilities response;
         auto status = this->d_capabilitiesClient->GetCapabilities(
             &context, request, &response);
@@ -98,6 +105,12 @@ void Client::init(
 std::string Client::makeResourceName(const Digest &digest, bool isUpload)
 {
     std::string resourceName;
+
+    if (!d_instanceName.empty()) {
+        resourceName.append(d_instanceName);
+        resourceName.append("/");
+    }
+
     if (isUpload) {
         resourceName.append("uploads/");
         resourceName.append(this->d_uuid);
@@ -428,6 +441,8 @@ Client::batchUpload(const std::vector<UploadRequest> &requests,
     assert(end_index <= requests.size());
 
     BatchUpdateBlobsRequest request;
+    request.set_instance_name(d_instanceName);
+
     for (auto d = start_index; d < end_index; d++) {
         auto entry = request.add_requests();
         entry->mutable_digest()->CopyFrom(requests[d].digest);
@@ -461,6 +476,8 @@ Client::DownloadedData Client::batchDownload(const std::vector<Digest> digests,
     assert(end_index <= digests.size());
 
     BatchReadBlobsRequest request;
+    request.set_instance_name(d_instanceName);
+
     for (auto d = start_index; d < end_index; d++) {
         auto digest = request.add_digests();
         digest->CopyFrom(digests[d]);
@@ -530,6 +547,8 @@ Client::findMissingBlobs(const std::vector<Digest> &digests)
     grpc::ClientContext context;
 
     FindMissingBlobsRequest request;
+    request.set_instance_name(d_instanceName);
+
     for (const auto &digest : digests) {
         auto entry = request.add_blob_digests();
         entry->CopyFrom(digest);

@@ -62,6 +62,8 @@ TEST_F(StubsFixture, InitTest)
         .WillOnce(DoAll(SetArgPointee<2>(serverCapabilities),
                         Return(grpc::Status::OK)));
     client.init(bytestreamClient, casClient, capabilitiesClient);
+
+    ASSERT_TRUE(client.instanceName().empty());
 }
 
 TEST_F(StubsFixture, InitCapabilitiesDidntReturnOk)
@@ -87,7 +89,8 @@ class ClientTestFixture : public StubsFixture {
      */
   protected:
     Client client;
-    std::string content = "password";
+    const std::string client_instance_name = "CasTestInstance123";
+    const std::string content = "password";
     Digest digest;
     TemporaryFile tmpfile;
     google::bytestream::ReadResponse readResponse;
@@ -102,6 +105,7 @@ class ClientTestFixture : public StubsFixture {
         : client(bytestreamClient, casClient, capabilitiesClient,
                  MAX_BATCH_SIZE_BYTES)
     {
+        client.setInstanceName(client_instance_name);
     }
 };
 
@@ -113,9 +117,19 @@ TEST_F(ClientTestFixture, FetchStringTest)
     EXPECT_CALL(*reader, Read(_))
         .WillOnce(DoAll(SetArgPointee<0>(readResponse), Return(true)))
         .WillOnce(Return(false));
-    EXPECT_CALL(*bytestreamClient, ReadRaw(_, _)).WillOnce(Return(reader));
+
+    ReadRequest request;
+    EXPECT_CALL(*bytestreamClient, ReadRaw(_, _))
+        .WillOnce(DoAll(SaveArg<1>(&request), Return(reader)));
+
+    // Setting a new instance name with the client's setter:
+    const std::string instance_name = "newInstanceName!";
+    client.setInstanceName(instance_name);
+    ASSERT_EQ(client.instanceName(), instance_name);
 
     EXPECT_EQ(client.fetchString(digest), readResponse.data());
+    EXPECT_EQ(request.resource_name().substr(0, instance_name.size()),
+              instance_name);
 }
 
 TEST_F(ClientTestFixture, FetchStringEmptyResponse)
@@ -168,7 +182,9 @@ TEST_F(ClientTestFixture, DownloadTest)
     readResponse.set_data(content);
     digest.set_size_bytes(content.length());
 
-    EXPECT_CALL(*bytestreamClient, ReadRaw(_, _)).WillOnce(Return(reader));
+    ReadRequest request;
+    EXPECT_CALL(*bytestreamClient, ReadRaw(_, _))
+        .WillOnce(DoAll(SaveArg<1>(&request), Return(reader)));
 
     EXPECT_CALL(*reader, Read(_))
         .WillOnce(DoAll(SetArgPointee<0>(readResponse), Return(true)))
@@ -183,6 +199,8 @@ TEST_F(ClientTestFixture, DownloadTest)
     buffer << in.rdbuf();
 
     EXPECT_EQ(buffer.str(), readResponse.data());
+    EXPECT_EQ(request.resource_name().substr(0, client_instance_name.size()),
+              client_instance_name);
 }
 
 TEST_F(ClientTestFixture, DownloadFdNotWritable)
@@ -236,11 +254,15 @@ TEST_F(ClientTestFixture, UploadStringTest)
 
     EXPECT_CALL(*bytestreamClient, WriteRaw(_, _)).WillOnce(Return(writer));
 
-    EXPECT_CALL(*writer, Write(_, _)).WillOnce(Return(true));
+    WriteRequest request;
+    EXPECT_CALL(*writer, Write(_, _))
+        .WillOnce(DoAll(SaveArg<0>(&request), Return(true)));
     EXPECT_CALL(*writer, WritesDone()).WillOnce(Return(true));
     EXPECT_CALL(*writer, Finish()).WillOnce(Return(grpc::Status::OK));
 
     client.upload(content, digest);
+    EXPECT_EQ(request.resource_name().substr(0, client_instance_name.size()),
+              client_instance_name);
 }
 
 TEST_F(ClientTestFixture, UploadLargeStringTest)
@@ -413,8 +435,11 @@ TEST_F(ClientTestFixture, DownloadBlobs)
         entry->set_data(payload[i]);
         entry->mutable_digest()->CopyFrom(requests[i]);
     }
+
+    BatchReadBlobsRequest request;
     EXPECT_CALL(*casClient.get(), BatchReadBlobs(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(response), Return(grpc::Status::OK)));
+        .WillOnce(DoAll(SaveArg<1>(&request), SetArgPointee<2>(response),
+                        Return(grpc::Status::OK)));
 
     // And digest in index 2 with the Bytestream API:
     readResponse.set_data(payload[2]);
@@ -424,6 +449,9 @@ TEST_F(ClientTestFixture, DownloadBlobs)
         .WillOnce(Return(false));
 
     const auto downloads = client.downloadBlobs(requests);
+
+    // Client sends the correct instance name:
+    EXPECT_EQ(request.instance_name(), client_instance_name);
 
     // We get all the data, and it's correct for each requested digest:
     ASSERT_EQ(downloads.size(), requests.size());
@@ -502,8 +530,11 @@ TEST_F(ClientTestFixture, UploadBlobs)
         auto entry = response.add_responses();
         entry->mutable_digest()->CopyFrom(requests[i].digest);
     }
+
+    BatchUpdateBlobsRequest request;
     EXPECT_CALL(*casClient.get(), BatchUpdateBlobs(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(response), Return(grpc::Status::OK)));
+        .WillOnce(DoAll(SaveArg<1>(&request), SetArgPointee<2>(response),
+                        Return(grpc::Status::OK)));
     // And digest in index 2 with the Bytestream API:
     EXPECT_CALL(*bytestreamClient, WriteRaw(_, _)).WillOnce(Return(writer));
 
@@ -513,6 +544,9 @@ TEST_F(ClientTestFixture, UploadBlobs)
 
     const auto failed_uploads = client.uploadBlobs(requests);
     ASSERT_TRUE(failed_uploads.empty());
+
+    // The client sends the correct instance name:
+    EXPECT_EQ(request.instance_name(), client_instance_name);
 }
 
 TEST_F(ClientTestFixture, UploadBlobsReturnsFailures)
@@ -582,11 +616,15 @@ TEST_F(UploadFileFixture, UploadFileTest)
 
     EXPECT_CALL(*bytestreamClient, WriteRaw(_, _)).WillOnce(Return(writer));
 
-    EXPECT_CALL(*writer, Write(_, _)).WillOnce(Return(true));
+    WriteRequest request;
+    EXPECT_CALL(*writer, Write(_, _))
+        .WillOnce(DoAll(SaveArg<0>(&request), Return(true)));
     EXPECT_CALL(*writer, WritesDone()).WillOnce(Return(true));
     EXPECT_CALL(*writer, Finish()).WillOnce(Return(grpc::Status::OK));
 
     client.upload(tmpfile.fd(), digest);
+    EXPECT_EQ(request.resource_name().substr(0, client_instance_name.size()),
+              client_instance_name);
 }
 
 TEST_F(UploadFileFixture, UploadLargeFileTest)
