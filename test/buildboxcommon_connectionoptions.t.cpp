@@ -24,6 +24,7 @@ TEST(ConnectionOptionsTest, DefaultsToNullptrs)
 {
     ConnectionOptions opts;
     EXPECT_EQ(opts.d_url, nullptr);
+    EXPECT_EQ(opts.d_instanceName, nullptr);
     EXPECT_EQ(opts.d_serverCert, nullptr);
     EXPECT_EQ(opts.d_clientKey, nullptr);
     EXPECT_EQ(opts.d_clientCert, nullptr);
@@ -53,6 +54,8 @@ TEST(ConnectionOptionsTest, ParseArgSimple)
     ASSERT_TRUE(opts.parseArg("--remote=abc"));
     EXPECT_STREQ(opts.d_url, "abc");
 
+    ASSERT_TRUE(opts.parseArg("--instance=testingInstances/instance1"));
+
     ASSERT_TRUE(opts.parseArg("--server-cert=defg"));
     EXPECT_STREQ(opts.d_serverCert, "defg");
 
@@ -63,6 +66,7 @@ TEST(ConnectionOptionsTest, ParseArgSimple)
     EXPECT_STREQ(opts.d_clientCert, "");
 
     EXPECT_STREQ(opts.d_url, "abc");
+    EXPECT_STREQ(opts.d_instanceName, "testingInstances/instance1");
     EXPECT_STREQ(opts.d_serverCert, "defg");
     EXPECT_STREQ(opts.d_clientKey, "h");
     EXPECT_STREQ(opts.d_clientCert, "");
@@ -88,6 +92,9 @@ TEST(ConnectionOptionsTest, ParseArgWorksWithPrefix)
 
     ASSERT_TRUE(opts.parseArg("--cas-remote=abc", "cas-"));
     EXPECT_STREQ(opts.d_url, "abc");
+
+    ASSERT_TRUE(opts.parseArg("--cas-instance=RemoteInstanceName", "cas-"));
+    EXPECT_STREQ(opts.d_instanceName, "RemoteInstanceName");
 
     ASSERT_TRUE(opts.parseArg("--cas-server-cert=defg", "cas-"));
     EXPECT_STREQ(opts.d_serverCert, "defg");
@@ -122,6 +129,7 @@ TEST(ConnectionOptionsTest, PutArgsFull)
 {
     ConnectionOptions opts;
     opts.d_url = "http://example.com/";
+    opts.d_instanceName = "instanceA";
     opts.d_serverCert = "abc";
     opts.d_clientKey = "defg";
     opts.d_clientCert = "";
@@ -133,6 +141,7 @@ TEST(ConnectionOptionsTest, PutArgsFull)
     opts.putArgs(&result);
 
     std::vector<std::string> expected = {"--remote=http://example.com/",
+                                         "--instance=instanceA",
                                          "--server-cert=abc",
                                          "--client-key=defg",
                                          "--client-cert=",
@@ -142,6 +151,7 @@ TEST(ConnectionOptionsTest, PutArgsFull)
 
     opts.putArgs(&result, "cas-");
     expected.push_back("--cas-remote=http://example.com/");
+    expected.push_back("--cas-instance=instanceA");
     expected.push_back("--cas-server-cert=abc");
     expected.push_back("--cas-client-key=defg");
     expected.push_back("--cas-client-cert=");

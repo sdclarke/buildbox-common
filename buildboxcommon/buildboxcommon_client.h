@@ -34,19 +34,20 @@ namespace buildboxcommon {
  */
 class Client {
   private:
-    // initialized here to prevent errors, incase options are not passed into
-    // init
-    int d_grpcRetryLimit = 0;
-    int d_grpcRetryDelay = 100;
-
-    std::string makeResourceName(const Digest &digest, bool is_upload);
-
     std::shared_ptr<grpc::Channel> d_channel;
     std::shared_ptr<ByteStream::StubInterface> d_bytestreamClient;
     std::shared_ptr<ContentAddressableStorage::StubInterface> d_casClient;
     std::shared_ptr<Capabilities::StubInterface> d_capabilitiesClient;
 
+    // initialized here to prevent errors, in case options are not passed into
+    // init
+    int d_grpcRetryLimit = 0;
+    int d_grpcRetryDelay = 100;
+
+    int64_t d_maxBatchTotalSizeBytes;
+
     std::string d_uuid;
+    std::string d_instanceName;
 
   public:
     Client() {}
@@ -163,9 +164,16 @@ class Client {
         return digest;
     }
 
-    int64_t d_maxBatchTotalSizeBytes;
+    std::string instanceName() const { return d_instanceName; }
+
+    void setInstanceName(const std::string &instance_name)
+    {
+        d_instanceName = instance_name;
+    }
 
   private:
+    std::string makeResourceName(const Digest &digest, bool is_upload);
+
     /* Uploads the requests contained in the range [start_index, end_index).
      *
      * The sum of bytes of the data in this range MUST NOT exceed the maximum

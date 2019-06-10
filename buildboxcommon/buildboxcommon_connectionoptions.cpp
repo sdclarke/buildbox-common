@@ -94,6 +94,10 @@ bool ConnectionOptions::parseArg(const char *arg, const char *prefix)
             this->d_url = value;
             return true;
         }
+        else if (strncmp(arg, "instance", keyLen) == 0) {
+            this->d_instanceName = value;
+            return true;
+        }
         else if (strncmp(arg, "server-cert", keyLen) == 0) {
             this->d_serverCert = value;
             return true;
@@ -124,6 +128,10 @@ void ConnectionOptions::putArgs(std::vector<std::string> *out,
     const std::string p(prefix == nullptr ? "" : prefix);
     if (this->d_url != nullptr) {
         out->push_back("--" + p + "remote=" + std::string(this->d_url));
+    }
+    if (this->d_instanceName != nullptr) {
+        out->push_back("--" + p +
+                       "instance=" + std::string(this->d_instanceName));
     }
     if (this->d_serverCert != nullptr) {
         out->push_back("--" + p +
@@ -189,6 +197,9 @@ void ConnectionOptions::printArgHelp(int padWidth, const char *serviceName,
 
     printPadded(padWidth, "--" + p + "remote=URL");
     std::clog << "URL for " << serviceName << " service\n";
+
+    printPadded(padWidth, "--" + p + "instance=NAME");
+    std::clog << "Name of the " << serviceName << " instance\n";
 
     printPadded(padWidth, "--" + p + "server-cert=PATH");
     std::clog << "Public server certificate for TLS (PEM-encoded)\n";
