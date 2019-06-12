@@ -633,7 +633,7 @@ TEST_F(UploadFileFixture, UploadFileDidntReturnOk)
     EXPECT_THROW(this->upload(tmpfile.fd(), digest), std::runtime_error);
 }
 
-class UploadDirectoryFixture : public ClientTestFixture {
+class TransferDirectoryFixture : public ClientTestFixture {
     /**
      * Instantiates a tempfile with some data for use in upload tests.
      * Inherits from the pre-instantiated client fixture.
@@ -645,7 +645,7 @@ class UploadDirectoryFixture : public ClientTestFixture {
      *       |-- file_b
      */
 
-    UploadDirectoryFixture()
+    TransferDirectoryFixture()
         : ClientTestFixture(max_batch_size_bytes), directory(),
           subdirectory(directory.name(), "tmp-subdir"),
           file_a(directory.name(), "test-tmp-file"),
@@ -662,6 +662,7 @@ class UploadDirectoryFixture : public ClientTestFixture {
         nested_directory =
             make_nesteddirectory(directory.name(), &directory_file_map);
         directory_digest = nested_directory.to_digest(&directory_file_map);
+        serialized_directory = directory_file_map.at(directory_digest);
     }
 
     // Setting a larger value so that we are allowed to upload complete
@@ -679,10 +680,11 @@ class UploadDirectoryFixture : public ClientTestFixture {
 
     digest_string_map directory_file_map;
     NestedDirectory nested_directory;
+    std::string serialized_directory;
     Digest directory_digest;
 };
 
-TEST_F(UploadDirectoryFixture, UploadDirectory)
+TEST_F(TransferDirectoryFixture, UploadDirectory)
 {
     // We expect the client to check if there are any blobs are missing to
     // avoid transferring those. For this test, we'll mock that all are missing
@@ -730,7 +732,7 @@ TEST_F(UploadDirectoryFixture, UploadDirectory)
     }
 }
 
-TEST_F(UploadDirectoryFixture, UploadDirectoryNoMissingBlobs)
+TEST_F(TransferDirectoryFixture, UploadDirectoryNoMissingBlobs)
 {
     // In this test the remote reports that no blobs are missing, so no upload
     // needs to take place.
@@ -746,6 +748,27 @@ TEST_F(UploadDirectoryFixture, UploadDirectoryNoMissingBlobs)
                           &returned_directory_digest);
 
     ASSERT_EQ(returned_directory_digest, directory_digest);
+}
+
+TEST_F(TransferDirectoryFixture, DownloadDirectoryMissingDigestThrows)
+{
+    Digest digest;
+    digest.set_hash("ThisDoesNotExist");
+    digest.set_size_bytes(1234);
+
+    EXPECT_CALL(*bytestreamClient, ReadRaw(_, _)).WillOnce(Return(reader));
+
+    EXPECT_CALL(*reader, Read(_))
+        .WillOnce(DoAll(SetArgPointee<0>(readResponse), Return(true)))
+        .WillOnce(Return(false));
+
+    EXPECT_CALL(*reader, Finish())
+        .WillOnce(Return(grpc::Status(grpc::StatusCode::NOT_FOUND,
+                                      "Blob not found in CAS")));
+
+    TemporaryDirectory output_dir;
+    ASSERT_THROW(this->downloadDirectory(digest, output_dir.name()),
+                 std::runtime_error);
 }
 
 class DownloadBlobsFixture : public ClientTestFixture,
