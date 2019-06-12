@@ -15,6 +15,8 @@
  */
 
 #include <buildboxcommon_client.h>
+#include <buildboxcommon_merklize.h>
+#include <buildboxcommon_temporarydirectory.h>
 #include <buildboxcommon_temporaryfile.h>
 
 #include <gtest/gtest.h>
@@ -101,9 +103,9 @@ class ClientTestFixture : public StubsFixture {
         new grpc::testing::MockClientWriter<
             google::bytestream::WriteRequest>();
 
-    ClientTestFixture()
+    ClientTestFixture(int64_t max_batch_size_bytes = MAX_BATCH_SIZE_BYTES)
         : client(bytestreamClient, casClient, capabilitiesClient,
-                 MAX_BATCH_SIZE_BYTES)
+                 max_batch_size_bytes)
     {
         client.setInstanceName(client_instance_name);
     }
@@ -747,4 +749,119 @@ TEST_F(UploadFileFixture, UploadFileDidntReturnOk)
             grpc::Status(grpc::FAILED_PRECONDITION, "failing for test")));
 
     EXPECT_THROW(client.upload(tmpfile.fd(), digest), std::runtime_error);
+}
+
+class UploadDirectoryFixture : public ClientTestFixture {
+    /**
+     * Instantiates a tempfile with some data for use in upload tests.
+     * Inherits from the pre-instantiated client fixture.
+     */
+  protected:
+    /* directory/
+     *   |-- file_a
+     *   |-- subdirectory/
+     *       |-- file_b
+     */
+
+    UploadDirectoryFixture()
+        : ClientTestFixture(max_batch_size_bytes), directory(),
+          subdirectory(directory.name(), "tmp-subdir"),
+          file_a(directory.name(), "test-tmp-file"),
+          file_b(subdirectory.name(), "test-tmp-file")
+    {
+        std::ofstream file_a_stream(file_a.name());
+        file_a_stream << file_a_contents;
+        file_a_stream.close();
+
+        std::ofstream file_b_stream(file_b.name());
+        file_b_stream << file_b_contents;
+        file_b_stream.close();
+
+        nested_directory =
+            make_nesteddirectory(directory.name(), &directory_file_map);
+        directory_digest = nested_directory.to_digest(&directory_file_map);
+    }
+
+    // Setting a larger value so that we are allowed to upload complete
+    // directories in a single batch
+    static const int64_t max_batch_size_bytes = 1024 * 1024;
+
+    TemporaryDirectory directory, subdirectory;
+    TemporaryFile file_a, file_b;
+
+    const std::string file_a_contents = "Hello world!";
+    const std::string file_b_contents = "This is some data...";
+
+    const Digest file_a_digest = make_digest(file_a_contents);
+    const Digest file_b_digest = make_digest(file_b_contents);
+
+    digest_string_map directory_file_map;
+    NestedDirectory nested_directory;
+    Digest directory_digest;
+};
+
+TEST_F(UploadDirectoryFixture, UploadDirectory)
+{
+    // We expect the client to check if there are any blobs are missing to
+    // avoid transferring those. For this test, we'll mock that all are missing
+    // in the remote.
+
+    // 1) FindMissingBlobs()
+    FindMissingBlobsResponse missing_blobs_response;
+    for (const auto &entry : directory_file_map) {
+        auto missing_digest =
+            missing_blobs_response.add_missing_blob_digests();
+        missing_digest->CopyFrom(entry.first);
+    }
+
+    EXPECT_CALL(*casClient.get(), FindMissingBlobs(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(missing_blobs_response),
+                        Return(grpc::Status::OK)));
+
+    BatchUpdateBlobsRequest update_request;
+    BatchUpdateBlobsResponse update_response;
+
+    // 2) BatchUpdateBlobs()
+    EXPECT_CALL(*casClient.get(), BatchUpdateBlobs(_, _, _))
+        .WillOnce(DoAll(SaveArg<1>(&update_request),
+                        SetArgPointee<2>(update_response),
+                        Return(grpc::Status::OK)));
+
+    // We return success for all the updates:
+    for (const auto &entry : directory_file_map) {
+        const Digest file_digest = entry.first;
+        auto response = update_response.add_responses();
+        response->mutable_digest()->CopyFrom(file_digest);
+        response->mutable_status()->set_code(grpc::StatusCode::OK);
+    }
+
+    Digest returned_directory_digest;
+    client.uploadDirectory(std::string(directory.name()),
+                           &returned_directory_digest);
+
+    ASSERT_EQ(returned_directory_digest, directory_digest);
+
+    // All the data was written to the remote:
+    ASSERT_EQ(update_request.requests_size(), directory_file_map.size());
+    for (const auto &entry : update_request.requests()) {
+        ASSERT_EQ(directory_file_map.count(entry.digest()), 1);
+    }
+}
+
+TEST_F(UploadDirectoryFixture, UploadDirectoryNoMissingBlobs)
+{
+    // In this test the remote reports that no blobs are missing, so no upload
+    // needs to take place.
+
+    FindMissingBlobsResponse missing_blobs_response;
+
+    EXPECT_CALL(*casClient.get(), FindMissingBlobs(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(missing_blobs_response),
+                        Return(grpc::Status::OK)));
+
+    Digest returned_directory_digest;
+    client.uploadDirectory(std::string(directory.name()),
+                           &returned_directory_digest);
+
+    ASSERT_EQ(returned_directory_digest, directory_digest);
 }
