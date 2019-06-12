@@ -50,10 +50,15 @@ inline bool operator==(const buildboxcommon::Digest &a,
     return a.hash() == b.hash() && a.size_bytes() == b.size_bytes();
 }
 
+inline std::string toString(const buildboxcommon::Digest &digest)
+{
+    return digest.hash() + "/" + std::to_string(digest.size_bytes());
+}
+
 inline std::ostream &operator<<(std::ostream &os,
                                 const buildboxcommon::Digest &digest)
 {
-    return os << digest.hash() << "/" << digest.size_bytes();
+    return os << toString(digest);
 }
 
 } // namespace v2
