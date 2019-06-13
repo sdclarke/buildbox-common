@@ -405,9 +405,13 @@ TEST_F(ClientTestFixture, FileTooLargeToBatchDownload)
         .WillOnce(DoAll(SetArgPointee<0>(readResponse), Return(true)))
         .WillOnce(Return(false));
 
-    const auto downloads = this->downloadBlobs(requests);
-    ASSERT_EQ(downloads.count(digest.hash()), 1);
-    ASSERT_EQ(downloads.at(digest.hash()), data);
+    auto write_blob = [&](const std::string &downloaded_hash,
+                          const std::string &downloaded_data) {
+        ASSERT_EQ(downloaded_hash, digest.hash());
+        ASSERT_EQ(downloaded_data, data);
+    };
+
+    this->downloadBlobs(requests, write_blob, false);
 }
 
 TEST_F(ClientTestFixture, DownloadBlobs)
@@ -449,7 +453,13 @@ TEST_F(ClientTestFixture, DownloadBlobs)
         .WillOnce(DoAll(SetArgPointee<0>(readResponse), Return(true)))
         .WillOnce(Return(false));
 
-    const auto downloads = this->downloadBlobs(requests);
+    // We will write the output results into a map indexed by hash:
+    std::unordered_map<std::string, std::string> downloads;
+    auto write_blob = [&](const std::string &hash, const std::string &data) {
+        downloads[hash] = data;
+    };
+
+    this->downloadBlobs(requests, write_blob, false);
 
     // Client sends the correct instance name:
     EXPECT_EQ(request.instance_name(), client_instance_name);
