@@ -82,7 +82,7 @@ TEST_F(StubsFixture, InitCapabilitiesDidntReturnOk)
     client.init(bytestreamClient, casClient, capabilitiesClient);
 }
 
-class ClientTestFixture : public StubsFixture {
+class ClientTestFixture : public StubsFixture, public Client {
     /**
      * Fixture that provides a pre-instantiated client, as well as several
      * objects to be passed as arguments and returned from mocks.
@@ -90,7 +90,6 @@ class ClientTestFixture : public StubsFixture {
      * Inherits from the fixture that provides stubs.
      */
   protected:
-    Client client;
     const std::string client_instance_name = "CasTestInstance123";
     const std::string content = "password";
     Digest digest;
@@ -104,10 +103,10 @@ class ClientTestFixture : public StubsFixture {
             google::bytestream::WriteRequest>();
 
     ClientTestFixture(int64_t max_batch_size_bytes = MAX_BATCH_SIZE_BYTES)
-        : client(bytestreamClient, casClient, capabilitiesClient,
+        : Client(bytestreamClient, casClient, capabilitiesClient,
                  max_batch_size_bytes)
     {
-        client.setInstanceName(client_instance_name);
+        this->setInstanceName(client_instance_name);
     }
 };
 
@@ -126,10 +125,10 @@ TEST_F(ClientTestFixture, FetchStringTest)
 
     // Setting a new instance name with the client's setter:
     const std::string instance_name = "newInstanceName!";
-    client.setInstanceName(instance_name);
-    ASSERT_EQ(client.instanceName(), instance_name);
+    this->setInstanceName(instance_name);
+    ASSERT_EQ(this->instanceName(), instance_name);
 
-    EXPECT_EQ(client.fetchString(digest), readResponse.data());
+    EXPECT_EQ(this->fetchString(digest), readResponse.data());
     EXPECT_EQ(request.resource_name().substr(0, instance_name.size()),
               instance_name);
 }
@@ -145,7 +144,7 @@ TEST_F(ClientTestFixture, FetchStringEmptyResponse)
         .WillOnce(DoAll(SetArgPointee<0>(readResponse), Return(true)))
         .WillOnce(Return(false));
 
-    EXPECT_EQ(client.fetchString(digest), readResponse.data());
+    EXPECT_EQ(this->fetchString(digest), readResponse.data());
 }
 
 TEST_F(ClientTestFixture, FetchStringSizeMismatch)
@@ -159,7 +158,7 @@ TEST_F(ClientTestFixture, FetchStringSizeMismatch)
         .WillOnce(DoAll(SetArgPointee<0>(readResponse), Return(true)))
         .WillOnce(Return(false));
 
-    EXPECT_THROW(client.fetchString(digest), std::runtime_error);
+    EXPECT_THROW(this->fetchString(digest), std::runtime_error);
 }
 
 TEST_F(ClientTestFixture, FetchStringServerError)
@@ -176,7 +175,7 @@ TEST_F(ClientTestFixture, FetchStringServerError)
         .WillOnce(Return(
             grpc::Status(grpc::StatusCode::NOT_FOUND, "Digest not found!")));
 
-    EXPECT_THROW(client.fetchString(digest), std::runtime_error);
+    EXPECT_THROW(this->fetchString(digest), std::runtime_error);
 }
 
 TEST_F(ClientTestFixture, DownloadTest)
@@ -192,7 +191,7 @@ TEST_F(ClientTestFixture, DownloadTest)
         .WillOnce(DoAll(SetArgPointee<0>(readResponse), Return(true)))
         .WillOnce(Return(false));
 
-    client.download(tmpfile.fd(), digest);
+    this->download(tmpfile.fd(), digest);
 
     tmpfile.close();
 
@@ -215,7 +214,7 @@ TEST_F(ClientTestFixture, DownloadFdNotWritable)
     EXPECT_CALL(*reader, Read(_))
         .WillOnce(DoAll(SetArgPointee<0>(readResponse), Return(true)));
 
-    EXPECT_THROW(client.download(-1, digest), std::system_error);
+    EXPECT_THROW(this->download(-1, digest), std::system_error);
 }
 
 TEST_F(ClientTestFixture, DownloadSizeMismatch)
@@ -229,7 +228,7 @@ TEST_F(ClientTestFixture, DownloadSizeMismatch)
         .WillOnce(DoAll(SetArgPointee<0>(readResponse), Return(true)))
         .WillOnce(Return(false));
 
-    EXPECT_THROW(client.download(tmpfile.fd(), digest), std::runtime_error);
+    EXPECT_THROW(this->download(tmpfile.fd(), digest), std::runtime_error);
 }
 
 TEST_F(ClientTestFixture, DownloadServerError)
@@ -246,7 +245,7 @@ TEST_F(ClientTestFixture, DownloadServerError)
     EXPECT_CALL(*reader, Finish())
         .WillOnce(Return(grpc::Status(grpc::StatusCode::UNAVAILABLE,
                                       "Server stopped responding")));
-    EXPECT_THROW(client.download(tmpfile.fd(), digest), std::runtime_error);
+    EXPECT_THROW(this->download(tmpfile.fd(), digest), std::runtime_error);
 }
 
 TEST_F(ClientTestFixture, UploadStringTest)
@@ -262,7 +261,7 @@ TEST_F(ClientTestFixture, UploadStringTest)
     EXPECT_CALL(*writer, WritesDone()).WillOnce(Return(true));
     EXPECT_CALL(*writer, Finish()).WillOnce(Return(grpc::Status::OK));
 
-    client.upload(content, digest);
+    this->upload(content, digest);
     EXPECT_EQ(request.resource_name().substr(0, client_instance_name.size()),
               client_instance_name);
 }
@@ -280,7 +279,7 @@ TEST_F(ClientTestFixture, UploadLargeStringTest)
     EXPECT_CALL(*writer, WritesDone()).WillOnce(Return(true));
     EXPECT_CALL(*writer, Finish()).WillOnce(Return(grpc::Status::OK));
 
-    client.upload(content, digest);
+    this->upload(content, digest);
 }
 
 TEST_F(ClientTestFixture, UploadExactStringTest)
@@ -296,7 +295,7 @@ TEST_F(ClientTestFixture, UploadExactStringTest)
     EXPECT_CALL(*writer, WritesDone()).WillOnce(Return(true));
     EXPECT_CALL(*writer, Finish()).WillOnce(Return(grpc::Status::OK));
 
-    client.upload(content, digest);
+    this->upload(content, digest);
 }
 
 TEST_F(ClientTestFixture, UploadJustLargerThanExactStringTest)
@@ -312,7 +311,7 @@ TEST_F(ClientTestFixture, UploadJustLargerThanExactStringTest)
     EXPECT_CALL(*writer, WritesDone()).WillOnce(Return(true));
     EXPECT_CALL(*writer, Finish()).WillOnce(Return(grpc::Status::OK));
 
-    client.upload(content, digest);
+    this->upload(content, digest);
 }
 
 TEST_F(ClientTestFixture, UploadJustSmallerThanExactStringTest)
@@ -328,7 +327,7 @@ TEST_F(ClientTestFixture, UploadJustSmallerThanExactStringTest)
     EXPECT_CALL(*writer, WritesDone()).WillOnce(Return(true));
     EXPECT_CALL(*writer, Finish()).WillOnce(Return(grpc::Status::OK));
 
-    client.upload(content, digest);
+    this->upload(content, digest);
 }
 
 TEST_F(ClientTestFixture, UploadStringSizeMismatch)
@@ -336,7 +335,7 @@ TEST_F(ClientTestFixture, UploadStringSizeMismatch)
     digest.set_size_bytes(9999999999999999);
     digest.set_hash("fakehash");
 
-    EXPECT_THROW(client.upload(content, digest), std::logic_error);
+    EXPECT_THROW(this->upload(content, digest), std::logic_error);
 }
 
 TEST_F(ClientTestFixture, UploadStringWriteFailure)
@@ -348,7 +347,7 @@ TEST_F(ClientTestFixture, UploadStringWriteFailure)
 
     EXPECT_CALL(*writer, Write(_, _)).WillOnce(Return(false));
 
-    EXPECT_THROW(client.upload(content, digest), std::runtime_error);
+    EXPECT_THROW(this->upload(content, digest), std::runtime_error);
 }
 
 TEST_F(ClientTestFixture, UploadStringDidntReturnOk)
@@ -364,7 +363,7 @@ TEST_F(ClientTestFixture, UploadStringDidntReturnOk)
         .WillOnce(Return(
             grpc::Status(grpc::FAILED_PRECONDITION, "failing for test")));
 
-    EXPECT_THROW(client.upload(content, digest), std::runtime_error);
+    EXPECT_THROW(this->upload(content, digest), std::runtime_error);
 }
 
 TEST_F(ClientTestFixture, FileTooLargeToBatchUpload)
@@ -384,7 +383,7 @@ TEST_F(ClientTestFixture, FileTooLargeToBatchUpload)
     EXPECT_CALL(*writer, Write(_, _)).WillOnce(Return(true));
     EXPECT_CALL(*writer, WritesDone()).WillOnce(Return(true));
     EXPECT_CALL(*writer, Finish()).WillOnce(Return(grpc::Status::OK));
-    client.uploadBlobs(requests);
+    this->uploadBlobs(requests);
 }
 
 TEST_F(ClientTestFixture, FileTooLargeToBatchDownload)
@@ -406,7 +405,7 @@ TEST_F(ClientTestFixture, FileTooLargeToBatchDownload)
         .WillOnce(DoAll(SetArgPointee<0>(readResponse), Return(true)))
         .WillOnce(Return(false));
 
-    const auto downloads = client.downloadBlobs(requests);
+    const auto downloads = this->downloadBlobs(requests);
     ASSERT_EQ(downloads.count(digest.hash()), 1);
     ASSERT_EQ(downloads.at(digest.hash()), data);
 }
@@ -450,7 +449,7 @@ TEST_F(ClientTestFixture, DownloadBlobs)
         .WillOnce(DoAll(SetArgPointee<0>(readResponse), Return(true)))
         .WillOnce(Return(false));
 
-    const auto downloads = client.downloadBlobs(requests);
+    const auto downloads = this->downloadBlobs(requests);
 
     // Client sends the correct instance name:
     EXPECT_EQ(request.instance_name(), client_instance_name);
@@ -499,8 +498,7 @@ TEST_F(ClientTestFixture, DownloadBlobsFails)
         .WillOnce(DoAll(SetArgPointee<0>(readResponse), Return(true)))
         .WillOnce(Return(false));
 
-    const auto downloads = client.downloadBlobs(requests);
-
+    const auto downloads = this->downloadBlobs(requests);
     ASSERT_TRUE(downloads.empty());
 }
 
@@ -544,7 +542,7 @@ TEST_F(ClientTestFixture, UploadBlobs)
     EXPECT_CALL(*writer, WritesDone()).WillOnce(Return(true));
     EXPECT_CALL(*writer, Finish()).WillOnce(Return(grpc::Status::OK));
 
-    const auto failed_uploads = client.uploadBlobs(requests);
+    const auto failed_uploads = this->uploadBlobs(requests);
     ASSERT_TRUE(failed_uploads.empty());
 
     // The client sends the correct instance name:
@@ -588,7 +586,7 @@ TEST_F(ClientTestFixture, UploadBlobsReturnsFailures)
     EXPECT_CALL(*writer, WritesDone()).WillOnce(Return(true));
     EXPECT_CALL(*writer, Finish()).WillOnce(Return(errorStatus));
 
-    const auto failed_uploads = client.uploadBlobs(requests);
+    const auto failed_uploads = this->uploadBlobs(requests);
 
     ASSERT_EQ(failed_uploads.size(), 2);
     ASSERT_EQ(
@@ -624,7 +622,7 @@ TEST_F(UploadFileFixture, UploadFileTest)
     EXPECT_CALL(*writer, WritesDone()).WillOnce(Return(true));
     EXPECT_CALL(*writer, Finish()).WillOnce(Return(grpc::Status::OK));
 
-    client.upload(tmpfile.fd(), digest);
+    this->upload(tmpfile.fd(), digest);
     EXPECT_EQ(request.resource_name().substr(0, client_instance_name.size()),
               client_instance_name);
 }
@@ -647,7 +645,7 @@ TEST_F(UploadFileFixture, UploadLargeFileTest)
     EXPECT_CALL(*writer, WritesDone()).WillOnce(Return(true));
     EXPECT_CALL(*writer, Finish()).WillOnce(Return(grpc::Status::OK));
 
-    client.upload(tmpfile.fd(), digest);
+    this->upload(tmpfile.fd(), digest);
 }
 
 TEST_F(UploadFileFixture, UploadExactFileTest)
@@ -668,7 +666,7 @@ TEST_F(UploadFileFixture, UploadExactFileTest)
     EXPECT_CALL(*writer, WritesDone()).WillOnce(Return(true));
     EXPECT_CALL(*writer, Finish()).WillOnce(Return(grpc::Status::OK));
 
-    client.upload(tmpfile.fd(), digest);
+    this->upload(tmpfile.fd(), digest);
 }
 
 TEST_F(UploadFileFixture, UploadJustLargerThanExactFileTest)
@@ -689,7 +687,7 @@ TEST_F(UploadFileFixture, UploadJustLargerThanExactFileTest)
     EXPECT_CALL(*writer, WritesDone()).WillOnce(Return(true));
     EXPECT_CALL(*writer, Finish()).WillOnce(Return(grpc::Status::OK));
 
-    client.upload(tmpfile.fd(), digest);
+    this->upload(tmpfile.fd(), digest);
 }
 
 TEST_F(UploadFileFixture, UploadJustSmallerThanExactFileTest)
@@ -710,7 +708,7 @@ TEST_F(UploadFileFixture, UploadJustSmallerThanExactFileTest)
     EXPECT_CALL(*writer, WritesDone()).WillOnce(Return(true));
     EXPECT_CALL(*writer, Finish()).WillOnce(Return(grpc::Status::OK));
 
-    client.upload(tmpfile.fd(), digest);
+    this->upload(tmpfile.fd(), digest);
 }
 
 TEST_F(UploadFileFixture, UploadFileReadFailure)
@@ -720,7 +718,7 @@ TEST_F(UploadFileFixture, UploadFileReadFailure)
 
     EXPECT_CALL(*bytestreamClient, WriteRaw(_, _)).WillOnce(Return(writer));
 
-    EXPECT_THROW(client.upload(-40, digest), std::system_error);
+    EXPECT_THROW(this->upload(-40, digest), std::system_error);
 }
 
 TEST_F(UploadFileFixture, UploadFileWriteFailure)
@@ -732,7 +730,7 @@ TEST_F(UploadFileFixture, UploadFileWriteFailure)
 
     EXPECT_CALL(*writer, Write(_, _)).WillOnce(Return(false));
 
-    EXPECT_THROW(client.upload(tmpfile.fd(), digest), std::runtime_error);
+    EXPECT_THROW(this->upload(tmpfile.fd(), digest), std::runtime_error);
 }
 
 TEST_F(UploadFileFixture, UploadFileDidntReturnOk)
@@ -748,7 +746,7 @@ TEST_F(UploadFileFixture, UploadFileDidntReturnOk)
         .WillOnce(Return(
             grpc::Status(grpc::FAILED_PRECONDITION, "failing for test")));
 
-    EXPECT_THROW(client.upload(tmpfile.fd(), digest), std::runtime_error);
+    EXPECT_THROW(this->upload(tmpfile.fd(), digest), std::runtime_error);
 }
 
 class UploadDirectoryFixture : public ClientTestFixture {
@@ -836,8 +834,8 @@ TEST_F(UploadDirectoryFixture, UploadDirectory)
     }
 
     Digest returned_directory_digest;
-    client.uploadDirectory(std::string(directory.name()),
-                           &returned_directory_digest);
+    this->uploadDirectory(std::string(directory.name()),
+                          &returned_directory_digest);
 
     ASSERT_EQ(returned_directory_digest, directory_digest);
 
@@ -860,8 +858,8 @@ TEST_F(UploadDirectoryFixture, UploadDirectoryNoMissingBlobs)
                         Return(grpc::Status::OK)));
 
     Digest returned_directory_digest;
-    client.uploadDirectory(std::string(directory.name()),
-                           &returned_directory_digest);
+    this->uploadDirectory(std::string(directory.name()),
+                          &returned_directory_digest);
 
     ASSERT_EQ(returned_directory_digest, directory_digest);
 }
