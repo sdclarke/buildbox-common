@@ -132,6 +132,19 @@ class Client {
      */
     DownloadedData downloadBlobs(const std::vector<Digest> &digests);
 
+    typedef std::unordered_multimap<std::string, std::pair<std::string, bool>>
+        OutputMap;
+    /* Given a list of digests, download the data and store each blob in the
+     * path specified by the entry's first member in the `outputs` map. If the
+     * second member of the tuple is true, mark the file as executable.
+     *
+     * If any errors are encountered in the process of fetching the blobs, it
+     * aborts and throws an `std::runtime_error` exception. (It might leave
+     * directories in an inconsistent state, i.e. with missing files.)
+     */
+    void downloadBlobs(const std::vector<Digest> &digests,
+                       const OutputMap &outputs);
+
     /**
      * Given a list of digests, creates and sends a `FindMissingBlobsRequest`
      * to the server.
@@ -216,6 +229,23 @@ class Client {
      * the subset of protos that need to be uploaded.
      */
     digest_string_map missingDigests(const digest_string_map &directory_map);
+
+  protected:
+    typedef std::function<void(const std::string &hash,
+                               const std::string &data)>
+        write_blob_callback_t;
+
+    /* Download the digests in the specified list and invoke the
+     * `write_blob_callback` function after each blob is downloaded.
+     *
+     * `throw_on_error` determines whether an `std::runtime_error` exception is
+     * to be raised on encountering an error during a download.
+     *
+     * Note: marked as `protected` to unit-test.
+     */
+    void downloadBlobs(const std::vector<Digest> &digests,
+                       const write_blob_callback_t &write_blob_callback,
+                       bool throw_on_error);
 };
 
 } // namespace buildboxcommon
