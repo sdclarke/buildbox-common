@@ -386,132 +386,6 @@ TEST_F(ClientTestFixture, FileTooLargeToBatchUpload)
     this->uploadBlobs(requests);
 }
 
-TEST_F(ClientTestFixture, FileTooLargeToBatchDownload)
-{
-    // Expecting it to fall back to a bytestream Read():
-    const auto data = std::string(2 * MAX_BATCH_SIZE_BYTES, '-');
-
-    Digest digest;
-    digest.set_hash("dataHash");
-    digest.set_size_bytes(data.size());
-
-    const std::vector<Digest> requests = {digest};
-
-    readResponse.set_data(data);
-    digest.set_size_bytes(data.size());
-
-    EXPECT_CALL(*bytestreamClient, ReadRaw(_, _)).WillOnce(Return(reader));
-    EXPECT_CALL(*reader, Read(_))
-        .WillOnce(DoAll(SetArgPointee<0>(readResponse), Return(true)))
-        .WillOnce(Return(false));
-
-    auto write_blob = [&](const std::string &downloaded_hash,
-                          const std::string &downloaded_data) {
-        ASSERT_EQ(downloaded_hash, digest.hash());
-        ASSERT_EQ(downloaded_data, data);
-    };
-
-    this->downloadBlobs(requests, write_blob, false);
-}
-
-TEST_F(ClientTestFixture, DownloadBlobs)
-{
-    const std::vector<std::string> payload = {
-        "a", "b", std::string(3 * MAX_BATCH_SIZE_BYTES, 'x'), "c"};
-    const std::vector<std::string> hashes = {"hash0", "hash1", "hash2",
-                                             "hash3"};
-
-    // Creating list of requests...
-    std::vector<Digest> requests;
-    for (unsigned i = 0; i < payload.size(); i++) {
-        Digest digest;
-        digest.set_hash(hashes[i]);
-        digest.set_size_bytes(payload[i].size());
-        requests.push_back(digest);
-    }
-    ASSERT_EQ(requests.size(), payload.size());
-
-    // We expect digests {0, 1, 3} to be requested with BatchReadBlobs().
-    BatchReadBlobsResponse response;
-    for (unsigned i = 0; i < payload.size(); i++) {
-        if (i == 2)
-            continue;
-        auto entry = response.add_responses();
-        entry->set_data(payload[i]);
-        entry->mutable_digest()->CopyFrom(requests[i]);
-    }
-
-    BatchReadBlobsRequest request;
-    EXPECT_CALL(*casClient.get(), BatchReadBlobs(_, _, _))
-        .WillOnce(DoAll(SaveArg<1>(&request), SetArgPointee<2>(response),
-                        Return(grpc::Status::OK)));
-
-    // And digest in index 2 with the Bytestream API:
-    readResponse.set_data(payload[2]);
-    EXPECT_CALL(*bytestreamClient, ReadRaw(_, _)).WillOnce(Return(reader));
-    EXPECT_CALL(*reader, Read(_))
-        .WillOnce(DoAll(SetArgPointee<0>(readResponse), Return(true)))
-        .WillOnce(Return(false));
-
-    // We will write the output results into a map indexed by hash:
-    std::unordered_map<std::string, std::string> downloads;
-    auto write_blob = [&](const std::string &hash, const std::string &data) {
-        downloads[hash] = data;
-    };
-
-    this->downloadBlobs(requests, write_blob, false);
-
-    // Client sends the correct instance name:
-    EXPECT_EQ(request.instance_name(), client_instance_name);
-
-    // We get all the data, and it's correct for each requested digest:
-    ASSERT_EQ(downloads.size(), requests.size());
-    ASSERT_EQ(downloads.at(hashes[0]), payload[0]);
-    ASSERT_EQ(downloads.at(hashes[1]), payload[1]);
-    ASSERT_EQ(downloads.at(hashes[2]), payload[2]);
-    ASSERT_EQ(downloads.at(hashes[3]), payload[3]);
-}
-
-TEST_F(ClientTestFixture, DownloadBlobsFails)
-{
-    const std::vector<std::string> payload = {
-        "a", std::string(3 * MAX_BATCH_SIZE_BYTES, 'x')};
-
-    const std::vector<std::string> hashes = {"hash0", "hash1"};
-
-    // Creating list of requests...
-    std::vector<Digest> requests;
-    for (unsigned i = 0; i < payload.size(); i++) {
-        Digest digest;
-        digest.set_hash(hashes[i]);
-        digest.set_size_bytes(payload[i].size());
-        requests.push_back(digest);
-    }
-    ASSERT_EQ(requests.size(), payload.size());
-
-    // Both requests will fail with:
-    const auto errorStatus =
-        grpc::Status(grpc::StatusCode::NOT_FOUND, "Digest not found in CAS.");
-
-    // We expect digests {0, 1, 3} to be requested with BatchReadBlobs().
-    BatchReadBlobsResponse response;
-    auto entry = response.add_responses();
-    entry->mutable_digest()->CopyFrom(requests[0]);
-    entry->mutable_status()->set_code(errorStatus.error_code());
-    entry->mutable_status()->set_message(errorStatus.error_message());
-
-    EXPECT_CALL(*casClient.get(), BatchReadBlobs(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(response), Return(errorStatus)));
-
-    EXPECT_CALL(*bytestreamClient, ReadRaw(_, _)).WillOnce(Return(reader));
-    EXPECT_CALL(*reader, Read(_))
-        .WillOnce(DoAll(SetArgPointee<0>(readResponse), Return(true)))
-        .WillOnce(Return(false));
-
-    const auto downloads = this->downloadBlobs(requests);
-    ASSERT_TRUE(downloads.empty());
-}
-
 TEST_F(ClientTestFixture, UploadBlobs)
 {
     const std::vector<std::string> payload = {
@@ -872,4 +746,168 @@ TEST_F(UploadDirectoryFixture, UploadDirectoryNoMissingBlobs)
                           &returned_directory_digest);
 
     ASSERT_EQ(returned_directory_digest, directory_digest);
+}
+
+class DownloadBlobsFixture : public ClientTestFixture,
+                             public ::testing::WithParamInterface<bool> {
+  protected:
+    DownloadBlobsFixture() {}
+
+    /* This fixture tests
+     * `void Client::downloadBlobs(const std::vector<Digest> &digests,
+     *                             const write_blob_callback_t &write_blob,
+     *                             bool throw_on_error).
+     *
+     * That `protected` helper is shared by the other public-facing
+     * `downloadBlobs()` versions, so this allows to reuse tests.
+     *
+     * The parameterized `bool` value of this fixture will be passed to the
+     * `throw_on_error` parameter.
+     */
+};
+
+INSTANTIATE_TEST_CASE_P(DownloadBlobsTestCase, DownloadBlobsFixture,
+                        testing::Bool());
+TEST_P(DownloadBlobsFixture, FileTooLargeToBatchDownload)
+{
+    // Expecting it to fall back to a bytestream Read():
+    const auto data = std::string(2 * MAX_BATCH_SIZE_BYTES, '-');
+
+    Digest digest;
+    digest.set_hash("dataHash");
+    digest.set_size_bytes(data.size());
+
+    const std::vector<Digest> requests = {digest};
+
+    readResponse.set_data(data);
+    digest.set_size_bytes(data.size());
+
+    EXPECT_CALL(*bytestreamClient, ReadRaw(_, _)).WillOnce(Return(reader));
+    EXPECT_CALL(*reader, Read(_))
+        .WillOnce(DoAll(SetArgPointee<0>(readResponse), Return(true)))
+        .WillOnce(Return(false));
+
+    auto write_blob = [&](const std::string &downloaded_hash,
+                          const std::string &downloaded_data) {
+        ASSERT_EQ(downloaded_hash, digest.hash());
+        ASSERT_EQ(downloaded_data, data);
+    };
+
+    const bool throw_on_error = GetParam();
+    ASSERT_NO_THROW(this->downloadBlobs(requests, write_blob, throw_on_error));
+}
+
+TEST_P(DownloadBlobsFixture, DownloadBlobs)
+{
+    const std::vector<std::string> payload = {
+        "a", "b", std::string(3 * MAX_BATCH_SIZE_BYTES, 'x'), "c"};
+    const std::vector<std::string> hashes = {"hash0", "hash1", "hash2",
+                                             "hash3"};
+
+    // Creating list of requests...
+    std::vector<Digest> requests;
+    for (unsigned i = 0; i < payload.size(); i++) {
+        Digest digest;
+        digest.set_hash(hashes[i]);
+        digest.set_size_bytes(payload[i].size());
+        requests.push_back(digest);
+    }
+    ASSERT_EQ(requests.size(), payload.size());
+
+    // We expect digests {0, 1, 3} to be requested with BatchReadBlobs().
+    BatchReadBlobsResponse response;
+    for (unsigned i = 0; i < payload.size(); i++) {
+        if (i == 2)
+            continue;
+        auto entry = response.add_responses();
+        entry->set_data(payload[i]);
+        entry->mutable_digest()->CopyFrom(requests[i]);
+    }
+
+    BatchReadBlobsRequest request;
+    EXPECT_CALL(*casClient.get(), BatchReadBlobs(_, _, _))
+        .WillOnce(DoAll(SaveArg<1>(&request), SetArgPointee<2>(response),
+                        Return(grpc::Status::OK)));
+
+    // And digest in index 2 with the Bytestream API:
+    readResponse.set_data(payload[2]);
+    EXPECT_CALL(*bytestreamClient, ReadRaw(_, _)).WillOnce(Return(reader));
+    EXPECT_CALL(*reader, Read(_))
+        .WillOnce(DoAll(SetArgPointee<0>(readResponse), Return(true)))
+        .WillOnce(Return(false));
+
+    // We will write the output results into a map indexed by hash:
+    std::unordered_map<std::string, std::string> downloads;
+    auto write_blob = [&](const std::string &hash, const std::string &data) {
+        downloads[hash] = data;
+    };
+
+    const bool throw_on_error = GetParam();
+    ASSERT_NO_THROW(this->downloadBlobs(requests, write_blob, throw_on_error));
+
+    // Client sends the correct instance name:
+    EXPECT_EQ(request.instance_name(), client_instance_name);
+
+    // We get all the data, and it's correct for each requested digest:
+    ASSERT_EQ(downloads.size(), requests.size());
+    ASSERT_EQ(downloads.at(hashes[0]), payload[0]);
+    ASSERT_EQ(downloads.at(hashes[1]), payload[1]);
+    ASSERT_EQ(downloads.at(hashes[2]), payload[2]);
+    ASSERT_EQ(downloads.at(hashes[3]), payload[3]);
+}
+
+TEST_P(DownloadBlobsFixture, DownloadBlobsFails)
+{
+    const std::vector<std::string> payload = {
+        "a", std::string(3 * MAX_BATCH_SIZE_BYTES, 'x')};
+
+    const std::vector<std::string> hashes = {"hash0", "hash1"};
+
+    // Creating list of requests...
+    std::vector<Digest> requests;
+    for (unsigned i = 0; i < payload.size(); i++) {
+        Digest digest;
+        digest.set_hash(hashes[i]);
+        digest.set_size_bytes(payload[i].size());
+        requests.push_back(digest);
+    }
+    ASSERT_EQ(requests.size(), payload.size());
+
+    // Both requests will fail with:
+    const auto errorStatus =
+        grpc::Status(grpc::StatusCode::NOT_FOUND, "Digest not found in CAS.");
+
+    BatchReadBlobsResponse response;
+    auto entry = response.add_responses();
+    entry->mutable_digest()->CopyFrom(requests[0]);
+    entry->mutable_status()->set_code(errorStatus.error_code());
+    entry->mutable_status()->set_message(errorStatus.error_message());
+
+    EXPECT_CALL(*casClient.get(), BatchReadBlobs(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(response), Return(errorStatus)));
+
+    unsigned int written_blobs = 0;
+    const auto write_blob = [&](const std::string &, const std::string &) {
+        written_blobs++;
+    };
+
+    const bool throw_on_error = GetParam();
+    if (throw_on_error) {
+        ASSERT_THROW(this->downloadBlobs(requests, write_blob, throw_on_error),
+                     std::runtime_error);
+        // With the current implementation there are no guarantees about the
+        // data written before an error is encountered and the method aborts.
+    }
+    else {
+        // First blob will fail to be fetched in a batch, but the function
+        // should carry on and try to fetch the other one:
+        EXPECT_CALL(*bytestreamClient, ReadRaw(_, _)).WillOnce(Return(reader));
+        EXPECT_CALL(*reader, Read(_))
+            .WillOnce(DoAll(SetArgPointee<0>(readResponse), Return(true)))
+            .WillOnce(Return(false));
+
+        ASSERT_NO_THROW(
+            this->downloadBlobs(requests, write_blob, throw_on_error));
+        ASSERT_EQ(written_blobs, 0);
+    }
 }
