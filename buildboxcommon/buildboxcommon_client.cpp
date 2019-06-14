@@ -15,8 +15,10 @@
  */
 
 #include <buildboxcommon_client.h>
+#include <buildboxcommon_fileutils.h>
 #include <buildboxcommon_grpcretry.h>
 #include <buildboxcommon_logging.h>
+#include <buildboxcommon_merklize.h>
 
 #include <algorithm>
 #include <errno.h>
@@ -568,4 +570,60 @@ Client::findMissingBlobs(const std::vector<Digest> &digests)
     }
     return missing_blobs;
 }
+
+Client::UploadResults Client::uploadDirectory(const std::string &path,
+                                              Digest *root_directory_digest)
+{
+    // Recursing through the directory and building a map:
+    digest_string_map directory_map;
+    const NestedDirectory nested_dir =
+        make_nesteddirectory(path.c_str(), &directory_map);
+
+    const Digest directory_digest = nested_dir.to_digest(&directory_map);
+    if (root_directory_digest != nullptr) {
+        root_directory_digest->CopyFrom(directory_digest);
+    }
+
+    // FindMissingBlobs():
+    directory_map = missingDigests(directory_map);
+
+    // Batch upload the blobs missing in the remote:
+    std::vector<UploadRequest> upload_requests;
+    upload_requests.reserve(directory_map.size());
+    for (const auto &entry : directory_map) {
+        const Digest digest = entry.first;
+
+        Directory directory;
+        if (directory.ParseFromString(entry.second)) {
+            upload_requests.emplace_back(UploadRequest(digest, entry.second));
+        }
+        else {
+            const std::string file_contents =
+                FileUtils::get_file_contents(entry.second.c_str());
+            upload_requests.emplace_back(UploadRequest(digest, file_contents));
+        }
+    }
+
+    return uploadBlobs(upload_requests);
+}
+
+digest_string_map
+Client::missingDigests(const digest_string_map &directory_map)
+{
+    std::vector<Digest> digests_in_directory;
+    digests_in_directory.reserve(directory_map.size());
+    for (const auto &entry : directory_map) {
+        digests_in_directory.push_back(entry.first);
+    }
+
+    const std::vector<Digest> missing_blobs =
+        findMissingBlobs(digests_in_directory);
+
+    digest_string_map missing_files;
+    for (const Digest &digest : missing_blobs) {
+        missing_files[digest] = directory_map.at(digest);
+    }
+    return missing_files;
+}
+
 } // namespace buildboxcommon

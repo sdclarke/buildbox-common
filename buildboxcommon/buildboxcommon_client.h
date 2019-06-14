@@ -21,6 +21,7 @@
 
 #include <buildboxcommon_cashash.h>
 #include <buildboxcommon_connectionoptions.h>
+#include <buildboxcommon_merklize.h>
 #include <buildboxcommon_protos.h>
 
 namespace buildboxcommon {
@@ -141,6 +142,18 @@ class Client {
     std::vector<Digest> findMissingBlobs(const std::vector<Digest> &digests);
 
     /**
+     * Uploads the contents of the given path.
+     *
+     * Returns a list of Digests that the remote server reports not having,
+     * or throws a runtime_exception if the request failed.
+     *
+     * If the optional `directory_digest` pointer is provided, the Digest of
+     * the uploaded directory is copied to it.
+     */
+    UploadResults uploadDirectory(const std::string &path,
+                                  Digest *directory_digest = nullptr);
+
+    /**
      * Fetch the Protocol Buffer message of the given type and digest and
      * deserialize it.
      */
@@ -198,6 +211,11 @@ class Client {
      */
     std::vector<std::pair<size_t, size_t>>
     makeBatches(const std::vector<Digest> &digests);
+
+    /* Given a directory map, invoke `findMissingBlobs()` and return a map with
+     * the subset of protos that need to be uploaded.
+     */
+    digest_string_map missingDigests(const digest_string_map &directory_map);
 };
 
 } // namespace buildboxcommon
