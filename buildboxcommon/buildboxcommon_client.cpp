@@ -22,6 +22,7 @@
 
 #include <algorithm>
 #include <errno.h>
+#include <fcntl.h>
 #include <fstream>
 #include <grpc/grpc.h>
 #include <sstream>
@@ -376,6 +377,54 @@ Client::uploadBlobs(const std::vector<UploadRequest> &requests)
 Client::DownloadedData
 Client::downloadBlobs(const std::vector<Digest> &digests)
 {
+
+    Client::DownloadedData downloaded_data;
+
+    auto write_blob = [&](const std::string &hash, const std::string &data) {
+        downloaded_data[hash] = data;
+    };
+
+    downloadBlobs(digests, write_blob, false);
+    return downloaded_data;
+}
+
+void Client::downloadBlobs(const std::vector<Digest> &digests,
+                           const OutputMap &outputs)
+{
+
+    auto write_blob = [&](const std::string &hash, const std::string &data) {
+        const std::pair<OutputMap::const_iterator, OutputMap::const_iterator>
+            range = outputs.equal_range(hash);
+
+        for (auto it = range.first; it != range.second; it++) {
+            const std::string path = it->second.first;
+            const bool is_executable = it->second.second;
+
+            int fd = open(path.c_str(), O_CREAT | O_WRONLY | O_TRUNC,
+                          is_executable ? 0755 : 0644);
+            if (fd == -1) {
+                throw std::system_error(errno, std::system_category());
+            }
+
+            const auto write_status = write(fd, data.c_str(), data.size());
+            if (write_status < 0) {
+                close(fd);
+                throw std::system_error(errno, std::generic_category());
+            }
+
+            close(fd);
+        }
+    };
+
+    downloadBlobs(digests, write_blob, true);
+    // ^ If an error is encountered during download, aborts by throwing an
+    // exception.
+}
+
+void Client::downloadBlobs(const std::vector<Digest> &digests,
+                           const write_blob_callback_t &write_blob,
+                           bool throw_on_error)
+{
     DownloadedData downloaded_data;
 
     // We first sort the digests by their sizes in ascending order, so that
@@ -401,12 +450,15 @@ Client::downloadBlobs(const std::vector<Digest> &digests)
             for (const auto &download_result : download_results) {
                 const std::string digest_hash = download_result.first;
                 const std::string data = download_result.second;
-                downloaded_data[digest_hash] = data;
+                write_blob(digest_hash, data);
             }
         }
         catch (const std::runtime_error &e) {
-            std::cerr << "Batch download failed: " + std::string(e.what())
-                      << std::endl;
+            BUILDBOX_LOG_ERROR("Batch download failed: " +
+                               std::string(e.what()));
+            if (throw_on_error) {
+                throw e;
+            }
         }
     }
 
@@ -424,15 +476,16 @@ Client::downloadBlobs(const std::vector<Digest> &digests)
         const Digest digest = request_list[d];
         try {
             const auto data = fetchString(digest);
-            downloaded_data[digest.hash()] = data;
+            write_blob(digest.hash(), data);
         }
         catch (const std::runtime_error &e) {
-            std::cerr << "Error: fetchString(): " + std::string(e.what())
-                      << std::endl;
+            BUILDBOX_LOG_ERROR("Error: fetchString(): " +
+                               std::string(e.what()));
+            if (throw_on_error) {
+                throw e;
+            }
         }
     }
-
-    return downloaded_data;
 }
 
 Client::UploadResults
