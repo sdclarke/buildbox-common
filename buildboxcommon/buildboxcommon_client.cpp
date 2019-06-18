@@ -207,6 +207,36 @@ void Client::download(int fd, const Digest &digest)
     grpcRetry(downloadLambda, this->d_grpcRetryLimit, this->d_grpcRetryDelay);
 }
 
+void Client::downloadDirectory(const Digest &digest, const std::string &path)
+{
+    const Directory directory = fetchMessage<Directory>(digest);
+
+    // Downloading the files in this directory:
+    OutputMap outputs;
+    std::vector<Digest> file_digests;
+    file_digests.reserve(directory.files_size());
+    for (const FileNode &file : directory.files()) {
+        file_digests.push_back(file.digest());
+
+        const std::string file_path = path + "/" + file.name();
+        outputs.emplace(
+            file.digest().hash(),
+            std::pair<std::string, bool>(file_path, file.is_executable()));
+    }
+    downloadBlobs(file_digests, outputs);
+
+    // Creating the subdirectories in this level and recursively fetching their
+    // contents:
+    for (const DirectoryNode &directory : directory.directories()) {
+        const std::string directory_path = path + "/" + directory.name();
+        if (mkdir(directory_path.c_str(), 0777) == -1) {
+            throw std::system_error(errno, std::system_category());
+        }
+
+        downloadDirectory(directory.digest(), directory_path);
+    }
+}
+
 void Client::upload(const std::string &str, const Digest &digest)
 {
     BUILDBOX_LOG_DEBUG("Uploading " << digest.hash() << " from string");

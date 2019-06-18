@@ -92,6 +92,8 @@ class Client {
      */
     void download(int fd, const Digest &digest);
 
+    void downloadDirectory(const Digest &digest, const std::string &path);
+
     /**
      * Upload the given string. If it can't be uploaded successfully, throw
      * an exception.
