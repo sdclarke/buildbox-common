@@ -49,3 +49,8 @@ TEST(CASHashTest, File)
     EXPECT_EQ(d.size_bytes(), 4);
     close(fd);
 }
+
+TEST(CASHashTest, DigestFunction)
+{
+    ASSERT_EQ(CASHash::digestFunction(), DigestFunction::SHA256);
+}

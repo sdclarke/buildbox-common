@@ -34,6 +34,11 @@ class CASHash {
      * Return a Digest corresponding to the given string.
      */
     static Digest hash(const std::string &str);
+
+    /**
+     * Return a `DigestFunction` message specifying the hash function used.
+     */
+    static DigestFunction digestFunction() { return DigestFunction::SHA256; }
 };
 } // namespace buildboxcommon
 
