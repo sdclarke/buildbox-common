@@ -227,13 +227,13 @@ void Client::downloadDirectory(const Digest &digest, const std::string &path)
 
     // Creating the subdirectories in this level and recursively fetching their
     // contents:
-    for (const DirectoryNode &directory : directory.directories()) {
-        const std::string directory_path = path + "/" + directory.name();
+    for (const DirectoryNode &directory_node : directory.directories()) {
+        const std::string directory_path = path + "/" + directory_node.name();
         if (mkdir(directory_path.c_str(), 0777) == -1) {
             throw std::system_error(errno, std::system_category());
         }
 
-        downloadDirectory(directory.digest(), directory_path);
+        downloadDirectory(directory_node.digest(), directory_path);
     }
 }
 
