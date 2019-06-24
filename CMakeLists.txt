@@ -31,11 +31,11 @@ add_library(buildboxcommon STATIC
 
 ## Only add flags when compiling casd, not tests. PRIVATE specifies don't add these flags to libraries that link against this.
 if(CMAKE_CXX_COMPILER_ID EQUAL Clang)
-    target_compile_options(buildboxcommon PRIVATE -Wall -Werror=inconsistent-missing-override)
+    target_compile_options(buildboxcommon PRIVATE -Wall -Werror=inconsistent-missing-override -Werror=shadow)
 elseif(CMAKE_CXX_COMPILER_ID EQUAL GNU)
-    target_compile_options(buildboxcommon PRIVATE -Wall -Werror=suggest-override)
+    target_compile_options(buildboxcommon PRIVATE -Wall -Werror=suggest-override -Werror=shadow)
 else()
-    target_compile_options(buildboxcommon PRIVATE -Wall)
+    target_compile_options(buildboxcommon PRIVATE -Wall -Werror=shadow)
 endif()
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "AIX")
