@@ -44,8 +44,8 @@ Digest CASHash::hash(int fd)
     unsigned char hash[SHA256_DIGEST_LENGTH];
     SHA256_CTX sha256;
     SHA256_Init(&sha256);
-    ssize_t bytesRead;
-    ssize_t totalBytesRead = 0;
+    size_t bytesRead;
+    size_t totalBytesRead = 0;
     while ((bytesRead = read(fd, &buffer[0], buffer.size())) > 0) {
         SHA256_Update(&sha256, &buffer[0], bytesRead);
         totalBytesRead += bytesRead;

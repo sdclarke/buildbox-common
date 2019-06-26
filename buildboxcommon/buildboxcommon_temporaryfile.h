@@ -49,7 +49,7 @@ class TemporaryFile {
 
     const char *name() const { return d_name.c_str(); };
 
-    const int fd() const { return d_fd; };
+    int fd() const { return d_fd; };
 
     void close();
 

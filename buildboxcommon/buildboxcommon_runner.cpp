@@ -167,9 +167,9 @@ void Runner::executeAndStore(std::vector<std::string> command,
         logline << token << " ";
     }
     BUILDBOX_LOG_DEBUG("Executing command: " << logline.str());
-    int argc = command.size();
+    unsigned long argc = command.size();
     const char *argv[argc + 1];
-    for (int i = 0; i < argc; ++i) {
+    for (unsigned int i = 0; i < argc; ++i) {
         argv[i] = command[i].c_str();
     }
     argv[argc] = nullptr;
@@ -282,7 +282,7 @@ bool Runner::parseArguments(int argc, char *argv[])
         else if (arg[0] == '-' && arg[1] == '-') {
             arg += 2;
             if (assign) {
-                int key_len = assign - arg;
+                long key_len = assign - arg;
                 const char *value = assign + 1;
                 if (strncmp(arg, "action", key_len) == 0) {
                     this->d_inputPath = value;
