@@ -40,7 +40,7 @@ class Runner {
      * Subclasses can override this to add support for special arguments.
      * Return true if an argument was handled successfully.
      */
-    virtual bool parseArg(const char *arg) { return false; }
+    virtual bool parseArg(const char *) { return false; }
 
     /**
      * Subclasses can override this to print a message after Runner prints

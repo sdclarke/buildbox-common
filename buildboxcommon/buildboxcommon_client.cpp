@@ -259,7 +259,7 @@ void Client::upload(const std::string &str, const Digest &digest)
             request.set_resource_name(resourceName);
             request.set_write_offset(offset);
 
-            int uploadLength =
+            long uploadLength =
                 std::min(static_cast<unsigned long>(BYTESTREAM_CHUNK_SIZE),
                          str.length() - offset);
 
@@ -600,7 +600,7 @@ Client::makeBatches(const std::vector<Digest> &digests)
     // A batch is contains digests inside [batch_start, batch_end).
 
     while (batch_end < digests.size()) {
-        auto bytes_in_batch = 0;
+        long bytes_in_batch = 0;
         if (digests[batch_end].size_bytes() > max_batch_size) {
             // All digests from `batch_end` to the end of the list are
             // larger than what we can request; stop.

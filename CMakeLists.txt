@@ -25,17 +25,24 @@ add_subdirectory(protos)
 
 file(GLOB BUILDBOXCOMMON_CPP "buildboxcommon/*.cpp")
 
+set_source_files_properties(${PROTO_GENERATED_SRCS} PROPERTIES COMPILE_FLAGS "-Wno-all -Wno-error -Wno-extra -Wno-conversion")
+
 add_library(buildboxcommon STATIC
     ${BUILDBOXCOMMON_CPP}
     ${PROTO_GENERATED_SRCS})
 
-## Only add flags when compiling casd, not tests. PRIVATE specifies don't add these flags to libraries that link against this.
-if(CMAKE_CXX_COMPILER_ID EQUAL Clang)
-    target_compile_options(buildboxcommon PRIVATE -Wall -Werror=inconsistent-missing-override -Werror=shadow)
-elseif(CMAKE_CXX_COMPILER_ID EQUAL GNU)
-    target_compile_options(buildboxcommon PRIVATE -Wall -Werror=suggest-override -Werror=shadow)
+## Only add flags when compiling buildbox-common, not tests.
+## PRIVATE specifies don't add these flags to libraries that link against this.
+if(CMAKE_BUILD_TYPE STREQUAL "DEBUG")
+    set(DEBUG_FLAGS -Werror -Wextra -pedantic-errors -Wall -Wconversion -Wno-vla)
+endif()
+if(CMAKE_CXX_COMPILER_ID STREQUAL Clang)
+    target_compile_options(buildboxcommon PRIVATE -Werror=inconsistent-missing-override -Werror=shadow ${DEBUG_FLAGS})
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL GNU AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "AIX")
+    # We want to avoid setting errors on AIX.
+    target_compile_options(buildboxcommon PRIVATE -Wall -Werror=suggest-override -Werror=shadow ${DEBUG_FLAGS})
 else()
-    target_compile_options(buildboxcommon PRIVATE -Wall -Werror=shadow)
+    target_compile_options(buildboxcommon PRIVATE -Wall ${DEBUG_FLAGS})
 endif()
 
 if(${CMAKE_SYSTEM_NAME} MATCHES "AIX")
@@ -58,7 +65,7 @@ if(NOT APPLE)
 endif()
 
 target_include_directories(buildboxcommon PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/buildboxcommon)
-target_include_directories(buildboxcommon PRIVATE ${PROTO_GEN_DIR})
+target_include_directories(buildboxcommon SYSTEM PRIVATE ${PROTO_GEN_DIR})
 
 set_source_files_properties(${PROTO_GENERATED_SRCS} PROPERTIES GENERATED 1)
 add_dependencies(buildboxcommon generate_protobufs)

@@ -80,7 +80,7 @@ bool ConnectionOptions::parseArg(const char *arg, const char *prefix)
     }
     arg += 2;
     if (prefix != nullptr) {
-        const int prefixLen = strlen(prefix);
+        const size_t prefixLen = strlen(prefix);
         if (strncmp(arg, prefix, prefixLen) != 0) {
             return false;
         }
@@ -88,7 +88,7 @@ bool ConnectionOptions::parseArg(const char *arg, const char *prefix)
     }
     const char *assign = strchr(arg, '=');
     if (assign) {
-        const int keyLen = assign - arg;
+        const long keyLen = assign - arg;
         const char *value = assign + 1;
         if (strncmp(arg, "remote", keyLen) == 0) {
             this->d_url = value;
