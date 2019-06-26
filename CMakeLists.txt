@@ -38,9 +38,13 @@ if(CMAKE_BUILD_TYPE STREQUAL "DEBUG")
 endif()
 if(CMAKE_CXX_COMPILER_ID STREQUAL Clang)
     target_compile_options(buildboxcommon PRIVATE -Werror=inconsistent-missing-override -Werror=shadow ${DEBUG_FLAGS})
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL GNU AND NOT ${CMAKE_SYSTEM_NAME} MATCHES "AIX")
-    # We want to avoid setting errors on AIX.
-    target_compile_options(buildboxcommon PRIVATE -Wall -Werror=suggest-override -Werror=shadow ${DEBUG_FLAGS})
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL GNU)
+    # We want to avoid setting errors on GNU + AIX because system headers + not being able to use -isystem
+    if(${CMAKE_SYSTEM_NAME} MATCHES "AIX")
+        message("Skipping all warnings due to GNU compiler + AIX system")
+    else()
+        target_compile_options(buildboxcommon PRIVATE -Wall -Werror=suggest-override -Werror=shadow ${DEBUG_FLAGS})
+    endif()
 else()
     target_compile_options(buildboxcommon PRIVATE -Wall ${DEBUG_FLAGS})
 endif()
@@ -65,7 +69,13 @@ if(NOT APPLE)
 endif()
 
 target_include_directories(buildboxcommon PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/buildboxcommon)
-target_include_directories(buildboxcommon SYSTEM PRIVATE ${PROTO_GEN_DIR})
+
+# gcc on AIX can't deal with -isystem that contains C++ .h files
+if(${CMAKE_SYSTEM_NAME} MATCHES "AIX" AND ${CMAKE_CXX_COMPILER_ID} MATCHES "GNU")
+    target_include_directories(buildboxcommon PRIVATE ${PROTO_GEN_DIR})
+else()
+    target_include_directories(buildboxcommon SYSTEM PRIVATE ${PROTO_GEN_DIR})
+endif()
 
 set_source_files_properties(${PROTO_GENERATED_SRCS} PROPERTIES GENERATED 1)
 add_dependencies(buildboxcommon generate_protobufs)
