@@ -17,12 +17,14 @@
 #ifndef INCLUDED_BUILDBOXCOMMON_CLIENT
 #define INCLUDED_BUILDBOXCOMMON_CLIENT
 
+#include <functional>
 #include <unordered_map>
 
 #include <buildboxcommon_cashash.h>
 #include <buildboxcommon_connectionoptions.h>
 #include <buildboxcommon_merklize.h>
 #include <buildboxcommon_protos.h>
+#include <buildboxcommon_requestmetadata.h>
 
 namespace buildboxcommon {
 
@@ -50,8 +52,14 @@ class Client {
     std::string d_uuid;
     std::string d_instanceName;
 
+    RequestMetadataGenerator d_metadata_generator;
+    const std::function<void(grpc::ClientContext *)>
+        d_metadata_attach_function = [&](grpc::ClientContext *context) {
+            d_metadata_generator.attach_request_metadata(context);
+        };
+
   public:
-    Client() {}
+    Client(){};
 
     Client(std::shared_ptr<ByteStream::StubInterface> bytestreamClient,
            std::shared_ptr<ContentAddressableStorage::StubInterface> casClient,
@@ -74,6 +82,15 @@ class Client {
     init(std::shared_ptr<ByteStream::StubInterface> bytestreamClient,
          std::shared_ptr<ContentAddressableStorage::StubInterface> casClient,
          std::shared_ptr<Capabilities::StubInterface> capabilitiesClient);
+
+    void set_tool_details(const std::string &tool_name,
+                          const std::string &tool_version);
+    /**
+     * Set the optional ID values to be attached to requests.
+     */
+    void set_request_metadata(const std::string &action_id,
+                              const std::string &tool_invocation_id,
+                              const std::string &correlated_invocations_id);
 
     /**
      * Download the blob with the given digest and return it.
@@ -231,6 +248,15 @@ class Client {
      * the subset of protos that need to be uploaded.
      */
     digest_string_map missingDigests(const digest_string_map &directory_map);
+
+    /*
+     * RequestMetadata values. They will be attached to requests sent by this
+     * client.
+     */
+    ToolDetails d_tool_details;
+    std::string d_action_id;
+    std::string d_tool_invocation_id;
+    std::string d_correlated_invocations_id;
 
   protected:
     typedef std::function<void(const std::string &hash,
