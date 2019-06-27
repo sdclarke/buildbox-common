@@ -13,6 +13,8 @@
 // limitations under the License.
 
 #include <buildboxcommon_protos.h>
+#include <buildboxcommon_requestmetadata.h>
+
 #include <functional>
 
 namespace buildboxcommon {
@@ -24,8 +26,14 @@ namespace buildboxcommon {
  * grpc::Status.
  *
  */
+
 void grpcRetry(
     const std::function<grpc::Status(grpc::ClientContext &)> &grpcInvocation,
     int grpcRetryLimit, int grpcRetryDelay);
+
+void grpcRetry(
+    const std::function<grpc::Status(grpc::ClientContext &)> &grpcInvocation,
+    int grpcRetryLimit, int grpcRetryDelay,
+    const std::function<void(grpc::ClientContext *)> &metadataAttacher);
 
 } // namespace buildboxcommon

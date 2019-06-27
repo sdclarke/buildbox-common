@@ -74,3 +74,9 @@ add_executable(protos_tests
                buildboxcommon_tests.m.cpp)
 target_link_libraries(protos_tests buildboxcommon ${GMOCK_TARGET})
 add_test(NAME protos_tests COMMAND protos_tests)
+
+add_executable(requestmetadata_tests
+  buildboxcommon_requestmetadata.t.cpp
+  buildboxcommon_tests.m.cpp)
+target_link_libraries(requestmetadata_tests buildboxcommon ${GTEST_TARGET})
+add_test(NAME requestmetadata_tests COMMAND requestmetadata_tests)
