@@ -14,6 +14,16 @@ add_executable(client_tests
 target_link_libraries(client_tests buildboxcommon ${GMOCK_TARGET})
 add_test(NAME client_tests COMMAND client_tests)
 
+add_executable(fallbackstageddirectory_tests
+  buildboxcommon_fallbackstageddirectory.t.cpp
+  buildboxcommon_tests.m.cpp)
+target_link_libraries(fallbackstageddirectory_tests buildboxcommon ${GMOCK_TARGET})
+add_test(
+    NAME fallbackstageddirectory_tests
+    COMMAND fallbackstageddirectory_tests
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/data/buildboxcommon_fallbackstageddirectory
+)
+
 add_executable(connectionoptions_tests buildboxcommon_connectionoptions.t.cpp buildboxcommon_tests.m.cpp)
 target_link_libraries(connectionoptions_tests buildboxcommon ${GTEST_TARGET})
 add_test(NAME connectionoptions_tests COMMAND connectionoptions_tests)

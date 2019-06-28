@@ -20,6 +20,7 @@
 #include <buildboxcommon_logging.h>
 
 #include <cstring>
+#include <dirent.h>
 #include <fcntl.h>
 #include <map>
 #include <stdlib.h>
@@ -71,13 +72,15 @@ FallbackStagedDirectory::~FallbackStagedDirectory()
     }
 }
 
+// TODO: Rewrite captureFile to use file descriptors.
 std::shared_ptr<OutputFile>
 FallbackStagedDirectory::captureFile(const char *relativePath)
 {
     BUILDBOX_LOG_DEBUG("Uploading " << relativePath);
     std::shared_ptr<OutputFile> result(new OutputFile());
     std::string file = this->d_path + std::string("/") + relativePath;
-    int fd = open(file.c_str(), O_RDONLY);
+    // need to use O_RDWR or else wont throw error on directory
+    int fd = open(file.c_str(), O_RDWR);
     if (fd == -1) {
         if (errno == EACCES || errno == EISDIR || errno == ENOENT) {
             return std::shared_ptr<OutputFile>();
@@ -88,7 +91,6 @@ FallbackStagedDirectory::captureFile(const char *relativePath)
         result->set_path(relativePath);
         *(result->mutable_digest()) = CASHash::hash(fd);
         this->d_casClient->upload(fd, result->digest());
-
         result->set_is_executable(FileUtils::is_executable(file.c_str()));
     }
     catch (...) {
@@ -101,57 +103,57 @@ FallbackStagedDirectory::captureFile(const char *relativePath)
 }
 
 Directory
-FallbackStagedDirectory::uploadDirectoryRecursively(Tree *tree, DIR *dirStream,
+FallbackStagedDirectory::uploadDirectoryRecursively(Tree *tree,
                                                     const char *relativePath)
 {
     BUILDBOX_LOG_DEBUG("Uploading directory " << relativePath);
     std::map<std::string, FileNode> files;
     std::map<std::string, DirectoryNode> directories;
-    try {
-        // TODO symlinks?
-        for (auto entry = readdir(dirStream); entry != nullptr;
-             entry = readdir(dirStream)) {
-            if (strcmp(entry->d_name, ".") == 0 ||
-                strcmp(entry->d_name, "..") == 0) {
-                // Skip "." and ".."
-                continue;
-            }
-            std::string entryRelativePath =
-                relativePath + std::string("/") + entry->d_name;
+    struct dirent **direntList;
 
-            // Check if the path is a file.
-            auto outputFile = this->captureFile(entryRelativePath.c_str());
-            if (outputFile) {
-                FileNode fileNode;
-                fileNode.set_name(entry->d_name);
-                *(fileNode.mutable_digest()) = outputFile->digest();
-                fileNode.set_is_executable(outputFile->is_executable());
-                files[entry->d_name] = fileNode;
-                continue;
-            }
+    int n = scandir(relativePath, &direntList, NULL, NULL);
+    if (n == -1) {
+        // On error we don't need to free direntList
+        throw std::system_error(errno, std::system_category());
+    }
+    std::vector<std::string> nameList;
+    for (int i = n - 1; i >= 0; i--) {
+        nameList.push_back(direntList[i]->d_name);
+        free(direntList[i]);
+    }
+    free(direntList);
+    for (const std::string entry : nameList) {
+        std::string entryRelativePath =
+            std::string(relativePath) + "/" + entry;
 
-            // Try uploading the path as a directory.
-            std::string entryAbsolutePath =
-                this->d_path + "/" + entryRelativePath;
-            DIR *childDirStream = opendir(entryAbsolutePath.c_str());
-            if (childDirStream != nullptr) {
-                auto directory = uploadDirectoryRecursively(
-                    tree, childDirStream, entryRelativePath.c_str());
-                DirectoryNode directoryNode;
-                directoryNode.set_name(entry->d_name);
-                *(directoryNode.mutable_digest()) =
-                    this->d_casClient->uploadMessage(directory);
-                *(tree->add_children()) = directory;
-                directories[entry->d_name] = directoryNode;
-                continue;
-            }
+        if (strcmp(entry.c_str(), ".") == 0 ||
+            strcmp(entry.c_str(), "..") == 0) {
+            // Skip "." and ".."
+            continue;
         }
+
+        // Check if the path is a file.
+        auto outputFile = this->captureFile(entryRelativePath.c_str());
+        if (outputFile) {
+            FileNode fileNode;
+            fileNode.set_name(entry);
+            *(fileNode.mutable_digest()) = outputFile->digest();
+            fileNode.set_is_executable(outputFile->is_executable());
+            files[entry] = fileNode;
+            continue;
+        }
+
+        // Try uploading the path as a directory.
+        auto directory =
+            uploadDirectoryRecursively(tree, entryRelativePath.c_str());
+        DirectoryNode directoryNode;
+        directoryNode.set_name(entry);
+        *(directoryNode.mutable_digest()) =
+            this->d_casClient->uploadMessage<Directory>(directory);
+        *(tree->add_children()) = directory;
+        directories[entry] = directoryNode;
     }
-    catch (...) {
-        closedir(dirStream);
-        throw;
-    }
-    closedir(dirStream);
+
     Directory result;
     // NOTE: we're guaranteed to iterate over these in alphabetical order
     // since we're using a std::map
@@ -169,21 +171,23 @@ FallbackStagedDirectory::captureDirectory(const char *relativePath)
 {
     Tree tree;
 
-    std::string dirPath = this->d_path + std::string("/") + relativePath;
-    DIR *dirStream = opendir(dirPath.c_str());
-    if (dirStream == nullptr) {
+    std::string dirPath = this->d_path;
+    // using AT_FDCWD as placeholder. Since dirPath is absolute, openAT will
+    // ignore AT_FDCWD
+    const int dirFD = openat(AT_FDCWD, dirPath.c_str(), O_RDONLY);
+    if (dirFD == -1) {
         if (errno == EACCES || errno == ENOTDIR || errno == ENOENT) {
             return std::shared_ptr<OutputDirectory>();
         }
         throw std::system_error(errno, std::system_category());
     }
-
     *(tree.mutable_root()) =
-        this->uploadDirectoryRecursively(&tree, dirStream, relativePath);
+        this->uploadDirectoryRecursively(&tree, relativePath);
 
     std::shared_ptr<OutputDirectory> result(new OutputDirectory());
     result->set_path(relativePath);
-    *(result->mutable_tree_digest()) = this->d_casClient->uploadMessage(tree);
+    *(result->mutable_tree_digest()) =
+        this->d_casClient->uploadMessage<Tree>(tree);
     return result;
 }
 

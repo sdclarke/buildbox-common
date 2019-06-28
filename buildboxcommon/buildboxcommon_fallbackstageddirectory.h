@@ -44,8 +44,7 @@ class FallbackStagedDirectory : public StagedDirectory {
   private:
     void downloadDirectory(const Digest &digest, const char *path);
     void downloadFile(const Digest &digest, bool executable, const char *path);
-    Directory uploadDirectoryRecursively(Tree *tree, DIR *dirStream,
-                                         const char *relativePath);
+    Directory uploadDirectoryRecursively(Tree *tree, const char *relativePath);
 
     std::shared_ptr<Client> d_casClient;
 };
