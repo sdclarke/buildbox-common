@@ -35,6 +35,9 @@ TEST(TemporaryFileTests, TemporaryFile)
         ASSERT_EQ(stat(file_name.c_str(), &statResult), 0);
         ASSERT_TRUE(S_ISREG(statResult.st_mode));
 
+        // Verify the default permission bits 0600.
+        ASSERT_EQ(statResult.st_mode & 0777, 0600);
+
         // It was created inside the default directory:
         EXPECT_NE(file_name.find(TemporaryFileDefaults::DEFAULT_TMP_DIR),
                   std::string::npos);
@@ -57,6 +60,9 @@ TEST(TemporaryFileTests, TemporaryFileWithCustomPrefix)
         struct stat statResult;
         ASSERT_EQ(stat(file_name.c_str(), &statResult), 0);
         ASSERT_TRUE(S_ISREG(statResult.st_mode));
+
+        // Verify the default permission bits 0600.
+        ASSERT_EQ(statResult.st_mode & 0777, 0600);
     }
 
     // Verify that the directory no longer exists.
@@ -88,6 +94,9 @@ TEST(TemporaryFileTests, TemporaryFileInGivenDirectory)
         struct stat statResult;
         ASSERT_EQ(stat(file_name.c_str(), &statResult), 0);
         ASSERT_TRUE(S_ISREG(statResult.st_mode));
+
+        // Verify the default permission bits 0600.
+        ASSERT_EQ(statResult.st_mode & 0777, 0600);
     }
 
     // Verify that the file no longer exists.
@@ -121,9 +130,44 @@ TEST(TemporaryFileTests, TemporaryFileInGivenDirectoryWithEmptyPrefix)
         struct stat statResult;
         ASSERT_EQ(stat(file_name.c_str(), &statResult), 0);
         ASSERT_TRUE(S_ISREG(statResult.st_mode));
+
+        // Verify the default permission bits 0600.
+        ASSERT_EQ(statResult.st_mode & 0777, 0600);
     }
 
     // Verify that the file no longer exists.
     struct stat statResultFile;
     ASSERT_NE(stat(file_name.c_str(), &statResultFile), 0);
+}
+
+TEST(TemporaryFileTests, TemporaryFileWithCustomPermissions)
+{
+
+    std::string file_name;
+
+    // We create a temporary directory in which to place the file:
+    TemporaryDirectory directory;
+
+    {
+        TemporaryFile tempFile(directory.name(), "", 0644);
+
+        file_name = std::string(tempFile.name());
+
+        // Verify that the file exists and is a file.
+        struct stat statResult;
+        ASSERT_EQ(stat(file_name.c_str(), &statResult), 0);
+        ASSERT_TRUE(S_ISREG(statResult.st_mode));
+
+        // Verify the custom permission bits 0644.
+        ASSERT_EQ(statResult.st_mode & 0777, 0644);
+    }
+
+    // Verify that the file no longer exists.
+    struct stat statResultFile;
+    ASSERT_NE(stat(file_name.c_str(), &statResultFile), 0);
+
+    // But the directory does:
+    struct stat statResultDir;
+    ASSERT_EQ(stat(directory.name(), &statResultDir), 0);
+    ASSERT_TRUE(S_ISDIR(statResultDir.st_mode));
 }
