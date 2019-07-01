@@ -14,6 +14,7 @@
 
 #include <buildboxcommon_temporaryfile.h>
 #include <dirent.h>
+#include <sys/stat.h>
 #include <system_error>
 #include <unistd.h>
 
@@ -27,9 +28,10 @@ TemporaryFile::TemporaryFile(const char *prefix)
     create(tempDirectory(), prefix);
 }
 
-TemporaryFile::TemporaryFile(const char *directory, const char *prefix)
+TemporaryFile::TemporaryFile(const char *directory, const char *prefix,
+                             mode_t mode)
 {
-    create(directory, prefix);
+    create(directory, prefix, mode);
 }
 
 TemporaryFile::~TemporaryFile()
@@ -55,7 +57,8 @@ const char *TemporaryFile::tempDirectory()
     return tmpdir;
 }
 
-void TemporaryFile::create(const char *directory, const char *prefix)
+void TemporaryFile::create(const char *directory, const char *prefix,
+                           mode_t mode)
 {
     std::string name =
         std::string(directory) + "/" + std::string(prefix) + "XXXXXX";
@@ -65,6 +68,11 @@ void TemporaryFile::create(const char *directory, const char *prefix)
         throw std::system_error(errno, std::system_category());
     }
     this->d_name = name;
+
+    /* mkstemp creates files with mode 0600 */
+    if (mode != 0600) {
+        fchmod(this->d_fd, mode);
+    }
 }
 
 } // namespace buildboxcommon

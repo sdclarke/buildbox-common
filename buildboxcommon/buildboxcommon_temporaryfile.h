@@ -40,7 +40,8 @@ class TemporaryFile {
      * Create a temporary file on disk inside the given directory.
      * The contents of `prefix` will be included in the name of the file.
      */
-    TemporaryFile(const char *directory, const char *prefix);
+    TemporaryFile(const char *directory, const char *prefix,
+                  mode_t mode = 0600);
 
     /**
      * Delete the temporary file.
@@ -66,7 +67,7 @@ class TemporaryFile {
      * The file name will contain the given prefix, which is allowed to be
      * empty. If the creation fails, throws an `std::system_error` exception.
      */
-    void create(const char *directory, const char *prefix);
+    void create(const char *directory, const char *prefix, mode_t mode = 0600);
 };
 } // namespace buildboxcommon
 #endif
