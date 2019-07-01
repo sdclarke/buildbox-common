@@ -28,8 +28,11 @@ struct ConnectionOptions {
     const char *d_url = nullptr;
     const char *d_instanceName = nullptr;
     const char *d_serverCert = nullptr;
+    const char *d_serverCertPath = nullptr;
     const char *d_clientKey = nullptr;
+    const char *d_clientKeyPath = nullptr;
     const char *d_clientCert = nullptr;
+    const char *d_clientCertPath = nullptr;
     const char *d_retryLimit = "0";
     const char *d_retryDelay = "100";
 

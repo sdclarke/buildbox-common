@@ -99,15 +99,15 @@ bool ConnectionOptions::parseArg(const char *arg, const char *prefix)
             return true;
         }
         else if (strncmp(arg, "server-cert", keyLen) == 0) {
-            this->d_serverCert = value;
+            this->d_serverCertPath = value;
             return true;
         }
         else if (strncmp(arg, "client-key", keyLen) == 0) {
-            this->d_clientKey = value;
+            this->d_clientKeyPath = value;
             return true;
         }
         else if (strncmp(arg, "client-cert", keyLen) == 0) {
-            this->d_clientCert = value;
+            this->d_clientCertPath = value;
             return true;
         }
         else if (strncmp(arg, "retry-limit", keyLen) == 0) {
@@ -133,17 +133,17 @@ void ConnectionOptions::putArgs(std::vector<std::string> *out,
         out->push_back("--" + p +
                        "instance=" + std::string(this->d_instanceName));
     }
-    if (this->d_serverCert != nullptr) {
+    if (this->d_serverCertPath != nullptr) {
         out->push_back("--" + p +
-                       "server-cert=" + std::string(this->d_serverCert));
+                       "server-cert=" + std::string(this->d_serverCertPath));
     }
-    if (this->d_clientKey != nullptr) {
+    if (this->d_clientKeyPath != nullptr) {
         out->push_back("--" + p +
-                       "client-key=" + std::string(this->d_clientKey));
+                       "client-key=" + std::string(this->d_clientKeyPath));
     }
-    if (this->d_clientCert != nullptr) {
+    if (this->d_clientCertPath != nullptr) {
         out->push_back("--" + p +
-                       "client-cert=" + std::string(this->d_clientCert));
+                       "client-cert=" + std::string(this->d_clientCertPath));
     }
     if (this->d_retryLimit != nullptr) {
         out->push_back("--" + p +
@@ -167,13 +167,22 @@ std::shared_ptr<grpc::Channel> ConnectionOptions::createChannel() const
     else if (strncmp(this->d_url, HTTPS_PREFIX, strlen(HTTPS_PREFIX)) == 0) {
         auto options = grpc::SslCredentialsOptions();
         if (this->d_serverCert) {
-            options.pem_root_certs = getFileContents(this->d_serverCert);
+            options.pem_root_certs = this->d_serverCert;
+        }
+        else if (this->d_serverCertPath) {
+            options.pem_root_certs = getFileContents(this->d_serverCertPath);
         }
         if (this->d_clientKey) {
-            options.pem_private_key = getFileContents(this->d_clientKey);
+            options.pem_private_key = this->d_clientKey;
+        }
+        else if (this->d_clientKeyPath) {
+            options.pem_private_key = getFileContents(this->d_clientKeyPath);
         }
         if (this->d_clientCert) {
-            options.pem_cert_chain = getFileContents(this->d_clientCert);
+            options.pem_cert_chain = this->d_clientCert;
+        }
+        else if (this->d_clientCertPath) {
+            options.pem_cert_chain = getFileContents(this->d_clientCertPath);
         }
         target = this->d_url + strlen(HTTPS_PREFIX);
         creds = grpc::SslCredentials(options);
