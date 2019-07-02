@@ -26,8 +26,11 @@ TEST(ConnectionOptionsTest, DefaultsToNullptrs)
     EXPECT_EQ(opts.d_url, nullptr);
     EXPECT_EQ(opts.d_instanceName, nullptr);
     EXPECT_EQ(opts.d_serverCert, nullptr);
+    EXPECT_EQ(opts.d_serverCertPath, nullptr);
     EXPECT_EQ(opts.d_clientKey, nullptr);
+    EXPECT_EQ(opts.d_clientKeyPath, nullptr);
     EXPECT_EQ(opts.d_clientCert, nullptr);
+    EXPECT_EQ(opts.d_clientCertPath, nullptr);
 }
 
 TEST(ConnectionOptionsTest, ParseArgIgnoresInvalidArgs)
@@ -42,9 +45,9 @@ TEST(ConnectionOptionsTest, ParseArgIgnoresInvalidArgs)
     ASSERT_FALSE(opts.parseArg("--remote"));
 
     EXPECT_EQ(opts.d_url, nullptr);
-    EXPECT_EQ(opts.d_serverCert, nullptr);
-    EXPECT_EQ(opts.d_clientKey, nullptr);
-    EXPECT_EQ(opts.d_clientCert, nullptr);
+    EXPECT_EQ(opts.d_serverCertPath, nullptr);
+    EXPECT_EQ(opts.d_clientKeyPath, nullptr);
+    EXPECT_EQ(opts.d_clientCertPath, nullptr);
 }
 
 TEST(ConnectionOptionsTest, ParseArgSimple)
@@ -57,19 +60,19 @@ TEST(ConnectionOptionsTest, ParseArgSimple)
     ASSERT_TRUE(opts.parseArg("--instance=testingInstances/instance1"));
 
     ASSERT_TRUE(opts.parseArg("--server-cert=defg"));
-    EXPECT_STREQ(opts.d_serverCert, "defg");
+    EXPECT_STREQ(opts.d_serverCertPath, "defg");
 
     ASSERT_TRUE(opts.parseArg("--client-key=h"));
-    EXPECT_STREQ(opts.d_clientKey, "h");
+    EXPECT_STREQ(opts.d_clientKeyPath, "h");
 
     ASSERT_TRUE(opts.parseArg("--client-cert="));
-    EXPECT_STREQ(opts.d_clientCert, "");
+    EXPECT_STREQ(opts.d_clientCertPath, "");
 
     EXPECT_STREQ(opts.d_url, "abc");
     EXPECT_STREQ(opts.d_instanceName, "testingInstances/instance1");
-    EXPECT_STREQ(opts.d_serverCert, "defg");
-    EXPECT_STREQ(opts.d_clientKey, "h");
-    EXPECT_STREQ(opts.d_clientCert, "");
+    EXPECT_STREQ(opts.d_serverCertPath, "defg");
+    EXPECT_STREQ(opts.d_clientKeyPath, "h");
+    EXPECT_STREQ(opts.d_clientCertPath, "");
 }
 
 TEST(ConnectionOptionsTest, ParseArgIgnoresWrongPrefix)
@@ -81,9 +84,9 @@ TEST(ConnectionOptionsTest, ParseArgIgnoresWrongPrefix)
     ASSERT_FALSE(opts.parseArg("--abc-remote=test", "cas-"));
 
     EXPECT_EQ(opts.d_url, nullptr);
-    EXPECT_EQ(opts.d_serverCert, nullptr);
-    EXPECT_EQ(opts.d_clientKey, nullptr);
-    EXPECT_EQ(opts.d_clientCert, nullptr);
+    EXPECT_EQ(opts.d_serverCertPath, nullptr);
+    EXPECT_EQ(opts.d_clientKeyPath, nullptr);
+    EXPECT_EQ(opts.d_clientCertPath, nullptr);
 }
 
 TEST(ConnectionOptionsTest, ParseArgWorksWithPrefix)
@@ -97,18 +100,18 @@ TEST(ConnectionOptionsTest, ParseArgWorksWithPrefix)
     EXPECT_STREQ(opts.d_instanceName, "RemoteInstanceName");
 
     ASSERT_TRUE(opts.parseArg("--cas-server-cert=defg", "cas-"));
-    EXPECT_STREQ(opts.d_serverCert, "defg");
+    EXPECT_STREQ(opts.d_serverCertPath, "defg");
 
     ASSERT_TRUE(opts.parseArg("--cas-client-key=h", "cas-"));
-    EXPECT_STREQ(opts.d_clientKey, "h");
+    EXPECT_STREQ(opts.d_clientKeyPath, "h");
 
     ASSERT_TRUE(opts.parseArg("--cas-client-cert=", "cas-"));
-    EXPECT_STREQ(opts.d_clientCert, "");
+    EXPECT_STREQ(opts.d_clientCertPath, "");
 
     EXPECT_STREQ(opts.d_url, "abc");
-    EXPECT_STREQ(opts.d_serverCert, "defg");
-    EXPECT_STREQ(opts.d_clientKey, "h");
-    EXPECT_STREQ(opts.d_clientCert, "");
+    EXPECT_STREQ(opts.d_serverCertPath, "defg");
+    EXPECT_STREQ(opts.d_clientKeyPath, "h");
+    EXPECT_STREQ(opts.d_clientCertPath, "");
 }
 
 TEST(ConnectionOptionsTest, PutArgsEmpty)
@@ -130,9 +133,9 @@ TEST(ConnectionOptionsTest, PutArgsFull)
     ConnectionOptions opts;
     opts.d_url = "http://example.com/";
     opts.d_instanceName = "instanceA";
-    opts.d_serverCert = "abc";
-    opts.d_clientKey = "defg";
-    opts.d_clientCert = "";
+    opts.d_serverCertPath = "abc";
+    opts.d_clientKeyPath = "defg";
+    opts.d_clientCertPath = "";
     opts.d_retryLimit = "2";
     opts.d_retryDelay = "200";
 
