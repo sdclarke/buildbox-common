@@ -16,6 +16,7 @@
 
 #include <buildboxcommon_connectionoptions.h>
 #include <buildboxcommon_logging.h>
+#include <buildboxcommon_requestmetadata.h>
 
 #include <math.h>
 #include <sstream>
@@ -27,10 +28,22 @@ void grpcRetry(
     const std::function<grpc::Status(grpc::ClientContext &)> &grpcInvocation,
     int grpcRetryLimit, int grpcRetryDelay)
 {
+
+    grpcRetry(grpcInvocation, grpcRetryLimit, grpcRetryDelay,
+              [](grpc::ClientContext *) { return; });
+}
+
+void grpcRetry(
+    const std::function<grpc::Status(grpc::ClientContext &)> &grpcInvocation,
+    int grpcRetryLimit, int grpcRetryDelay,
+    const std::function<void(grpc::ClientContext *)> &metadataAttacher)
+{
     int nAttempts = 0;
     grpc::Status status;
     do {
         grpc::ClientContext context;
+        metadataAttacher(&context);
+
         status = grpcInvocation(context);
         if (status.ok()) {
             return;

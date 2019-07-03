@@ -90,7 +90,7 @@ void Client::init(
 
     try {
         grpcRetry(getCapabilitiesLambda, this->d_grpcRetryLimit,
-                  this->d_grpcRetryDelay);
+                  this->d_grpcRetryDelay, this->d_metadata_attach_function);
     }
 
     catch (const std::runtime_error &e) {
@@ -103,6 +103,22 @@ void Client::init(
     uuid_generate(uu);
     this->d_uuid = std::string(36, 0);
     uuid_unparse_lower(uu, &this->d_uuid[0]);
+}
+
+void Client::set_tool_details(const std::string &tool_name,
+                              const std::string &tool_version)
+{
+    d_metadata_generator.set_tool_details(tool_name, tool_version);
+}
+
+void Client::set_request_metadata(const std::string &action_id,
+                                  const std::string &tool_invocation_id,
+                                  const std::string &correlated_invocations_id)
+{
+    d_metadata_generator.set_action_id(action_id);
+    d_metadata_generator.set_tool_invocation_id(tool_invocation_id);
+    d_metadata_generator.set_correlated_invocations_id(
+        correlated_invocations_id);
 }
 
 std::string Client::makeResourceName(const Digest &digest, bool isUpload)
@@ -163,7 +179,8 @@ std::string Client::fetchString(const Digest &digest)
         return read_status;
     };
 
-    grpcRetry(fetchLambda, this->d_grpcRetryLimit, this->d_grpcRetryDelay);
+    grpcRetry(fetchLambda, this->d_grpcRetryLimit, this->d_grpcRetryDelay,
+              this->d_metadata_attach_function);
     return result;
 }
 
@@ -204,7 +221,8 @@ void Client::download(int fd, const Digest &digest)
                                         << " bytes retrieved");
         return read_status;
     };
-    grpcRetry(downloadLambda, this->d_grpcRetryLimit, this->d_grpcRetryDelay);
+    grpcRetry(downloadLambda, this->d_grpcRetryLimit, this->d_grpcRetryDelay,
+              this->d_metadata_attach_function);
 }
 
 void Client::downloadDirectory(const Digest &digest, const std::string &path)
@@ -225,8 +243,8 @@ void Client::downloadDirectory(const Digest &digest, const std::string &path)
     }
     downloadBlobs(file_digests, outputs);
 
-    // Creating the subdirectories in this level and recursively fetching their
-    // contents:
+    // Creating the subdirectories in this level and recursively fetching
+    // their contents:
     for (const DirectoryNode &directory_node : directory.directories()) {
         const std::string directory_path = path + "/" + directory_node.name();
         if (mkdir(directory_path.c_str(), 0777) == -1) {
@@ -289,7 +307,8 @@ void Client::upload(const std::string &str, const Digest &digest)
                                         << " bytes uploaded");
         return status;
     };
-    grpcRetry(uploadLambda, this->d_grpcRetryLimit, this->d_grpcRetryDelay);
+    grpcRetry(uploadLambda, this->d_grpcRetryLimit, this->d_grpcRetryDelay,
+              this->d_metadata_attach_function);
 }
 
 void Client::upload(int fd, const Digest &digest)
@@ -346,7 +365,8 @@ void Client::upload(int fd, const Digest &digest)
                                         << " bytes uploaded");
         return status;
     };
-    grpcRetry(uploadLambda, this->d_grpcRetryLimit, this->d_grpcRetryDelay);
+    grpcRetry(uploadLambda, this->d_grpcRetryLimit, this->d_grpcRetryDelay,
+              this->d_metadata_attach_function);
 }
 
 Client::UploadResults
@@ -354,17 +374,17 @@ Client::uploadBlobs(const std::vector<UploadRequest> &requests)
 {
     UploadResults results;
 
-    // We first sort the requests by their sizes in ascending order, so that
-    // we can then iterate through that result greedily trying to add as many
-    // digests as possible to each request.
+    // We first sort the requests by their sizes in ascending order, so
+    // that we can then iterate through that result greedily trying to add
+    // as many digests as possible to each request.
     std::vector<UploadRequest> request_list(requests);
     std::sort(request_list.begin(), request_list.end(),
               [](const UploadRequest &r1, const UploadRequest &r2) {
                   return r1.digest.size_bytes() < r2.digest.size_bytes();
               });
 
-    // Grouping the requests into batches (we only need to look at the Digests
-    // for their sizes):
+    // Grouping the requests into batches (we only need to look at the
+    // Digests for their sizes):
     std::vector<Digest> digests;
     for (const auto &r : request_list) {
         digests.push_back(r.digest);
@@ -383,7 +403,8 @@ Client::uploadBlobs(const std::vector<UploadRequest> &requests)
     }
 
     // Fetching all those digests that might need to be uploaded using the
-    // Bytestream API. Those will be in the range [batch_end, batches.size()).
+    // Bytestream API. Those will be in the range [batch_end,
+    // batches.size()).
     size_t batch_end;
     if (batches.empty()) {
         batch_end = 0;
@@ -458,8 +479,8 @@ void Client::downloadBlobs(const std::vector<Digest> &digests,
     DownloadedData downloaded_data;
 
     // We first sort the digests by their sizes in ascending order, so that
-    // we can then iterate through that result greedily trying to add as many
-    // digests as possible to each request.
+    // we can then iterate through that result greedily trying to add as
+    // many digests as possible to each request.
     auto request_list(digests);
     std::sort(request_list.begin(), request_list.end(),
               [](const Digest &d1, const Digest &d2) {
@@ -471,8 +492,8 @@ void Client::downloadBlobs(const std::vector<Digest> &digests,
         const size_t batch_start = batch_range.first;
         const size_t batch_end = batch_range.second;
 
-        // For each batch, we make the request and then store the successfully
-        // read data in the result:
+        // For each batch, we make the request and then store the
+        // successfully read data in the result:
         try {
             const auto download_results =
                 batchDownload(request_list, batch_start, batch_end);
@@ -492,8 +513,9 @@ void Client::downloadBlobs(const std::vector<Digest> &digests,
         }
     }
 
-    // Fetching all those digests that might need to be downloaded using the
-    // Bytestream API. Those will be in the range [batch_end, batches.size()).
+    // Fetching all those digests that might need to be downloaded using
+    // the Bytestream API. Those will be in the range [batch_end,
+    // batches.size()).
     size_t batch_end;
     if (batches.empty()) {
         batch_end = 0;
@@ -541,8 +563,8 @@ Client::batchUpload(const std::vector<UploadRequest> &requests,
         return status;
     };
 
-    grpcRetry(batchUploadLamda, this->d_grpcRetryLimit,
-              this->d_grpcRetryDelay);
+    grpcRetry(batchUploadLamda, this->d_grpcRetryLimit, this->d_grpcRetryDelay,
+              this->d_metadata_attach_function);
 
     UploadResults results;
     for (const auto &uploadResponse : response.responses()) {
@@ -576,7 +598,7 @@ Client::DownloadedData Client::batchDownload(const std::vector<Digest> digests,
     };
 
     grpcRetry(batchDownloadLamda, this->d_grpcRetryLimit,
-              this->d_grpcRetryDelay);
+              this->d_grpcRetryDelay, this->d_metadata_attach_function);
 
     DownloadedData data;
     for (const auto &downloadResponse : response.responses()) {
@@ -607,8 +629,8 @@ Client::makeBatches(const std::vector<Digest> &digests)
             return batches;
         }
 
-        // Adding all the digests that we can until we run out or exceed the
-        // batch request limit...
+        // Adding all the digests that we can until we run out or exceed
+        // the batch request limit...
         while (batch_end < digests.size() &&
                bytes_in_batch + digests[batch_end].size_bytes() <=
                    max_batch_size) {

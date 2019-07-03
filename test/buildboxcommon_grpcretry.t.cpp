@@ -1,7 +1,9 @@
 #include <buildboxcommon_grpcretry.h>
+#include <buildboxcommon_requestmetadata.h>
 
 #include <gtest/gtest.h>
 
+#include <functional>
 #include <iostream>
 
 using buildboxcommon::grpcRetry;
@@ -65,4 +67,25 @@ TEST(GrpcRetry, SimpleRetryFailTest)
 
     EXPECT_THROW(grpcRetry(lambda, retryLimit, retryDelay),
                  std::runtime_error);
+}
+
+TEST(GrpcRetry, AttachMetadata)
+{
+    buildboxcommon::RequestMetadataGenerator metadata_generator(
+        "testing tool name", "v0.1");
+    metadata_generator.set_action_id("action1");
+
+    // Automatic success, no need to retry.
+    auto grpc_invocation = [&](grpc::ClientContext &) {
+        return grpc::Status::OK;
+    };
+
+    int attacher_calls = 0;
+    auto metadata_attacher = [&](grpc::ClientContext *context) {
+        metadata_generator.attach_request_metadata(context);
+        attacher_calls++;
+    };
+
+    EXPECT_NO_THROW(grpcRetry(grpc_invocation, 0, 0, metadata_attacher));
+    ASSERT_EQ(attacher_calls, 1);
 }
