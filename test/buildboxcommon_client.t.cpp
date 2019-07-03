@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Bloomberg Finance LP
+ * Copyright 2019 Bloomberg Finance LP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@
 #include <gtest/gtest.h>
 
 #include <build/bazel/remote/execution/v2/remote_execution_mock.grpc.pb.h>
+#include <build/buildgrid/local_cas_mock.grpc.pb.h>
 #include <google/bytestream/bytestream_mock.grpc.pb.h>
 #include <grpcpp/test/mock_stream.h>
 
@@ -41,6 +42,7 @@ class StubsFixture : public ::testing::Test {
   protected:
     std::shared_ptr<google::bytestream::MockByteStreamStub> bytestreamClient;
     std::shared_ptr<MockContentAddressableStorageStub> casClient;
+    std::shared_ptr<MockLocalContentAddressableStorageStub> localCasClient;
     std::shared_ptr<MockCapabilitiesStub> capabilitiesClient;
 
     StubsFixture()
@@ -48,6 +50,8 @@ class StubsFixture : public ::testing::Test {
         bytestreamClient =
             std::make_shared<google::bytestream::MockByteStreamStub>();
         casClient = std::make_shared<MockContentAddressableStorageStub>();
+        localCasClient =
+            std::make_shared<MockLocalContentAddressableStorageStub>();
         capabilitiesClient = std::make_shared<MockCapabilitiesStub>();
     }
 };
@@ -63,7 +67,8 @@ TEST_F(StubsFixture, InitTest)
     EXPECT_CALL(*capabilitiesClient, GetCapabilities(_, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(serverCapabilities),
                         Return(grpc::Status::OK)));
-    client.init(bytestreamClient, casClient, capabilitiesClient);
+    client.init(bytestreamClient, casClient, localCasClient,
+                capabilitiesClient);
 
     ASSERT_TRUE(client.instanceName().empty());
 }
@@ -79,7 +84,8 @@ TEST_F(StubsFixture, InitCapabilitiesDidntReturnOk)
     EXPECT_CALL(*capabilitiesClient, GetCapabilities(_, _, _))
         .WillOnce(Return(
             grpc::Status(grpc::UNIMPLEMENTED, "method not found for test")));
-    client.init(bytestreamClient, casClient, capabilitiesClient);
+    client.init(bytestreamClient, casClient, localCasClient,
+                capabilitiesClient);
 }
 
 class ClientTestFixture : public StubsFixture, public Client {
@@ -103,8 +109,8 @@ class ClientTestFixture : public StubsFixture, public Client {
             google::bytestream::WriteRequest>();
 
     ClientTestFixture(int64_t max_batch_size_bytes = MAX_BATCH_SIZE_BYTES)
-        : Client(bytestreamClient, casClient, capabilitiesClient,
-                 max_batch_size_bytes)
+        : Client(bytestreamClient, casClient, localCasClient,
+                 capabilitiesClient, max_batch_size_bytes)
     {
         this->setInstanceName(client_instance_name);
     }
@@ -479,6 +485,59 @@ TEST_F(ClientTestFixture, UploadBlobsReturnsFailures)
     ASSERT_EQ(
         std::count(hashes.cbegin(), hashes.cend(), failed_uploads[1].hash()),
         1);
+}
+
+TEST_F(ClientTestFixture, CaptureDirectory)
+{
+
+    const std::string path_to_capture = "/path/to/stage";
+    std::vector<std::string> paths = {path_to_capture};
+
+    CaptureTreeResponse response;
+    auto entry = response.add_responses();
+    entry->set_path(path_to_capture);
+    entry->mutable_tree_digest()->CopyFrom(make_digest("tree-blob"));
+    entry->mutable_status()->set_code(grpc::StatusCode::OK);
+
+    CaptureTreeRequest request;
+
+    EXPECT_CALL(*localCasClient.get(), CaptureTree(_, _, _))
+        .WillOnce(DoAll(SaveArg<1>(&request), SetArgPointee<2>(response),
+                        Return(grpc::Status::OK)));
+
+    const CaptureTreeResponse returned_response = this->capture(paths, false);
+
+    // Checking that the request has the data we expect:
+    ASSERT_EQ(request.path_size(), 1);
+    ASSERT_EQ(request.path(0), path_to_capture);
+    ASSERT_FALSE(request.bypass_local_cache());
+    ASSERT_EQ(request.instance_name(), this->instanceName());
+
+    // Checking the response:
+    ASSERT_EQ(response.responses_size(), 1);
+    ASSERT_EQ(response.responses(0).path(), path_to_capture);
+    ASSERT_EQ(response.responses(0).status().code(), grpc::StatusCode::OK);
+}
+
+TEST_F(ClientTestFixture, CaptureDirectoryErrorThrows)
+{
+    std::vector<std::string> paths = {std::string("/path/to/stage")};
+
+    CaptureTreeResponse response;
+    auto entry = response.add_responses();
+    entry->set_path("/dev/null");
+    entry->mutable_tree_digest()->CopyFrom(make_digest("tree-blob"));
+    entry->mutable_status()->set_code(grpc::StatusCode::OK);
+
+    CaptureTreeRequest request;
+
+    // The retry logic throws after running out of tries:
+    EXPECT_CALL(*localCasClient.get(), CaptureTree(_, _, _))
+        .WillRepeatedly(DoAll(SaveArg<1>(&request), SetArgPointee<2>(response),
+                              Return(grpc::Status(grpc::StatusCode::UNKNOWN,
+                                                  "Something went wrong."))));
+
+    ASSERT_THROW(this->capture(paths, false), std::runtime_error);
 }
 
 class UploadFileFixture : public ClientTestFixture {
@@ -918,8 +977,9 @@ TEST_P(DownloadBlobsFixture, DownloadBlobsFails)
     if (throw_on_error) {
         ASSERT_THROW(this->downloadBlobs(requests, write_blob, throw_on_error),
                      std::runtime_error);
-        // With the current implementation there are no guarantees about the
-        // data written before an error is encountered and the method aborts.
+        // With the current implementation there are no guarantees about
+        // the data written before an error is encountered and the method
+        // aborts.
     }
     else {
         // First blob will fail to be fetched in a batch, but the function
