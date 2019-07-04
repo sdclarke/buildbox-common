@@ -546,6 +546,42 @@ void Client::downloadBlobs(const std::vector<Digest> &digests,
     }
 }
 
+std::unique_ptr<Client::StagedDirectory>
+Client::stage(const Digest &root_digest, const std::string &path) const
+{
+    auto context = std::make_shared<grpc::ClientContext>();
+
+    std::shared_ptr<
+        grpc::ClientReaderWriterInterface<StageTreeRequest, StageTreeResponse>>
+        reader_writer(d_localCasClient->StageTree(context.get()));
+
+    StageTreeRequest request;
+    request.set_instance_name(d_instanceName);
+    request.mutable_root_digest()->CopyFrom(root_digest);
+    request.set_path(path);
+
+    const bool succesful_write = reader_writer->Write(request);
+    if (!succesful_write) {
+        const grpc::Status write_error_status = reader_writer->Finish();
+        throw std::runtime_error("Error staging \"" + toString(root_digest) +
+                                 "\" into \"" + path + "\": \"" +
+                                 write_error_status.error_message() + "\"");
+    }
+
+    StageTreeResponse response;
+    const bool succesful_read = reader_writer->Read(&response);
+    if (!succesful_read) {
+        reader_writer->WritesDone();
+        const grpc::Status read_error_status = reader_writer->Finish();
+        throw std::runtime_error("Error staging \"" + toString(root_digest) +
+                                 "\" into \"" + path + "\": \"" +
+                                 read_error_status.error_message() + "\"");
+    }
+
+    return std::make_unique<StagedDirectory>(context, reader_writer,
+                                             response.path());
+}
+
 CaptureTreeResponse Client::capture(const std::vector<std::string> &paths,
                                     bool bypass_local_cache) const
 {
@@ -756,6 +792,24 @@ Client::missingDigests(const digest_string_map &directory_map)
         missing_files[digest] = directory_map.at(digest);
     }
     return missing_files;
+}
+
+Client::StagedDirectory::StagedDirectory(
+    std::shared_ptr<grpc::ClientContext> context,
+    std::shared_ptr<
+        grpc::ClientReaderWriterInterface<StageTreeRequest, StageTreeResponse>>
+        reader_writer,
+    const std::string &path)
+    : d_context(context), d_reader_writer(reader_writer), d_path(path)
+{
+}
+
+Client::StagedDirectory::~StagedDirectory()
+{
+    // According to the LocalCAS spec., an empty request tells the
+    // server to clean up.
+    d_reader_writer->Write(StageTreeRequest());
+    d_reader_writer->WritesDone();
 }
 
 } // namespace buildboxcommon

@@ -202,6 +202,54 @@ class Client {
     CaptureTreeResponse capture(const std::vector<std::string> &paths,
                                 bool bypass_local_cache) const;
 
+    class StagedDirectory {
+        /*
+         * Represents a staged directory. It encapsulates the gRPC stream's
+         * status, keeping it open (and preventing the server from cleaning
+         * up).
+         *
+         * On destruction it sends an empty message to the server to clean up
+         * the directory.
+         */
+
+      public:
+        explicit StagedDirectory(
+            std::shared_ptr<grpc::ClientContext> context,
+            std::shared_ptr<grpc::ClientReaderWriterInterface<
+                StageTreeRequest, StageTreeResponse>>
+                reader_writer,
+            const std::string &path);
+
+        ~StagedDirectory();
+
+        // Do now allow making copies:
+        StagedDirectory(const StagedDirectory &) = delete;
+        StagedDirectory &operator=(const StagedDirectory &) = delete;
+
+        inline std::string path() const { return d_path; }
+
+      private:
+        const std::shared_ptr<grpc::ClientContext> d_context;
+        const std::shared_ptr<grpc::ClientReaderWriterInterface<
+            StageTreeRequest, StageTreeResponse>>
+            d_reader_writer;
+        const std::string d_path;
+    };
+
+    /**
+     * Stage a directory using the LocalCAS `Stage()` call.
+     *
+     * The `path` parameter is optional. If not provided, the server will
+     * assign a temporary directory.
+     *
+     * On success return a `unique_ptr` to a `StagedDirectory` object that when
+     * destructed will request the server to clean up.
+     *
+     * On error throw an `std::runtime_error` exception.
+     */
+    std::unique_ptr<StagedDirectory> stage(const Digest &root_digest,
+                                           const std::string &path = "") const;
+
     /**
      * Fetch the Protocol Buffer message of the given type and digest and
      * deserialize it.
@@ -216,7 +264,8 @@ class Client {
     }
 
     /**
-     * Upload the given Protocol Buffer message to CAS and return its Digest.
+     * Upload the given Protocol Buffer message to CAS and return its
+     * Digest.
      */
     template <typename Msg> inline Digest uploadMessage(const Msg &msg)
     {
@@ -236,10 +285,11 @@ class Client {
   private:
     std::string makeResourceName(const Digest &digest, bool is_upload);
 
-    /* Uploads the requests contained in the range [start_index, end_index).
+    /* Uploads the requests contained in the range [start_index,
+     * end_index).
      *
-     * The sum of bytes of the data in this range MUST NOT exceed the maximum
-     * batch size request allowed.
+     * The sum of bytes of the data in this range MUST NOT exceed the
+     * maximum batch size request allowed.
      */
     UploadResults batchUpload(const std::vector<UploadRequest> &requests,
                               const size_t start_index,
@@ -261,8 +311,8 @@ class Client {
     std::vector<std::pair<size_t, size_t>>
     makeBatches(const std::vector<Digest> &digests);
 
-    /* Given a directory map, invoke `findMissingBlobs()` and return a map with
-     * the subset of protos that need to be uploaded.
+    /* Given a directory map, invoke `findMissingBlobs()` and return a map
+     * with the subset of protos that need to be uploaded.
      */
     digest_string_map missingDigests(const digest_string_map &directory_map);
 
@@ -283,8 +333,9 @@ class Client {
     /* Download the digests in the specified list and invoke the
      * `write_blob_callback` function after each blob is downloaded.
      *
-     * `throw_on_error` determines whether an `std::runtime_error` exception is
-     * to be raised on encountering an error during a download.
+     * `throw_on_error` determines whether an `std::runtime_error`
+     * exception is to be raised on encountering an error during a
+     * download.
      *
      * Note: marked as `protected` to unit-test.
      */
