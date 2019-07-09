@@ -33,44 +33,14 @@ namespace buildboxcommon {
 
 FallbackStagedDirectory::FallbackStagedDirectory(
     const Digest &digest, std::shared_ptr<Client> casClient)
-    : d_casClient(casClient)
+    : d_casClient(casClient), d_stage_directory("buildboxrun")
 {
-    const char *tmpdir = getenv("TMPDIR");
-    if (tmpdir == nullptr || tmpdir[0] == '\0') {
-        tmpdir = "/tmp";
-    }
-    this->d_path = tmpdir + std::string("/buildboxrunXXXXXX");
-    char *tempdir = mkdtemp(&this->d_path[0]);
-    BUILDBOX_LOG_DEBUG("Downloading to " << std::string(tempdir));
-    this->downloadDirectory(digest, tempdir);
+    this->d_path = d_stage_directory.name();
+    BUILDBOX_LOG_DEBUG("Downloading to " << this->d_path);
+    this->downloadDirectory(digest, this->d_path.c_str());
 }
 
-FallbackStagedDirectory::~FallbackStagedDirectory()
-{
-    const char *argv[] = {"rm", "-rf", this->d_path.c_str(), nullptr};
-    const auto pid = fork();
-    if (pid == -1) {
-        BUILDBOX_LOG_ERROR(
-            "buildbox-run warning: failed to unstage directory: ");
-        return;
-    }
-    else if (pid == 0) {
-        execvp(argv[0], const_cast<char *const *>(argv));
-        perror(argv[0]);
-        _Exit(1);
-    }
-    int statLoc;
-    if (waitpid(pid, &statLoc, 0) == -1) {
-        BUILDBOX_LOG_ERROR(
-            "buildbox-run warning: failed to unstage directory: ");
-    }
-    else if (WEXITSTATUS(statLoc) != 0) {
-        BUILDBOX_LOG_ERROR(
-            "buildbox-run warning: failed to unstage directory with "
-            "exit code "
-            << WEXITSTATUS(statLoc));
-    }
-}
+FallbackStagedDirectory::~FallbackStagedDirectory() {}
 
 void FallbackStagedDirectory::captureAllOutputs(const Command &command,
                                                 ActionResult *result)

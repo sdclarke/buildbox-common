@@ -19,6 +19,7 @@
 
 #include <buildboxcommon_client.h>
 #include <buildboxcommon_stageddirectory.h>
+#include <buildboxcommon_temporarydirectory.h>
 
 #include <dirent.h>
 #include <memory>
@@ -58,6 +59,7 @@ class FallbackStagedDirectory : public StagedDirectory {
                                          const char *relativePath) const;
 
     std::shared_ptr<Client> d_casClient;
+    TemporaryDirectory d_stage_directory;
 };
 } // namespace buildboxcommon
 

@@ -48,7 +48,7 @@ class StubsFixture : public ::testing::Test {
     std::shared_ptr<MockContentAddressableStorageStub> casClient;
     std::shared_ptr<MockLocalContentAddressableStorageStub> localCasClient;
     std::shared_ptr<MockCapabilitiesStub> capabilitiesClient;
-    std::string tempDir = "buildbox";
+
     StubsFixture()
     {
         bytestreamClient =
@@ -132,9 +132,6 @@ TEST_F(CaptureTestFixture, CaptureDirectoryTest)
         .WillOnce(Return(getWriter(iter)))
         .WillOnce(Return(getWriter(iter)))
         .WillOnce(Return(getWriter(iter)));
-
-    char buffer[1024];
-    setenv("TMPDIR", getcwd(buffer, 1024), 1);
 
     class FallbackStagedDirectory fs(digest, client);
     /*
