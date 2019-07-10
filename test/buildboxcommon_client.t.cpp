@@ -107,6 +107,10 @@ class ClientTestFixture : public StubsFixture, public Client {
     grpc::testing::MockClientWriter<google::bytestream::WriteRequest> *writer =
         new grpc::testing::MockClientWriter<
             google::bytestream::WriteRequest>();
+    grpc::testing::MockClientReaderWriter<StageTreeRequest, StageTreeResponse>
+        *reader_writer =
+            new grpc::testing::MockClientReaderWriter<StageTreeRequest,
+                                                      StageTreeResponse>();
 
     ClientTestFixture(int64_t max_batch_size_bytes = MAX_BATCH_SIZE_BYTES)
         : Client(bytestreamClient, casClient, localCasClient,
@@ -827,6 +831,44 @@ TEST_F(TransferDirectoryFixture, DownloadDirectoryMissingDigestThrows)
 
     TemporaryDirectory output_dir;
     ASSERT_THROW(this->downloadDirectory(digest, output_dir.name()),
+                 std::runtime_error);
+}
+
+TEST_F(TransferDirectoryFixture, StageDirectory)
+{
+    EXPECT_CALL(*localCasClient.get(), StageTreeRaw(_))
+        .WillOnce(Return(reader_writer));
+
+    // The client will issue 2 requests: the actual `StageTreeRequest` and an
+    // empty message to indicate to the server that it can clean up.
+    EXPECT_CALL(*reader_writer, Write(_, _))
+        .Times(2)
+        .WillRepeatedly(Return(true));
+
+    StageTreeResponse response;
+    response.set_path("/tmp/stage/");
+    EXPECT_CALL(*reader_writer, Read(_))
+        .WillOnce(DoAll(SetArgPointee<0>(response), Return(true)));
+
+    {
+        std::unique_ptr<StagedDirectory> staged_dir =
+            this->stage(directory_digest, "/tmp/stage");
+        ASSERT_EQ(staged_dir->path(), "/tmp/stage/");
+
+        // The StagedDirectory destructor automatically sends the second empty
+        // message to the server.
+        EXPECT_CALL(*reader_writer, WritesDone()).WillOnce(Return(true));
+    }
+}
+
+TEST_F(TransferDirectoryFixture, StageDirectoryThrowsOnError)
+{
+    EXPECT_CALL(*localCasClient.get(), StageTreeRaw(_))
+        .WillOnce(Return(reader_writer));
+
+    EXPECT_CALL(*reader_writer, Write(_, _)).WillOnce(Return(false));
+
+    EXPECT_THROW(this->stage(directory_digest, "/tmp/stage"),
                  std::runtime_error);
 }
 
