@@ -52,16 +52,22 @@ void Client::init(const ConnectionOptions &options)
         ContentAddressableStorage::NewStub(this->d_channel);
     std::shared_ptr<Capabilities::Stub> capabilitiesClient =
         Capabilities::NewStub(this->d_channel);
-    init(bytestreamClient, casClient, capabilitiesClient);
+    std::shared_ptr<LocalContentAddressableStorage::StubInterface>
+        localCasClient =
+            LocalContentAddressableStorage::NewStub(this->d_channel);
+    init(bytestreamClient, casClient, localCasClient, capabilitiesClient);
 }
 
 void Client::init(
     std::shared_ptr<ByteStream::StubInterface> bytestreamClient,
     std::shared_ptr<ContentAddressableStorage::StubInterface> casClient,
+    std::shared_ptr<LocalContentAddressableStorage::StubInterface>
+        localCasClient,
     std::shared_ptr<Capabilities::StubInterface> capabilitiesClient)
 {
     this->d_bytestreamClient = bytestreamClient;
     this->d_casClient = casClient;
+    this->d_localCasClient = localCasClient;
     this->d_capabilitiesClient = capabilitiesClient;
 
     // The default limit for gRPC messages is 4 MiB.
@@ -538,6 +544,27 @@ void Client::downloadBlobs(const std::vector<Digest> &digests,
             }
         }
     }
+}
+
+CaptureTreeResponse Client::capture(const std::vector<std::string> &paths,
+                                    bool bypass_local_cache) const
+{
+    CaptureTreeRequest request;
+    request.set_instance_name(d_instanceName);
+    request.set_bypass_local_cache(bypass_local_cache);
+
+    for (const std::string &path : paths) {
+        request.add_path(path);
+    }
+
+    CaptureTreeResponse response;
+
+    const auto captureLambda = [&](grpc::ClientContext &context) {
+        return d_localCasClient->CaptureTree(&context, request, &response);
+    };
+
+    grpcRetry(captureLambda, d_grpcRetryLimit, d_grpcRetryDelay);
+    return response;
 }
 
 Client::UploadResults

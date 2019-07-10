@@ -40,6 +40,8 @@ class Client {
     std::shared_ptr<grpc::Channel> d_channel;
     std::shared_ptr<ByteStream::StubInterface> d_bytestreamClient;
     std::shared_ptr<ContentAddressableStorage::StubInterface> d_casClient;
+    std::shared_ptr<LocalContentAddressableStorage::StubInterface>
+        d_localCasClient;
     std::shared_ptr<Capabilities::StubInterface> d_capabilitiesClient;
 
     // initialized here to prevent errors, in case options are not passed into
@@ -63,9 +65,12 @@ class Client {
 
     Client(std::shared_ptr<ByteStream::StubInterface> bytestreamClient,
            std::shared_ptr<ContentAddressableStorage::StubInterface> casClient,
+           std::shared_ptr<LocalContentAddressableStorage::StubInterface>
+               localCasClient,
            std::shared_ptr<Capabilities::StubInterface> capabilitiesClient,
            int64_t maxBatchTotalSizeBytes = BYTESTREAM_CHUNK_SIZE)
         : d_bytestreamClient(bytestreamClient), d_casClient(casClient),
+          d_localCasClient(localCasClient),
           d_capabilitiesClient(capabilitiesClient),
           d_maxBatchTotalSizeBytes(maxBatchTotalSizeBytes)
     {
@@ -81,6 +86,8 @@ class Client {
     void
     init(std::shared_ptr<ByteStream::StubInterface> bytestreamClient,
          std::shared_ptr<ContentAddressableStorage::StubInterface> casClient,
+         std::shared_ptr<LocalContentAddressableStorage::StubInterface>
+             d_localCasClient,
          std::shared_ptr<Capabilities::StubInterface> capabilitiesClient);
 
     void set_tool_details(const std::string &tool_name,
@@ -184,6 +191,16 @@ class Client {
      */
     UploadResults uploadDirectory(const std::string &path,
                                   Digest *directory_digest = nullptr);
+
+    /*
+     * Send a LocalCas protocol `Capture()` request containing the given paths.
+     * If successful, returns a `CaptureTreeResponse` object (it contains
+     * a Status for each path).
+     *
+     * If the request fails, throws an `std::runtime_exception`.
+     */
+    CaptureTreeResponse capture(const std::vector<std::string> &paths,
+                                bool bypass_local_cache) const;
 
     /**
      * Fetch the Protocol Buffer message of the given type and digest and

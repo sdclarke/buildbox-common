@@ -24,6 +24,7 @@
 #include <gtest/gtest.h>
 
 #include <build/bazel/remote/execution/v2/remote_execution_mock.grpc.pb.h>
+#include <build/buildgrid/local_cas_mock.grpc.pb.h>
 #include <google/bytestream/bytestream_mock.grpc.pb.h>
 #include <grpcpp/test/mock_stream.h>
 
@@ -45,6 +46,7 @@ class StubsFixture : public ::testing::Test {
   protected:
     std::shared_ptr<google::bytestream::MockByteStreamStub> bytestreamClient;
     std::shared_ptr<MockContentAddressableStorageStub> casClient;
+    std::shared_ptr<MockLocalContentAddressableStorageStub> localCasClient;
     std::shared_ptr<MockCapabilitiesStub> capabilitiesClient;
     std::string tempDir = "buildbox";
     StubsFixture()
@@ -52,6 +54,8 @@ class StubsFixture : public ::testing::Test {
         bytestreamClient =
             std::make_shared<google::bytestream::MockByteStreamStub>();
         casClient = std::make_shared<MockContentAddressableStorageStub>();
+        localCasClient =
+            std::make_shared<MockLocalContentAddressableStorageStub>();
         capabilitiesClient = std::make_shared<MockCapabilitiesStub>();
     }
 };
@@ -75,9 +79,9 @@ class CaptureTestFixture : public StubsFixture {
 
     CaptureTestFixture()
     {
-        client =
-            std::make_shared<Client>(bytestreamClient, casClient,
-                                     capabilitiesClient, MAX_BATCH_SIZE_BYTES);
+        client = std::make_shared<Client>(bytestreamClient, casClient,
+                                          localCasClient, capabilitiesClient,
+                                          MAX_BATCH_SIZE_BYTES);
     }
 };
 
