@@ -86,15 +86,25 @@ sig_atomic_t Runner::getSignalStatus() { return d_signal_status; }
 
 int Runner::main(int argc, char *argv[])
 {
-    std::signal(SIGINT, handleSignal);
-    std::signal(SIGTERM, handleSignal);
+    // Handle SIGINT, SIGTERM
+    struct sigaction sa;
+    sa.sa_handler = handleSignal;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_SIGINFO;
+    if (sigaction(SIGINT, &sa, NULL) == -1) {
+        BUILDBOX_LOG_ERROR("Unable to register signal handler for SIGINT");
+        exit(1);
+    }
+    if (sigaction(SIGTERM, &sa, NULL) == -1) {
+        BUILDBOX_LOG_ERROR("Unable to register signal handler for SIGTERM");
+        exit(1);
+    }
 
     if (!this->parseArguments(argc, argv)) {
         usage(argv[0]);
         printSpecialUsage();
         return 1;
     }
-
     BUILDBOX_LOG_DEBUG("Initializing CAS " << this->d_casRemote.d_url);
     this->d_casClient->init(this->d_casRemote);
 
