@@ -48,7 +48,7 @@ class StubsFixture : public ::testing::Test {
     std::shared_ptr<MockContentAddressableStorageStub> casClient;
     std::shared_ptr<MockLocalContentAddressableStorageStub> localCasClient;
     std::shared_ptr<MockCapabilitiesStub> capabilitiesClient;
-    std::string tempDir = "buildbox";
+
     StubsFixture()
     {
         bytestreamClient =
@@ -133,9 +133,6 @@ TEST_F(CaptureTestFixture, CaptureDirectoryTest)
         .WillOnce(Return(getWriter(iter)))
         .WillOnce(Return(getWriter(iter)));
 
-    char buffer[1024];
-    setenv("TMPDIR", getcwd(buffer, 1024), 1);
-
     class FallbackStagedDirectory fs(digest, client);
     /*
      * upload_test
@@ -144,7 +141,7 @@ TEST_F(CaptureTestFixture, CaptureDirectoryTest)
      * 	   └── child_test.txt
      */
     copyDirectory("upload_test", fs.getPath());
-    auto output_dir = fs.captureDirectory("upload_test");
+    OutputDirectory output_dir = fs.captureDirectory("upload_test");
 
     // expected filecontent hashes of files and directories
     // top level tree digest is expected to be in here
@@ -155,7 +152,7 @@ TEST_F(CaptureTestFixture, CaptureDirectoryTest)
         "aa7d7a98cbe729f06c50f0a67d3afa8de2d7f68196e89521c10fbf65b1768db0"};
 
     std::string prefix = "uploads//blobs/";
-    std::string tree_digest = output_dir->mutable_tree_digest()->hash();
+    std::string tree_digest = output_dir.mutable_tree_digest()->hash();
 
     EXPECT_EQ(
         tree_digest,

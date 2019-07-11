@@ -19,8 +19,8 @@
 
 namespace buildboxcommon {
 namespace TempDefaults {
-static const char *DEFAULT_TMP_PREFIX = "buildbox";
-static const char *DEFAULT_TMP_DIR = "/tmp";
+constexpr const char *DEFAULT_TMP_PREFIX = "buildbox";
+constexpr const char *DEFAULT_TMP_DIR = "/tmp";
 } // namespace TempDefaults
 } // namespace buildboxcommon
 

@@ -33,96 +33,99 @@ namespace buildboxcommon {
 
 FallbackStagedDirectory::FallbackStagedDirectory(
     const Digest &digest, std::shared_ptr<Client> casClient)
-    : d_casClient(casClient)
+    : d_casClient(casClient), d_stage_directory("buildboxrun")
 {
-    const char *tmpdir = getenv("TMPDIR");
-    if (tmpdir == nullptr || tmpdir[0] == '\0') {
-        tmpdir = "/tmp";
-    }
-    this->d_path = tmpdir + std::string("/buildboxrunXXXXXX");
-    char *tempdir = mkdtemp(&this->d_path[0]);
-    BUILDBOX_LOG_DEBUG("Downloading to " << std::string(tempdir));
-    this->downloadDirectory(digest, tempdir);
+    this->d_path = d_stage_directory.name();
+    BUILDBOX_LOG_DEBUG("Downloading to " << this->d_path);
+    this->downloadDirectory(digest, this->d_path.c_str());
 }
 
-FallbackStagedDirectory::~FallbackStagedDirectory()
+FallbackStagedDirectory::~FallbackStagedDirectory() {}
+
+void FallbackStagedDirectory::captureAllOutputs(const Command &command,
+                                                ActionResult *result)
 {
-    const char *argv[] = {"rm", "-rf", this->d_path.c_str(), nullptr};
-    const auto pid = fork();
-    if (pid == -1) {
-        BUILDBOX_LOG_ERROR(
-            "buildbox-run warning: failed to unstage directory: ");
-        return;
+    for (const auto &outputFilename : command.output_files()) {
+        const std::string path =
+            command.working_directory() + "/" + outputFilename;
+
+        OutputFile outputFile = this->captureFile(path.c_str());
+        if (!outputFile.path().empty()) {
+            outputFile.set_path(outputFilename);
+            OutputFile *file_entry = result->add_output_files();
+            file_entry->CopyFrom(outputFile);
+        }
     }
-    else if (pid == 0) {
-        execvp(argv[0], const_cast<char *const *>(argv));
-        perror(argv[0]);
-        _Exit(1);
-    }
-    int statLoc;
-    if (waitpid(pid, &statLoc, 0) == -1) {
-        BUILDBOX_LOG_ERROR(
-            "buildbox-run warning: failed to unstage directory: ");
-    }
-    else if (WEXITSTATUS(statLoc) != 0) {
-        BUILDBOX_LOG_ERROR(
-            "buildbox-run warning: failed to unstage directory with "
-            "exit code "
-            << WEXITSTATUS(statLoc));
+
+    for (const auto &outputDirName : command.output_directories()) {
+        const std::string path =
+            command.working_directory() + "/" + outputDirName;
+
+        OutputDirectory outputDirectory = this->captureDirectory(path.c_str());
+        if (!outputDirectory.path().empty()) {
+            outputDirectory.set_path(outputDirName);
+            OutputDirectory *directory_entry =
+                result->add_output_directories();
+            directory_entry->CopyFrom(outputDirectory);
+        }
     }
 }
 
 // TODO: Rewrite captureFile to use file descriptors.
-std::shared_ptr<OutputFile>
-FallbackStagedDirectory::captureFile(const char *relativePath)
+OutputFile FallbackStagedDirectory::captureFile(const char *relativePath) const
 {
     BUILDBOX_LOG_DEBUG("Uploading " << relativePath);
-    std::shared_ptr<OutputFile> result(new OutputFile());
-    std::string file = this->d_path + std::string("/") + relativePath;
+    const std::string file = this->d_path + std::string("/") + relativePath;
+
     // need to use O_RDWR or else wont throw error on directory
-    int fd = open(file.c_str(), O_RDWR);
+    const int fd = open(file.c_str(), O_RDWR);
     if (fd == -1) {
         if (errno == EACCES || errno == EISDIR || errno == ENOENT) {
-            return std::shared_ptr<OutputFile>();
+            return OutputFile();
         }
         throw std::system_error(errno, std::system_category());
     }
+
+    const Digest digest = CASHash::hash(fd);
+
     try {
-        result->set_path(relativePath);
-        *(result->mutable_digest()) = CASHash::hash(fd);
-        this->d_casClient->upload(fd, result->digest());
-        result->set_is_executable(FileUtils::is_executable(file.c_str()));
+        this->d_casClient->upload(fd, digest);
+        close(fd);
     }
     catch (...) {
         close(fd);
         throw;
     }
 
-    close(fd);
-    return result;
+    OutputFile output_file;
+    output_file.set_path(relativePath);
+    output_file.mutable_digest()->CopyFrom(digest);
+    output_file.set_is_executable(FileUtils::is_executable(file.c_str()));
+    return output_file;
 }
 
-Directory
-FallbackStagedDirectory::uploadDirectoryRecursively(Tree *tree,
-                                                    const char *relativePath)
+Directory FallbackStagedDirectory::uploadDirectoryRecursively(
+    Tree *tree, const char *relativePath) const
 {
     BUILDBOX_LOG_DEBUG("Uploading directory " << relativePath);
     std::map<std::string, FileNode> files;
     std::map<std::string, DirectoryNode> directories;
     struct dirent **direntList;
 
-    int n = scandir(relativePath, &direntList, NULL, NULL);
+    const int n = scandir(relativePath, &direntList, nullptr, nullptr);
     if (n == -1) {
         // On error we don't need to free direntList
         throw std::system_error(errno, std::system_category());
     }
+
     std::vector<std::string> nameList;
     for (int i = n - 1; i >= 0; i--) {
         nameList.push_back(direntList[i]->d_name);
         free(direntList[i]);
     }
     free(direntList);
-    for (const std::string entry : nameList) {
+
+    for (const std::string &entry : nameList) {
         std::string entryRelativePath =
             std::string(relativePath) + "/" + entry;
 
@@ -133,23 +136,24 @@ FallbackStagedDirectory::uploadDirectoryRecursively(Tree *tree,
         }
 
         // Check if the path is a file.
-        auto outputFile = this->captureFile(entryRelativePath.c_str());
-        if (outputFile) {
+        OutputFile outputFile = this->captureFile(entryRelativePath.c_str());
+        if (!outputFile.path().empty()) {
             FileNode fileNode;
             fileNode.set_name(entry);
-            *(fileNode.mutable_digest()) = outputFile->digest();
-            fileNode.set_is_executable(outputFile->is_executable());
+            fileNode.mutable_digest()->CopyFrom(outputFile.digest());
+            fileNode.set_is_executable(outputFile.is_executable());
             files[entry] = fileNode;
             continue;
         }
 
         // Try uploading the path as a directory.
-        auto directory =
+        Directory directory =
             uploadDirectoryRecursively(tree, entryRelativePath.c_str());
+
         DirectoryNode directoryNode;
         directoryNode.set_name(entry);
-        *(directoryNode.mutable_digest()) =
-            this->d_casClient->uploadMessage<Directory>(directory);
+        directoryNode.mutable_digest()->CopyFrom(
+            this->d_casClient->uploadMessage<Directory>(directory));
         *(tree->add_children()) = directory;
         directories[entry] = directoryNode;
     }
@@ -166,36 +170,40 @@ FallbackStagedDirectory::uploadDirectoryRecursively(Tree *tree,
     return result;
 }
 
-std::shared_ptr<OutputDirectory>
-FallbackStagedDirectory::captureDirectory(const char *relativePath)
+OutputDirectory
+FallbackStagedDirectory::captureDirectory(const char *relativePath) const
 {
     Tree tree;
 
-    std::string dirPath = this->d_path;
+    const std::string dirPath = this->d_path;
     // using AT_FDCWD as placeholder. Since dirPath is absolute, openAT will
     // ignore AT_FDCWD
     const int dirFD = openat(AT_FDCWD, dirPath.c_str(), O_RDONLY);
     if (dirFD == -1) {
         if (errno == EACCES || errno == ENOTDIR || errno == ENOENT) {
-            return std::shared_ptr<OutputDirectory>();
+            return OutputDirectory();
         }
         throw std::system_error(errno, std::system_category());
     }
+
     *(tree.mutable_root()) =
         this->uploadDirectoryRecursively(&tree, relativePath);
 
-    std::shared_ptr<OutputDirectory> result(new OutputDirectory());
-    result->set_path(relativePath);
-    *(result->mutable_tree_digest()) =
-        this->d_casClient->uploadMessage<Tree>(tree);
-    return result;
+    const Digest tree_digest = this->d_casClient->uploadMessage<Tree>(tree);
+
+    OutputDirectory output_directory;
+    output_directory.set_path(relativePath);
+    output_directory.mutable_tree_digest()->CopyFrom(tree_digest);
+    return output_directory;
 }
 
 void FallbackStagedDirectory::downloadFile(const Digest &digest,
-                                           bool executable, const char *path)
+                                           bool executable,
+                                           const char *path) const
 {
-    BUILDBOX_LOG_DEBUG("Downloading " << path);
-    int fd =
+    BUILDBOX_LOG_DEBUG("Downloading file with digest " << toString(digest)
+                                                       << " to " << path);
+    const int fd =
         open(path, O_CREAT | O_WRONLY | O_TRUNC, executable ? 0755 : 0644);
     if (fd == -1) {
         throw std::system_error(errno, std::system_category());
@@ -211,24 +219,20 @@ void FallbackStagedDirectory::downloadFile(const Digest &digest,
 }
 
 void FallbackStagedDirectory::downloadDirectory(const Digest &digest,
-                                                const char *path)
+                                                const char *path) const
 {
-    BUILDBOX_LOG_DEBUG("Downloading directory " << path);
-    Directory directory = this->d_casClient->fetchMessage<Directory>(digest);
-    for (const auto filenode : directory.files()) {
-        const std::string name = path + std::string("/") + filenode.name();
-        this->downloadFile(filenode.digest(), filenode.is_executable(),
-                           name.c_str());
+    BUILDBOX_LOG_DEBUG("Downloading directory with digest " << toString(digest)
+                                                            << " to " << path);
+
+    try {
+        this->d_casClient->downloadDirectory(digest, path);
     }
-    for (const auto directoryNode : directory.directories()) {
-        const std::string name =
-            path + std::string("/") + directoryNode.name();
-        if (mkdir(name.c_str(), 0777) == -1) {
-            throw std::system_error(errno, std::system_category());
-        }
-        this->downloadDirectory(directoryNode.digest(), name.c_str());
+    catch (const std::exception &e) {
+        BUILDBOX_LOG_DEBUG("Could not download directory with digest"
+                           << toString(digest) << " to " << path << ": "
+                           << e.what());
+        throw;
     }
-    // TODO symlinks?
 }
 
 } // namespace buildboxcommon

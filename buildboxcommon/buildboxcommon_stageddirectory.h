@@ -53,31 +53,11 @@ class StagedDirectory {
     inline const char *getPath() const { return d_path.c_str(); }
 
     /**
-     * Upload the file at the given path (relative to the root of the
-     * downloaded directory) to CAS and return an OutputFile.
-     *
-     * If there's no file at that path, or there's a directory at that path,
-     * return a null pointer.
-     */
-    virtual std::shared_ptr<OutputFile>
-    captureFile(const char *relativePath) = 0;
-
-    /**
-     * Upload the directory at the given path (relative to the root of the
-     * download directory) to CAS and return an OutputDirectory.
-     *
-     * If there's no directory at that path, or there's a file at that path,
-     * return a null pointer.
-     */
-    virtual std::shared_ptr<OutputDirectory>
-    captureDirectory(const char *relativePath) = 0;
-
-    /**
      * Capture all the outputs of the given Command and store them in the given
      * ActionResult.
      */
     virtual void captureAllOutputs(const Command &command,
-                                   ActionResult *result);
+                                   ActionResult *result) = 0;
 
     // It's illegal to copy a StagedDirectory since destroying one copy
     // would cause the other's local directory to be deleted.

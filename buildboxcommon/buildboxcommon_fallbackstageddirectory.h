@@ -19,6 +19,7 @@
 
 #include <buildboxcommon_client.h>
 #include <buildboxcommon_stageddirectory.h>
+#include <buildboxcommon_temporarydirectory.h>
 
 #include <dirent.h>
 #include <memory>
@@ -37,16 +38,28 @@ class FallbackStagedDirectory : public StagedDirectory {
                             std::shared_ptr<Client> casClient);
 
     ~FallbackStagedDirectory() override;
-    std::shared_ptr<OutputFile> captureFile(const char *relativePath) override;
-    std::shared_ptr<OutputDirectory>
-    captureDirectory(const char *relativePath) override;
+
+    /**
+     * Given a `Command`, go through its output files and directories and
+     * upload them to the CAS. Add corresponding entries to the `ActionResult`
+     * object pointed by `result`.
+     */
+    void captureAllOutputs(const Command &command,
+                           ActionResult *result) override;
+
+    OutputFile captureFile(const char *relativePath) const;
+    OutputDirectory captureDirectory(const char *relativePath) const;
 
   private:
-    void downloadDirectory(const Digest &digest, const char *path);
-    void downloadFile(const Digest &digest, bool executable, const char *path);
-    Directory uploadDirectoryRecursively(Tree *tree, const char *relativePath);
+    void downloadDirectory(const Digest &digest, const char *path) const;
+    void downloadFile(const Digest &digest, bool executable,
+                      const char *path) const;
+
+    Directory uploadDirectoryRecursively(Tree *tree,
+                                         const char *relativePath) const;
 
     std::shared_ptr<Client> d_casClient;
+    TemporaryDirectory d_stage_directory;
 };
 } // namespace buildboxcommon
 
