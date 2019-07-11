@@ -28,6 +28,7 @@
 #include <sys/types.h>
 #include <system_error>
 #include <unistd.h>
+#include <vector>
 
 namespace buildboxcommon {
 
@@ -185,6 +186,61 @@ void FileUtils::delete_recursively(const char *path,
     // (The value of `delete_root_directory` is only considered for the first
     // call of this function, the recursive calls will all invoked with it set
     // to true.)
+}
+
+std::string FileUtils::make_path_absolute(const std::string &path,
+                                          const std::string &cwd)
+{
+    if (cwd.empty() || cwd.front() != '/') {
+        throw std::runtime_error("`cwd must be an absolute path");
+    }
+
+    const std::string full_path = cwd + '/' + path;
+    std::string normalized_path = FileUtils::normalize_path(full_path.c_str());
+
+    /* normalize_path removes trailing slashes, so let's preserve them here */
+    if (path.back() == '/' && normalized_path.back() != '/') {
+        normalized_path.push_back('/');
+    }
+    return normalized_path;
+}
+
+std::string FileUtils::normalize_path(const char *path)
+{
+    std::vector<std::string> segments;
+
+    const bool global = path[0] == '/';
+    while (path[0] != '\0') {
+        const char *slash = strchr(path, '/');
+        std::string segment;
+        if (slash == nullptr) {
+            segment = std::string(path);
+        }
+        else {
+            segment = std::string(path, size_t(slash - path));
+        }
+        if (segment == ".." && !segments.empty() && segments.back() != "..") {
+            segments.pop_back();
+        }
+        else if (segment != "." && segment != "") {
+            segments.push_back(segment);
+        }
+        if (slash == nullptr) {
+            break;
+        }
+        else {
+            path = slash + 1;
+        }
+    }
+
+    std::string result(global ? "/" : "");
+    if (segments.size() > 0) {
+        for (const auto &segment : segments) {
+            result += segment + "/";
+        }
+        result.pop_back();
+    }
+    return result;
 }
 
 } // namespace buildboxcommon

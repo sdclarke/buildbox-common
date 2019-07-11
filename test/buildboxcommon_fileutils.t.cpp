@@ -138,3 +138,80 @@ TEST(FileUtilsTests, ClearDirectoryTest)
     ASSERT_TRUE(path_exists(directory.name()));
     ASSERT_TRUE(FileUtils::directory_is_empty(directory.name()));
 }
+
+TEST(NormalizePathTest, AlreadyNormalPaths)
+{
+    EXPECT_EQ("test.txt", FileUtils::normalize_path("test.txt"));
+    EXPECT_EQ("subdir/hello", FileUtils::normalize_path("subdir/hello"));
+    EXPECT_EQ("/usr/bin/gcc", FileUtils::normalize_path("/usr/bin/gcc"));
+}
+
+TEST(NormalizePathTest, RemoveEmptySegments)
+{
+    EXPECT_EQ("subdir/hello", FileUtils::normalize_path("subdir///hello//"));
+    EXPECT_EQ("/usr/bin/gcc", FileUtils::normalize_path("/usr/bin/./gcc"));
+}
+
+TEST(NormalizePathTest, RemoveUnneededDotDot)
+{
+    EXPECT_EQ("subdir/hello",
+              FileUtils::normalize_path("subdir/subsubdir/../hello"));
+    EXPECT_EQ("/usr/bin/gcc",
+              FileUtils::normalize_path("/usr/local/lib/../../bin/.//gcc"));
+}
+
+TEST(NormalizePathTest, KeepNeededDotDot)
+{
+    EXPECT_EQ("../dir/hello", FileUtils::normalize_path("../dir/hello"));
+    EXPECT_EQ("../dir/hello",
+              FileUtils::normalize_path("subdir/../../dir/hello"));
+    EXPECT_EQ("../../dir/hello",
+              FileUtils::normalize_path("subdir/../../../dir/hello"));
+}
+
+TEST(NormalizePathTest, AlwaysRemoveTrailingSlash)
+{
+    EXPECT_EQ("/usr/bin", FileUtils::normalize_path("/usr/bin"));
+    EXPECT_EQ("/usr/bin", FileUtils::normalize_path("/usr/bin/"));
+}
+
+TEST(MakePathAbsoluteTest, CwdNotAbsoluteThrows)
+{
+    EXPECT_THROW(FileUtils::FileUtils::make_path_absolute("a/b/", "a/b"),
+                 std::runtime_error);
+
+    EXPECT_THROW(FileUtils::FileUtils::make_path_absolute("/a/b/c", ""),
+                 std::runtime_error);
+
+    EXPECT_THROW(FileUtils::FileUtils::make_path_absolute("", "a/b"),
+                 std::runtime_error);
+}
+
+TEST(MakePathAbsoluteTest, SimplePaths)
+{
+    EXPECT_EQ("/a/b/c/d", FileUtils::make_path_absolute("d", "/a/b/c/"));
+    EXPECT_EQ("/a/b/c/d/", FileUtils::make_path_absolute("d/", "/a/b/c/"));
+    EXPECT_EQ("/a/b", FileUtils::make_path_absolute("..", "/a/b/c/"));
+    EXPECT_EQ("/a/b/", FileUtils::make_path_absolute("../", "/a/b/c/"));
+    EXPECT_EQ("/a/b", FileUtils::make_path_absolute("..", "/a/b/c"));
+    EXPECT_EQ("/a/b/", FileUtils::make_path_absolute("../", "/a/b/c"));
+
+    EXPECT_EQ("/a/b/c", FileUtils::make_path_absolute(".", "/a/b/c/"));
+    EXPECT_EQ("/a/b/c/", FileUtils::make_path_absolute("./", "/a/b/c/"));
+    EXPECT_EQ("/a/b/c", FileUtils::make_path_absolute(".", "/a/b/c"));
+    EXPECT_EQ("/a/b/c/", FileUtils::make_path_absolute("./", "/a/b/c"));
+}
+
+TEST(MakePathAbsoluteTest, MoreComplexPaths)
+{
+    EXPECT_EQ("/a/b/d", FileUtils::make_path_absolute("../d", "/a/b/c"));
+    EXPECT_EQ("/a/b/d", FileUtils::make_path_absolute("../d", "/a/b/c/"));
+    EXPECT_EQ("/a/b/d/", FileUtils::make_path_absolute("../d/", "/a/b/c"));
+    EXPECT_EQ("/a/b/d/", FileUtils::make_path_absolute("../d/", "/a/b/c/"));
+
+    EXPECT_EQ("/a/b/d", FileUtils::make_path_absolute("./.././d", "/a/b/c"));
+    EXPECT_EQ("/a/b/d", FileUtils::make_path_absolute("./.././d", "/a/b/c/"));
+    EXPECT_EQ("/a/b/d/", FileUtils::make_path_absolute("./.././d/", "/a/b/c"));
+    EXPECT_EQ("/a/b/d/",
+              FileUtils::make_path_absolute("./.././d/", "/a/b/c/"));
+}
