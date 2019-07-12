@@ -52,20 +52,49 @@ class StagedDirectory {
      */
     inline const char *getPath() const { return d_path.c_str(); }
 
+    virtual OutputFile captureFile(const char *relative_path) const = 0;
+
+    virtual OutputDirectory
+    captureDirectory(const char *relative_path) const = 0;
+
     /**
-     * Capture all the outputs of the given Command and store them in the given
-     * ActionResult.
+     * Capture all the outputs of the given `Command` and store them in an
+     * `ActionResult`.
      */
-    virtual void captureAllOutputs(const Command &command,
-                                   ActionResult *result) = 0;
+    void captureAllOutputs(const Command &command, ActionResult *result) const;
 
     // It's illegal to copy a StagedDirectory since destroying one copy
     // would cause the other's local directory to be deleted.
     StagedDirectory(const StagedDirectory &) = delete;
     StagedDirectory &operator=(StagedDirectory const &) = delete;
 
+    /*
+     * Implementing the `captureAllOutputs()` algorithm in a generic way for
+     * testing it in isolation. The callback functions that will capture files
+     * and directories are tested separately.
+     */
+    typedef std::function<OutputFile(const char *path)> CaptureFileCallback;
+    typedef std::function<OutputDirectory(const char *directory)>
+        CaptureDirectoryCallback;
+
+    void captureAllOutputs(
+        const Command &command, ActionResult *result,
+        CaptureFileCallback capture_file_function,
+        CaptureDirectoryCallback capture_directory_function) const;
+
   protected:
     std::string d_path;
+
+    /**
+     * Given a file located in `relativePath` inside a `workingDirectory`,
+     * use CAS client to upload the file.
+
+     * (This function is defined here since it is common to the
+     * `FallbackStagedDirectory` and the `LocalCasStagedDirectory` classes.)
+     */
+    static OutputFile captureFile(const char *relative_path,
+                                  const char *working_directory,
+                                  std::shared_ptr<Client> cas_client);
 };
 } // namespace buildboxcommon
 

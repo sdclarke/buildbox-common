@@ -35,20 +35,12 @@ class FallbackStagedDirectory : public StagedDirectory {
      * Download the directory with the given digest from CAS.
      */
     FallbackStagedDirectory(const Digest &digest,
-                            std::shared_ptr<Client> casClient);
+                            std::shared_ptr<Client> cas_client);
 
     ~FallbackStagedDirectory() override;
 
-    /**
-     * Given a `Command`, go through its output files and directories and
-     * upload them to the CAS. Add corresponding entries to the `ActionResult`
-     * object pointed by `result`.
-     */
-    void captureAllOutputs(const Command &command,
-                           ActionResult *result) override;
-
-    OutputFile captureFile(const char *relativePath) const;
-    OutputDirectory captureDirectory(const char *relativePath) const;
+    OutputFile captureFile(const char *relative_path) const override;
+    OutputDirectory captureDirectory(const char *relative_path) const override;
 
   private:
     void downloadDirectory(const Digest &digest, const char *path) const;
@@ -56,7 +48,7 @@ class FallbackStagedDirectory : public StagedDirectory {
                       const char *path) const;
 
     Directory uploadDirectoryRecursively(Tree *tree,
-                                         const char *relativePath) const;
+                                         const char *relative_path) const;
 
     std::shared_ptr<Client> d_casClient;
     TemporaryDirectory d_stage_directory;

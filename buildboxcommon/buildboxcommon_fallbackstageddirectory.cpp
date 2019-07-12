@@ -32,8 +32,8 @@
 namespace buildboxcommon {
 
 FallbackStagedDirectory::FallbackStagedDirectory(
-    const Digest &digest, std::shared_ptr<Client> casClient)
-    : d_casClient(casClient), d_stage_directory("buildboxrun")
+    const Digest &digest, std::shared_ptr<Client> cas_client)
+    : d_casClient(cas_client), d_stage_directory("buildboxrun")
 {
     this->d_path = d_stage_directory.name();
     BUILDBOX_LOG_DEBUG("Downloading to " << this->d_path);
@@ -42,77 +42,22 @@ FallbackStagedDirectory::FallbackStagedDirectory(
 
 FallbackStagedDirectory::~FallbackStagedDirectory() {}
 
-void FallbackStagedDirectory::captureAllOutputs(const Command &command,
-                                                ActionResult *result)
+OutputFile
+FallbackStagedDirectory::captureFile(const char *relative_path) const
 {
-    for (const auto &outputFilename : command.output_files()) {
-        const std::string path =
-            command.working_directory() + "/" + outputFilename;
-
-        OutputFile outputFile = this->captureFile(path.c_str());
-        if (!outputFile.path().empty()) {
-            outputFile.set_path(outputFilename);
-            OutputFile *file_entry = result->add_output_files();
-            file_entry->CopyFrom(outputFile);
-        }
-    }
-
-    for (const auto &outputDirName : command.output_directories()) {
-        const std::string path =
-            command.working_directory() + "/" + outputDirName;
-
-        OutputDirectory outputDirectory = this->captureDirectory(path.c_str());
-        if (!outputDirectory.path().empty()) {
-            outputDirectory.set_path(outputDirName);
-            OutputDirectory *directory_entry =
-                result->add_output_directories();
-            directory_entry->CopyFrom(outputDirectory);
-        }
-    }
-}
-
-// TODO: Rewrite captureFile to use file descriptors.
-OutputFile FallbackStagedDirectory::captureFile(const char *relativePath) const
-{
-    BUILDBOX_LOG_DEBUG("Uploading " << relativePath);
-    const std::string file = this->d_path + std::string("/") + relativePath;
-
-    // need to use O_RDWR or else wont throw error on directory
-    const int fd = open(file.c_str(), O_RDWR);
-    if (fd == -1) {
-        if (errno == EACCES || errno == EISDIR || errno == ENOENT) {
-            return OutputFile();
-        }
-        throw std::system_error(errno, std::system_category());
-    }
-
-    const Digest digest = CASHash::hash(fd);
-
-    try {
-        this->d_casClient->upload(fd, digest);
-        close(fd);
-    }
-    catch (...) {
-        close(fd);
-        throw;
-    }
-
-    OutputFile output_file;
-    output_file.set_path(relativePath);
-    output_file.mutable_digest()->CopyFrom(digest);
-    output_file.set_is_executable(FileUtils::is_executable(file.c_str()));
-    return output_file;
+    return StagedDirectory::captureFile(relative_path, this->d_path.c_str(),
+                                        this->d_casClient);
 }
 
 Directory FallbackStagedDirectory::uploadDirectoryRecursively(
-    Tree *tree, const char *relativePath) const
+    Tree *tree, const char *relative_path) const
 {
-    BUILDBOX_LOG_DEBUG("Uploading directory " << relativePath);
+    BUILDBOX_LOG_DEBUG("Uploading directory " << relative_path);
     std::map<std::string, FileNode> files;
     std::map<std::string, DirectoryNode> directories;
-    struct dirent **direntList;
+    struct dirent **dirent_list;
 
-    const int n = scandir(relativePath, &direntList, nullptr, nullptr);
+    const int n = scandir(relative_path, &dirent_list, nullptr, nullptr);
     if (n == -1) {
         // On error we don't need to free direntList
         throw std::system_error(errno, std::system_category());
@@ -120,14 +65,14 @@ Directory FallbackStagedDirectory::uploadDirectoryRecursively(
 
     std::vector<std::string> nameList;
     for (int i = n - 1; i >= 0; i--) {
-        nameList.push_back(direntList[i]->d_name);
-        free(direntList[i]);
+        nameList.push_back(dirent_list[i]->d_name);
+        free(dirent_list[i]);
     }
-    free(direntList);
+    free(dirent_list);
 
     for (const std::string &entry : nameList) {
         std::string entryRelativePath =
-            std::string(relativePath) + "/" + entry;
+            std::string(relative_path) + "/" + entry;
 
         if (strcmp(entry.c_str(), ".") == 0 ||
             strcmp(entry.c_str(), "..") == 0) {
@@ -171,14 +116,14 @@ Directory FallbackStagedDirectory::uploadDirectoryRecursively(
 }
 
 OutputDirectory
-FallbackStagedDirectory::captureDirectory(const char *relativePath) const
+FallbackStagedDirectory::captureDirectory(const char *relative_path) const
 {
     Tree tree;
 
-    const std::string dirPath = this->d_path;
+    const std::string dir_path = this->d_path;
     // using AT_FDCWD as placeholder. Since dirPath is absolute, openAT will
     // ignore AT_FDCWD
-    const int dirFD = openat(AT_FDCWD, dirPath.c_str(), O_RDONLY);
+    const int dirFD = openat(AT_FDCWD, dir_path.c_str(), O_RDONLY);
     if (dirFD == -1) {
         if (errno == EACCES || errno == ENOTDIR || errno == ENOENT) {
             return OutputDirectory();
@@ -187,12 +132,12 @@ FallbackStagedDirectory::captureDirectory(const char *relativePath) const
     }
 
     *(tree.mutable_root()) =
-        this->uploadDirectoryRecursively(&tree, relativePath);
+        this->uploadDirectoryRecursively(&tree, relative_path);
 
     const Digest tree_digest = this->d_casClient->uploadMessage<Tree>(tree);
 
     OutputDirectory output_directory;
-    output_directory.set_path(relativePath);
+    output_directory.set_path(relative_path);
     output_directory.mutable_tree_digest()->CopyFrom(tree_digest);
     return output_directory;
 }
