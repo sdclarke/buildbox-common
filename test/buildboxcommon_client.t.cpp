@@ -29,7 +29,6 @@
 #include <fstream>
 
 using namespace buildboxcommon;
-using namespace build::bazel::remote::execution::v2;
 using namespace testing;
 
 const int64_t MAX_BATCH_SIZE_BYTES = 64;
@@ -107,10 +106,12 @@ class ClientTestFixture : public StubsFixture, public Client {
     grpc::testing::MockClientWriter<google::bytestream::WriteRequest> *writer =
         new grpc::testing::MockClientWriter<
             google::bytestream::WriteRequest>();
-    grpc::testing::MockClientReaderWriter<StageTreeRequest, StageTreeResponse>
-        *reader_writer =
-            new grpc::testing::MockClientReaderWriter<StageTreeRequest,
-                                                      StageTreeResponse>();
+    grpc::testing::MockClientReaderWriter<
+        typename build::buildgrid::StageTreeRequest,
+        typename build::buildgrid::StageTreeResponse> *reader_writer =
+        new grpc::testing::MockClientReaderWriter<
+            typename build::buildgrid::StageTreeRequest,
+            typename build::buildgrid::StageTreeResponse>();
 
     ClientTestFixture(int64_t max_batch_size_bytes = MAX_BATCH_SIZE_BYTES)
         : Client(bytestreamClient, casClient, localCasClient,
