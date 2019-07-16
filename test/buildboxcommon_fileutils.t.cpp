@@ -22,6 +22,11 @@
 #include <fstream>
 #include <iostream>
 
+#include <dirent.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
 using namespace buildboxcommon;
 
 bool path_exists(const char *path)
@@ -214,4 +219,113 @@ TEST(MakePathAbsoluteTest, MoreComplexPaths)
     EXPECT_EQ("/a/b/d/", FileUtils::make_path_absolute("./.././d/", "/a/b/c"));
     EXPECT_EQ("/a/b/d/",
               FileUtils::make_path_absolute("./.././d/", "/a/b/c/"));
+}
+
+TEST(FileUtilsTests, WriteFileAtomically)
+{
+    TemporaryDirectory output_directory;
+
+    const std::string output_path =
+        std::string(output_directory.name()) + "/data.txt";
+
+    ASSERT_FALSE(FileUtils::is_regular_file(output_path.c_str()));
+
+    std::vector<char> raw_data = {'H', 'e', 'l', 'l', 'o',  '\0', 'W',
+                                  'o', 'r', 'l', 'd', '\0', '!'};
+    const std::string data_string(raw_data.cbegin(), raw_data.cend());
+
+    ASSERT_EQ(FileUtils::write_file_atomically(output_path, data_string), 0);
+
+    // Data is correct:
+    std::ifstream file(output_path, std::ifstream::binary);
+    std::stringstream read_data;
+    read_data << file.rdbuf();
+
+    ASSERT_EQ(read_data.str(), data_string);
+
+    // Default mode is 0600:
+    struct stat stat_buf;
+    const int stat_status = stat(output_path.c_str(), &stat_buf);
+    ASSERT_EQ(stat_status, 0);
+
+    ASSERT_TRUE(S_ISREG(stat_buf.st_mode));
+
+    const auto file_permissions = stat_buf.st_mode & 0777;
+    ASSERT_EQ(file_permissions, 0600);
+}
+
+TEST(FileUtilsTests, WriteFileAtomicallyReturnsLinkResult)
+{
+    TemporaryDirectory output_directory;
+
+    const std::string output_path =
+        std::string(output_directory.name()) + "/output.txt";
+
+    ASSERT_FALSE(FileUtils::is_regular_file(output_path.c_str()));
+
+    ASSERT_EQ(FileUtils::write_file_atomically(output_path, ""), 0);
+    ASSERT_EQ(FileUtils::write_file_atomically(output_path, ""), EEXIST);
+}
+
+TEST(FileUtilsTests, WriteFileAtomicallyPermissions)
+{
+    TemporaryDirectory output_directory;
+
+    const std::string output_path =
+        std::string(output_directory.name()) + "/executable.sh";
+
+    ASSERT_FALSE(FileUtils::is_regular_file(output_path.c_str()));
+
+    const std::string data = "#!/bin/bash";
+    ASSERT_EQ(FileUtils::write_file_atomically(output_path, data, 0740), 0);
+
+    struct stat stat_buf;
+    const int stat_status = stat(output_path.c_str(), &stat_buf);
+    ASSERT_EQ(stat_status, 0);
+
+    ASSERT_TRUE(S_ISREG(stat_buf.st_mode));
+
+    const auto file_permissions = stat_buf.st_mode & 0777;
+    ASSERT_EQ(file_permissions, 0740);
+}
+
+TEST(FileUtilsTests, WriteFileAtomicallyTemporaryDirectory)
+{
+    TemporaryDirectory output_directory;
+    TemporaryDirectory intermediate_directory;
+
+    const std::string output_path =
+        std::string(output_directory.name()) + "/test.txt";
+
+    ASSERT_FALSE(FileUtils::is_regular_file(output_path.c_str()));
+
+    const auto data = "some data...";
+    FileUtils::write_file_atomically(output_path, data, 0600,
+                                     intermediate_directory.name());
+
+    ASSERT_TRUE(FileUtils::is_regular_file(output_path.c_str()));
+
+    // Data is correct:
+    std::ifstream file(output_path, std::ifstream::binary);
+    std::stringstream read_data;
+    read_data << file.rdbuf();
+
+    ASSERT_EQ(read_data.str(), data);
+}
+
+TEST(FileUtilsTests, WriteFileAtomicallyIntermediateFileIsDeleted)
+{
+    TemporaryDirectory test_directory;
+    const std::string test_directory_path(test_directory.name());
+    const auto output_path = test_directory_path + "/out.txt";
+
+    const auto intermediate_directory = test_directory_path + "/intermediate";
+    FileUtils::create_directory(intermediate_directory.c_str());
+
+    FileUtils::write_file_atomically(output_path, "data: 12345", 0600,
+                                     intermediate_directory);
+    ASSERT_TRUE(FileUtils::is_regular_file(output_path.c_str()));
+
+    // The intermediate file was deleted:
+    ASSERT_TRUE(FileUtils::directory_is_empty(intermediate_directory.c_str()));
 }

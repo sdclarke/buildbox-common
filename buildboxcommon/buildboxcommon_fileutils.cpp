@@ -15,6 +15,7 @@
 #include <buildboxcommon_fileutils.h>
 
 #include <buildboxcommon_logging.h>
+#include <buildboxcommon_temporaryfile.h>
 
 #include <algorithm>
 #include <cerrno>
@@ -22,6 +23,7 @@
 #include <cstring>
 #include <dirent.h>
 #include <fstream>
+#include <libgen.h>
 #include <sstream>
 #include <stdexcept>
 #include <sys/stat.h>
@@ -149,6 +151,52 @@ std::string FileUtils::get_file_contents(const char *path)
         fileStream.read(&contents[0], contents.length());
     }
     return contents;
+}
+
+int FileUtils::write_file_atomically(const std::string &path,
+                                     const std::string &data, mode_t mode,
+                                     const std::string &intermediate_directory,
+                                     const std::string &prefix)
+{
+    std::string temporary_directory;
+    if (!intermediate_directory.empty()) {
+        temporary_directory = intermediate_directory;
+    }
+    else {
+        // If no intermediate directory is specified, we use the parent
+        // directory in `path`.
+
+        // `dirname()` modifies its input, so we give it a copy.
+        const char *parent_directory = dirname(strdup(path.c_str()));
+        temporary_directory = std::string(parent_directory);
+    }
+
+    buildboxcommon::TemporaryFile temp_file(temporary_directory.c_str(),
+                                            prefix.c_str(), mode);
+    // `temp_file`'s destructor will `unlink()` the created file, removing it
+    // from the temporary directory.
+
+    const std::string temp_filename = temp_file.name();
+
+    // Writing the data to it:
+    std::ofstream file(temp_filename, std::fstream::binary);
+    file << data;
+    file.close();
+
+    if (!file.good()) {
+        const std::string error_message = "Failed writing to temporary file " +
+                                          temp_filename + ": " +
+                                          strerror(errno);
+        BUILDBOX_LOG_ERROR(error_message);
+        throw std::system_error(errno, std::system_category());
+    }
+
+    // Creating a hard link (atomic operation) from the destination to the
+    // temporary file:
+    if (link(temp_filename.c_str(), path.c_str()) == 0) {
+        return 0;
+    }
+    return errno;
 }
 
 void FileUtils::delete_recursively(const char *path,
