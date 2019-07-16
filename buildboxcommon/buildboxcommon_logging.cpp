@@ -22,6 +22,19 @@
 
 namespace buildboxcommon {
 
+namespace logging {
+std::string stringifyLogLevels()
+{
+    std::string logLevels;
+    for (const auto &stringLevelPair :
+         buildboxcommon::logging::logLevelToString) {
+        logLevels += stringLevelPair.second + "/";
+    }
+    logLevels.pop_back();
+    return logLevels;
+}
+} // namespace logging
+
 LoggerState &LoggerState::getInstance()
 {
     static LoggerState instance(std::clog, LogLevel::INFO);

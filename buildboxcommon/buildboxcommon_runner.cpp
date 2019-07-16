@@ -72,7 +72,8 @@ static void usage(const char *name)
     std::clog << "    --action-result=PATH        Path to write output "
                  "ActionResult to\n";
     std::clog << "    --log-level=LEVEL           (default: info) Log "
-                 "verbosity: debug, info, or error\n";
+                 "verbosity: "
+              << buildboxcommon::logging::stringifyLogLevels() << "\n";
     std::clog << "    --verbose                   Set log level to debug\n";
     std::clog << "    --log-file=FILE             File to write log to\n";
     ConnectionOptions::printArgHelp(BUILDBOXCOMMON_RUNNER_USAGE_PAD_WIDTH);

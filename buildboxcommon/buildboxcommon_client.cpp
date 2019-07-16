@@ -151,7 +151,7 @@ std::string Client::makeResourceName(const Digest &digest, bool isUpload)
 
 std::string Client::fetchString(const Digest &digest)
 {
-    BUILDBOX_LOG_DEBUG("Downloading " << digest.hash() << " to string");
+    BUILDBOX_LOG_TRACE("Downloading " << digest.hash() << " to string");
     std::string resourceName = this->makeResourceName(digest, false);
 
     std::string result;
@@ -180,7 +180,7 @@ std::string Client::fetchString(const Digest &digest)
             throw std::runtime_error(errorMsg.str());
         }
 
-        BUILDBOX_LOG_DEBUG(resourceName << ": " << result.length()
+        BUILDBOX_LOG_TRACE(resourceName << ": " << result.length()
                                         << " bytes retrieved");
         return read_status;
     };
@@ -192,7 +192,7 @@ std::string Client::fetchString(const Digest &digest)
 
 void Client::download(int fd, const Digest &digest)
 {
-    BUILDBOX_LOG_DEBUG("Downloading " << digest.hash() << " to file");
+    BUILDBOX_LOG_TRACE("Downloading " << digest.hash() << " to file");
     std::string resourceName = this->makeResourceName(digest, false);
 
     auto downloadLambda = [&](grpc::ClientContext &context) {
@@ -223,7 +223,7 @@ void Client::download(int fd, const Digest &digest)
                      << " bytes";
             throw std::runtime_error(errorMsg.str());
         }
-        BUILDBOX_LOG_DEBUG(resourceName << ": " << st.st_size
+        BUILDBOX_LOG_TRACE(resourceName << ": " << st.st_size
                                         << " bytes retrieved");
         return read_status;
     };
