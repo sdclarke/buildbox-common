@@ -50,4 +50,4 @@ CTestTestfile.cmake
 *.pb.cc
 
 # top-level build directory
-build/
+/build/

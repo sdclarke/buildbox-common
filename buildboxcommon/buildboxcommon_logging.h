@@ -21,6 +21,7 @@
 #include <ctime>
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -28,21 +29,27 @@
 
 namespace buildboxcommon {
 
-enum LogLevel { DEBUG = 0, INFO = 1, ERROR = 2 };
+enum LogLevel { TRACE = 0, DEBUG = 1, INFO = 2, WARNING = 3, ERROR = 4 };
 
 // TODO: Expand this namespace to encompass the whole file
 // Will require lots of MRs in dependent projects
 namespace logging {
 
-const std::unordered_map<std::string, LogLevel> stringToLogLevel = {
+const std::map<std::string, LogLevel> stringToLogLevel = {
+    {"trace", LogLevel::TRACE},
     {"debug", LogLevel::DEBUG},
     {"info", LogLevel::INFO},
+    {"warning", LogLevel::WARNING},
     {"error", LogLevel::ERROR}};
 
-const std::unordered_map<LogLevel, std::string, std::hash<int>>
-    logLevelToString = {{LogLevel::DEBUG, "debug"},
-                        {LogLevel::INFO, "info"},
-                        {LogLevel::ERROR, "error"}};
+const std::map<LogLevel, std::string> logLevelToString = {
+    {LogLevel::TRACE, "trace"},
+    {LogLevel::DEBUG, "debug"},
+    {LogLevel::INFO, "info"},
+    {LogLevel::WARNING, "warning"},
+    {LogLevel::ERROR, "error"}};
+
+std::string stringifyLogLevels();
 
 } // namespace logging
 
@@ -108,6 +115,19 @@ void writePrefixIfNecessary(std::ostream &ss, const std::string file,
  * the stringstream before the logline if enabled.
  */
 
+#define BUILDBOX_LOG_TRACE(x)                                                 \
+    {                                                                         \
+        if (buildboxcommon::LoggerState::getInstance().getLogLevel() <=       \
+            buildboxcommon::LogLevel::TRACE) {                                \
+            auto _bb_log_os =                                                 \
+                buildboxcommon::LoggerState::getInstance().getOutputStream(); \
+            *_bb_log_os << "[TRACE] ";                                        \
+            buildboxcommon::writePrefixIfNecessary(*_bb_log_os, __FILE__,     \
+                                                   __func__);                 \
+            *_bb_log_os << x << std::endl << std::flush;                      \
+        }                                                                     \
+    }
+
 #define BUILDBOX_LOG_DEBUG(x)                                                 \
     {                                                                         \
         if (buildboxcommon::LoggerState::getInstance().getLogLevel() <=       \
@@ -128,6 +148,19 @@ void writePrefixIfNecessary(std::ostream &ss, const std::string file,
             auto _bb_log_os =                                                 \
                 buildboxcommon::LoggerState::getInstance().getOutputStream(); \
             *_bb_log_os << "[INFO] ";                                         \
+            buildboxcommon::writePrefixIfNecessary(*_bb_log_os, __FILE__,     \
+                                                   __func__);                 \
+            *_bb_log_os << x << std::endl << std::flush;                      \
+        }                                                                     \
+    }
+
+#define BUILDBOX_LOG_WARNING(x)                                               \
+    {                                                                         \
+        if (buildboxcommon::LoggerState::getInstance().getLogLevel() <=       \
+            buildboxcommon::LogLevel::WARNING) {                              \
+            auto _bb_log_os =                                                 \
+                buildboxcommon::LoggerState::getInstance().getOutputStream(); \
+            *_bb_log_os << "[WARNING] ";                                      \
             buildboxcommon::writePrefixIfNecessary(*_bb_log_os, __FILE__,     \
                                                    __func__);                 \
             *_bb_log_os << x << std::endl << std::flush;                      \
