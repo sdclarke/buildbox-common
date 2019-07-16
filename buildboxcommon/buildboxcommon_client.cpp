@@ -457,19 +457,23 @@ void Client::downloadBlobs(const std::vector<Digest> &digests,
             const std::string path = it->second.first;
             const bool is_executable = it->second.second;
 
-            int fd = open(path.c_str(), O_CREAT | O_WRONLY | O_TRUNC,
-                          is_executable ? 0755 : 0644);
-            if (fd == -1) {
-                throw std::system_error(errno, std::system_category());
+            mode_t file_permissions =
+                S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH; // 0644
+            if (is_executable) {
+                file_permissions |= S_IXUSR | S_IXGRP | S_IXOTH; // 0755
             }
 
-            const auto write_status = write(fd, data.c_str(), data.size());
-            if (write_status < 0) {
-                close(fd);
-                throw std::system_error(errno, std::generic_category());
+            const int write_status =
+                FileUtils::write_file_atomically(path, data, file_permissions);
+            if (write_status != 0 && write_status != EEXIST) {
+                // `EEXIST` means someone beat us to writing the file, which is
+                // not an error assuming the contents are the same.
+                BUILDBOX_LOG_ERROR(
+                    "Could not atomically write blob with digest \""
+                    << hash << "/" << data.size() << "\" to " << path
+                    << strerror(write_status));
+                throw std::system_error(write_status, std::system_category());
             }
-
-            close(fd);
         }
     };
 
