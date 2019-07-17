@@ -9,8 +9,10 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "AIX" AND ${CMAKE_CXX_COMPILER_ID} MATCHES "GNU"
     set(CMAKE_NO_SYSTEM_FROM_IMPORTED ON)
 endif()
 
+find_package(OpenSSL REQUIRED)
+set(OPENSSL_TARGET OpenSSL::Crypto)
+
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(libcrypto REQUIRED IMPORTED_TARGET libcrypto)
 pkg_check_modules(protobuf REQUIRED IMPORTED_TARGET protobuf>=3.5)
 
 # Try to find gRPC with find_package and fall back to pkg_config
@@ -59,8 +61,8 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "AIX")
     target_compile_options(buildboxcommon PUBLIC -D_H_SYSMACROS)
 endif()
 
-target_link_libraries(buildboxcommon PkgConfig::protobuf ${GRPC_TARGET})
-target_link_libraries(buildboxcommon PkgConfig::libcrypto)
+target_link_libraries(buildboxcommon PkgConfig::protobuf ${GRPC_TARGET} ${OPENSSL_TARGET})
+
 if(NOT APPLE)
     # macOS includes UUID generation functionality in libc, but on other platforms
     # it's a separate library.
