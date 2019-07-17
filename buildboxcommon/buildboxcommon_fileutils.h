@@ -69,6 +69,23 @@ struct FileUtils {
      */
     static std::string get_file_contents(const char *path);
 
+    /**
+     * Simplify the given path.
+     *
+     * The returned path will not contain any empty or `.` segments, and any
+     * `..` segments will occur at the start of the path.
+     */
+    static std::string normalize_path(const char *path);
+
+    /**
+     * Make the given path absolute, using the current working directory.
+     *
+     * `cwd` must be an absolute path, otherwise it throws an
+     * `std::runtime_error` exception.
+     */
+    static std::string make_path_absolute(const std::string &path,
+                                          const std::string &cwd);
+
   private:
     /**
      * Deletes the contents of an existing directory.
