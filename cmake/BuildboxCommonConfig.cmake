@@ -1,7 +1,7 @@
 include(CMakeFindDependencyMacro)
-
+find_package(OpenSSL REQUIRED)
+set(OPENSSL_TARGET OpenSSL::Crypto)
 find_dependency(PkgConfig)
-pkg_check_modules(libcrypto REQUIRED IMPORTED_TARGET libcrypto)
 pkg_check_modules(protobuf REQUIRED IMPORTED_TARGET protobuf>=3.5)
 
 find_package(gRPC)
