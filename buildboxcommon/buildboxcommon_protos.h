@@ -50,6 +50,12 @@ inline bool operator==(const buildboxcommon::Digest &a,
     return a.hash() == b.hash() && a.size_bytes() == b.size_bytes();
 }
 
+inline bool operator!=(const buildboxcommon::Digest &a,
+                       const buildboxcommon::Digest &b)
+{
+    return !(a == b);
+}
+
 inline std::string toString(const buildboxcommon::Digest &digest)
 {
     return digest.hash() + "/" + std::to_string(digest.size_bytes());

@@ -31,6 +31,7 @@ TEST(ProtosHeaderTest, DigestComparisonEqual)
     d2.CopyFrom(d1);
 
     ASSERT_TRUE(d1 == d2);
+    ASSERT_FALSE(d1 != d2);
 }
 
 TEST(ProtosHeaderTest, DigestComparisonDifferentHash)
@@ -44,6 +45,7 @@ TEST(ProtosHeaderTest, DigestComparisonDifferentHash)
     d2.set_size_bytes(1024);
 
     ASSERT_FALSE(d1 == d2);
+    ASSERT_TRUE(d1 != d2);
 }
 
 TEST(ProtosHeaderTest, DigestComparisonDifferentSize)
@@ -57,6 +59,7 @@ TEST(ProtosHeaderTest, DigestComparisonDifferentSize)
     d2.set_size_bytes(1024);
 
     ASSERT_FALSE(d1 == d2);
+    ASSERT_TRUE(d1 != d2);
 }
 
 TEST(ProtosHeaderTest, DigestComparisonDifferent)
@@ -70,6 +73,7 @@ TEST(ProtosHeaderTest, DigestComparisonDifferent)
     d2.set_size_bytes(1024);
 
     ASSERT_FALSE(d1 == d2);
+    ASSERT_TRUE(d1 != d2);
 }
 
 TEST(ProtosHeaderTest, DigestToString)
