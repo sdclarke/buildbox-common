@@ -33,7 +33,6 @@
 #include <unistd.h>
 
 using namespace buildboxcommon;
-using namespace build::bazel::remote::execution::v2;
 using namespace testing;
 
 const int64_t MAX_BATCH_SIZE_BYTES = 64;
@@ -61,10 +60,12 @@ class LocalCasStagedDirectoryFixture : public ::testing::Test {
     }
 
     Digest digest;
-    grpc::testing::MockClientReaderWriter<StageTreeRequest, StageTreeResponse>
-        *reader_writer =
-            new grpc::testing::MockClientReaderWriter<StageTreeRequest,
-                                                      StageTreeResponse>();
+    grpc::testing::MockClientReaderWriter<
+        typename build::buildgrid::StageTreeRequest,
+        typename build::buildgrid::StageTreeResponse> *reader_writer =
+        new grpc::testing::MockClientReaderWriter<
+            typename build::buildgrid::StageTreeRequest,
+            typename build::buildgrid::StageTreeResponse>();
     std::shared_ptr<google::bytestream::MockByteStreamStub> bytestreamClient;
     std::shared_ptr<MockContentAddressableStorageStub> casClient;
     std::shared_ptr<MockLocalContentAddressableStorageStub> localCasClient;
