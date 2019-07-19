@@ -133,7 +133,8 @@ TEST_F(CaptureTestFixture, CaptureDirectoryTest)
         .WillOnce(Return(getWriter(iter)))
         .WillOnce(Return(getWriter(iter)));
 
-    class FallbackStagedDirectory fs(digest, client);
+    FallbackStagedDirectory fs(digest, client);
+
     /*
      * upload_test
      * ├── test.txt
@@ -168,4 +169,36 @@ TEST_F(CaptureTestFixture, CaptureDirectoryTest)
         std::string response = requests[i].resource_name();
         EXPECT_EQ(response.find(prefix + expected_hashes[i]), 0);
     }
+
+    // The directory is staged. Let's now simulate capturing outputs:
+    Command command;
+    *command.add_output_files() = "a.out";
+    *command.add_output_files() = "lib.so";
+
+    *command.add_output_directories() = "include";
+
+    std::multiset<std::string> captured_files, captured_directories;
+
+    StagedDirectory::CaptureFileCallback capture_file_function =
+        [&](const char *relative_path) {
+            captured_files.insert(relative_path);
+            return OutputFile();
+        };
+
+    StagedDirectory::CaptureDirectoryCallback capture_directory_function =
+        [&](const char *relative_path) {
+            captured_directories.insert(relative_path);
+            return OutputDirectory();
+        };
+
+    ActionResult action_result;
+    fs.captureAllOutputs(command, &action_result, capture_file_function,
+                         capture_directory_function);
+
+    ASSERT_EQ(captured_files.size(), 2);
+    ASSERT_EQ(captured_files.count("/a.out"), 1);
+    ASSERT_EQ(captured_files.count("/lib.so"), 1);
+
+    ASSERT_EQ(captured_directories.size(), 1);
+    ASSERT_EQ(captured_directories.count("/include"), 1);
 }
