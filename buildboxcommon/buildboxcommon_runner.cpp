@@ -43,7 +43,7 @@ static const int BUILDBOXCOMMON_RUNNER_MAX_INLINED_OUTPUT = 1024;
 namespace {
 static void markNonBlocking(int fd)
 {
-    int flags = fcntl(fd, F_GETFL);
+    const int flags = fcntl(fd, F_GETFL);
     if (flags == -1) {
         throw std::system_error(errno, std::system_category());
     }
@@ -55,12 +55,12 @@ static void markNonBlocking(int fd)
 static void writeAll(int fd, const char *buffer, ssize_t len)
 {
     while (len > 0) {
-        const auto bytesWritten = write(fd, buffer, len);
-        if (bytesWritten == -1) {
+        const auto bytes_written = write(fd, buffer, static_cast<size_t>(len));
+        if (bytes_written == -1) {
             throw std::system_error(errno, std::system_category());
         }
-        len -= bytesWritten;
-        buffer += bytesWritten;
+        len -= bytes_written;
+        buffer += bytes_written;
     }
 }
 
@@ -85,81 +85,126 @@ volatile sig_atomic_t Runner::d_signal_status = 0;
 void Runner::handleSignal(int signal) { d_signal_status = signal; }
 sig_atomic_t Runner::getSignalStatus() { return d_signal_status; }
 
-int Runner::main(int argc, char *argv[])
+void Runner::registerSignals() const
 {
     // Handle SIGINT, SIGTERM
     struct sigaction sa;
     sa.sa_handler = handleSignal;
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = SA_SIGINFO;
-    if (sigaction(SIGINT, &sa, NULL) == -1) {
+
+    if (sigaction(SIGINT, &sa, nullptr) == -1) {
         BUILDBOX_LOG_ERROR("Unable to register signal handler for SIGINT");
         exit(1);
     }
-    if (sigaction(SIGTERM, &sa, NULL) == -1) {
+    if (sigaction(SIGTERM, &sa, nullptr) == -1) {
         BUILDBOX_LOG_ERROR("Unable to register signal handler for SIGTERM");
         exit(1);
     }
+}
 
+Action Runner::readAction(const std::string &path) const
+{
+    const int fd = open(path.c_str(), O_RDONLY);
+    if (fd == -1) {
+        BUILDBOX_LOG_ERROR("Could not open Action file " << path << ": "
+                                                         << strerror(errno));
+        perror("buildbox-run input");
+        exit(1);
+    }
+
+    Action input;
+    const bool successful_read = input.ParseFromFileDescriptor(fd);
+    close(fd);
+
+    if (successful_read) {
+        return input;
+    }
+
+    BUILDBOX_LOG_ERROR("Failed to parse Action from " << path);
+    exit(1);
+}
+
+void Runner::initializeCasClient() const
+{
+    BUILDBOX_LOG_DEBUG("Initializing CAS " << this->d_casRemote.d_url);
+    try {
+        this->d_casClient->init(this->d_casRemote);
+    }
+    catch (const std::runtime_error &e) {
+        BUILDBOX_LOG_ERROR("Error initializing CAS client: " << e.what());
+        exit(1);
+    }
+}
+
+void Runner::writeActionResult(const ActionResult &action_result,
+                               const std::string &path) const
+{
+    const int fd = open(path.c_str(), O_WRONLY);
+    if (fd == -1) {
+        BUILDBOX_LOG_ERROR("Could not save ActionResult to "
+                           << path << ": " << strerror(errno));
+        perror("buildbox-run output");
+        exit(1);
+    }
+
+    const bool successful_write = action_result.SerializeToFileDescriptor(fd);
+    close(fd);
+
+    if (!successful_write) {
+        BUILDBOX_LOG_ERROR(
+            "Failed to serialize ActionResult before writing to " << path);
+        exit(1);
+    }
+}
+
+int Runner::main(int argc, char *argv[])
+{
     if (!this->parseArguments(argc, argv)) {
         usage(argv[0]);
         printSpecialUsage();
         return 1;
     }
-    BUILDBOX_LOG_DEBUG("Initializing CAS " << this->d_casRemote.d_url);
-    this->d_casClient->init(this->d_casRemote);
 
-    const int inFd = open(this->d_inputPath, O_RDONLY);
-    if (inFd == -1) {
-        perror("buildbox-run input");
-        return 1;
-    }
-    Action input;
-    if (!input.ParseFromFileDescriptor(inFd)) {
-        BUILDBOX_LOG_ERROR("buildbox-run: failed to parse Action");
-        return 1;
-    }
-    close(inFd);
+    Action input = readAction(this->d_inputPath);
+    registerSignals();
+    initializeCasClient();
 
     ActionResult result;
     try {
         BUILDBOX_LOG_DEBUG("Fetching " << input.command_digest().hash());
         const Command command =
             this->d_casClient->fetchMessage<Command>(input.command_digest());
-        auto signal_status = getSignalStatus();
+
+        const auto signal_status = getSignalStatus();
         if (signal_status) {
             // If signal is set here, then no clean up necessary, return.
             return signal_status;
         }
+
         BUILDBOX_LOG_DEBUG("Executing command");
         result = this->execute(command, input.input_root_digest());
     }
     catch (const std::exception &e) {
+        BUILDBOX_LOG_ERROR("Error executing command: " << e.what());
+
         result.set_exit_code(255);
-        std::string msg =
-            std::string("buildbox-run: ") + e.what() + std::string("\n");
-        BUILDBOX_LOG_ERROR(msg);
-        *(result.mutable_stderr_raw()) += msg;
+        const std::string error_message =
+            "buildbox-run: " + std::string(e.what()) + "\n";
+        *(result.mutable_stderr_raw()) += error_message;
     }
-    if (this->d_outputPath != nullptr && this->d_outputPath[0] != '\0') {
-        int outFd = open(this->d_outputPath, O_WRONLY);
-        if (outFd == -1) {
-            perror("buildbox-run output");
-            return 1;
-        }
-        if (!result.SerializeToFileDescriptor(outFd)) {
-            BUILDBOX_LOG_ERROR(
-                "buildbox-run: failed to serialize ActionResult");
-            return 1;
-        }
-        close(outFd);
+
+    if (!this->d_outputPath.empty()) {
+        writeActionResult(result, this->d_outputPath);
     }
-    // At this point, if a signal is thrown, then execute has happend
-    // succesfully and the results have been written
+
+    // At this point, if a signal is thrown, then `execute()` has happened
+    // successfully and the results have been written.
     if (getSignalStatus()) {
-        FileUtils::delete_directory(this->d_outputPath);
+        FileUtils::delete_directory(this->d_outputPath.c_str());
         return getSignalStatus();
     }
+
     return result.exit_code();
 }
 
@@ -170,32 +215,38 @@ std::unique_ptr<StagedDirectory> Runner::stage(const Digest &digest)
         new FallbackStagedDirectory(digest, this->d_casClient));
 }
 
+std::array<int, 2> Runner::createPipe() const
+{
+    std::array<int, 2> pipe_fds = {0, 0};
+
+    if (pipe(pipe_fds.data()) == -1) {
+        throw std::system_error(errno, std::system_category());
+    }
+
+    markNonBlocking(pipe_fds[0]);
+    return pipe_fds;
+}
+
 void Runner::executeAndStore(std::vector<std::string> command,
                              ActionResult *result)
 {
-    std::stringstream logline;
+    std::ostringstream logline;
     for (const auto &token : command) {
         logline << token << " ";
     }
+
     BUILDBOX_LOG_DEBUG("Executing command: " << logline.str());
-    unsigned long argc = command.size();
-    const char *argv[argc + 1];
+    const auto argc = command.size();
+
+    std::unique_ptr<const char *[]> argv(new const char *[argc + 1]);
     for (unsigned int i = 0; i < argc; ++i) {
         argv[i] = command[i].c_str();
     }
     argv[argc] = nullptr;
 
     // Create pipes for stdout and stderr
-    int stdoutPipeFds[2] = {0};
-    if (pipe(stdoutPipeFds) == -1) {
-        throw std::system_error(errno, std::system_category());
-    }
-    markNonBlocking(stdoutPipeFds[0]);
-    int stderrPipeFds[2] = {0};
-    if (pipe(stderrPipeFds) == -1) {
-        throw std::system_error(errno, std::system_category());
-    }
-    markNonBlocking(stderrPipeFds[0]);
+    auto stdout_pipe = createPipe();
+    auto stderr_pipe = createPipe();
 
     // Fork and exec
     const auto pid = fork();
@@ -204,34 +255,38 @@ void Runner::executeAndStore(std::vector<std::string> command,
     }
     else if (pid == 0) {
         // runs only on the child
-        close(stdoutPipeFds[0]);
-        dup2(stdoutPipeFds[1], STDOUT_FILENO);
-        close(stdoutPipeFds[1]);
+        close(stdout_pipe[0]);
+        dup2(stdout_pipe[1], STDOUT_FILENO);
+        close(stdout_pipe[1]);
 
-        close(stderrPipeFds[0]);
-        dup2(stderrPipeFds[1], STDERR_FILENO);
-        close(stderrPipeFds[1]);
+        close(stderr_pipe[0]);
+        dup2(stderr_pipe[1], STDERR_FILENO);
+        close(stderr_pipe[1]);
 
-        execvp(argv[0], const_cast<char *const *>(argv));
+        execvp(argv[0], const_cast<char *const *>(argv.get()));
         perror(argv[0]);
         _Exit(1);
     }
-    close(stdoutPipeFds[1]);
-    close(stderrPipeFds[1]);
 
-    fd_set fdsToRead;
-    FD_ZERO(&fdsToRead);
-    FD_SET(stdoutPipeFds[0], &fdsToRead);
-    FD_SET(stderrPipeFds[0], &fdsToRead);
+    close(stdout_pipe[1]);
+    close(stderr_pipe[1]);
+
+    fd_set fds_to_read;
+    FD_ZERO(&fds_to_read);
+    FD_SET(stdout_pipe[0], &fds_to_read);
+    FD_SET(stderr_pipe[0], &fds_to_read);
 
     char buffer[4096];
-    while (FD_ISSET(stdoutPipeFds[0], &fdsToRead) ||
-           FD_ISSET(stderrPipeFds[0], &fdsToRead)) {
-        fd_set fdsSuccessfullyRead = fdsToRead;
+    while (FD_ISSET(stdout_pipe[0], &fds_to_read) ||
+           FD_ISSET(stderr_pipe[0], &fds_to_read)) {
+
+        fd_set fdsSuccessfullyRead = fds_to_read;
         select(FD_SETSIZE, &fdsSuccessfullyRead, nullptr, nullptr, nullptr);
-        if (FD_ISSET(stdoutPipeFds[0], &fdsSuccessfullyRead)) {
+
+        if (FD_ISSET(stdout_pipe[0], &fdsSuccessfullyRead)) {
             const auto bytesRead =
-                read(stdoutPipeFds[0], buffer, sizeof(buffer));
+                read(stdout_pipe[0], buffer, sizeof(buffer));
+
             if (bytesRead > 0) {
                 writeAll(STDOUT_FILENO, buffer, bytesRead);
                 // TODO: do we wanna try and handle stdout/stderr that's too
@@ -241,12 +296,14 @@ void Runner::executeAndStore(std::vector<std::string> command,
             }
             else if (!(bytesRead == -1 &&
                        (errno == EINTR || errno == EAGAIN))) {
-                FD_CLR(stdoutPipeFds[0], &fdsToRead);
+                FD_CLR(stdout_pipe[0], &fds_to_read);
             }
         }
-        if (FD_ISSET(stderrPipeFds[0], &fdsSuccessfullyRead)) {
+
+        if (FD_ISSET(stderr_pipe[0], &fdsSuccessfullyRead)) {
             const auto bytesRead =
-                read(stderrPipeFds[0], buffer, sizeof(buffer));
+                read(stderr_pipe[0], buffer, sizeof(buffer));
+
             if (bytesRead > 0) {
                 writeAll(STDERR_FILENO, buffer, bytesRead);
                 // TODO: do we wanna try and handle stdout/stderr that's too
@@ -256,12 +313,13 @@ void Runner::executeAndStore(std::vector<std::string> command,
             }
             else if (!(bytesRead == -1 &&
                        (errno == EINTR || errno == EAGAIN))) {
-                FD_CLR(stderrPipeFds[0], &fdsToRead);
+                FD_CLR(stderr_pipe[0], &fds_to_read);
             }
         }
     }
-    close(stdoutPipeFds[0]);
-    close(stderrPipeFds[0]);
+
+    close(stdout_pipe[0]);
+    close(stderr_pipe[0]);
     BUILDBOX_LOG_DEBUG("Finished reading");
 
     uploadIfNeeded(result->mutable_stdout_raw(),
@@ -293,13 +351,13 @@ bool Runner::parseArguments(int argc, char *argv[])
         else if (arg[0] == '-' && arg[1] == '-') {
             arg += 2;
             if (assign) {
-                long key_len = assign - arg;
+                const auto key_len = static_cast<size_t>(assign - arg);
                 const char *value = assign + 1;
                 if (strncmp(arg, "action", key_len) == 0) {
-                    this->d_inputPath = value;
+                    this->d_inputPath = std::string(value);
                 }
                 else if (strncmp(arg, "action-result", key_len) == 0) {
-                    this->d_outputPath = value;
+                    this->d_outputPath = std::string(value);
                 }
                 else if (strncmp(arg, "log-level", key_len) == 0) {
                     std::string level(value);
@@ -315,7 +373,7 @@ bool Runner::parseArguments(int argc, char *argv[])
                 }
                 else if (strncmp(arg, "log-file", key_len) == 0) {
                     FILE *fp = fopen(value, "w");
-                    if (fp == NULL) {
+                    if (fp == nullptr) {
                         std::cerr << "--log-file: unable to write to "
                                   << std::string(value) << std::endl;
                         return false;
@@ -356,13 +414,22 @@ bool Runner::parseArguments(int argc, char *argv[])
     return true;
 }
 
-void Runner::uploadIfNeeded(std::string *str, Digest *digest)
+void Runner::uploadIfNeeded(std::string *str, Digest *digest) const
 {
     if (str->length() > BUILDBOXCOMMON_RUNNER_MAX_INLINED_OUTPUT) {
         BUILDBOX_LOG_DEBUG("Uploading " << digest->hash());
         *digest = CASHash::hash(*str);
-        this->d_casClient->upload(*str, *digest);
-        BUILDBOX_LOG_DEBUG("Done uploading " << digest->hash());
+
+        try {
+            this->d_casClient->upload(*str, *digest);
+            BUILDBOX_LOG_DEBUG("Done uploading " << digest->hash());
+        }
+        catch (const std::runtime_error &e) {
+            BUILDBOX_LOG_ERROR(
+                "Could not upload stdout/stderr contents, output lost: "
+                << e.what());
+        }
+
         str->clear();
     }
 }

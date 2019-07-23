@@ -83,12 +83,25 @@ class Runner {
      * If the given string is larger than the maximum size, upload it to CAS,
      * store its digest in the given digest pointer, and clear it.
      */
-    void uploadIfNeeded(std::string *str, Digest *digest);
+    void uploadIfNeeded(std::string *str, Digest *digest) const;
 
     ConnectionOptions d_casRemote;
-    const char *d_inputPath;
-    const char *d_outputPath;
+    std::string d_inputPath;
+    std::string d_outputPath;
+
     static volatile sig_atomic_t d_signal_status;
+
+    std::array<int, 2> createPipe() const;
+
+    /**
+     * These helpers `exit(1)` on failures.
+     */
+    void registerSignals() const;
+    Action readAction(const std::string &path) const;
+    void initializeCasClient() const;
+
+    void writeActionResult(const ActionResult &action_result,
+                           const std::string &path) const;
 };
 
 #define BUILDBOX_RUNNER_MAIN(x)                                               \
