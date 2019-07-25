@@ -167,7 +167,8 @@ int FileUtils::write_file_atomically(const std::string &path,
         // directory in `path`.
 
         // `dirname()` modifies its input, so we give it a copy.
-        const char *parent_directory = dirname(strdup(path.c_str()));
+        std::vector<char> output_path(path.cbegin(), path.end());
+        const char *parent_directory = dirname(&output_path[0]);
         temporary_directory = std::string(parent_directory);
     }
 
