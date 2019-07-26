@@ -723,23 +723,36 @@ Client::findMissingBlobs(const std::vector<Digest> &digests)
     FindMissingBlobsRequest request;
     request.set_instance_name(d_instanceName);
 
-    for (const auto &digest : digests) {
+    // We take the given digests and split them across requests to not exceed
+    // the maximum size of a gRPC message:
+    std::vector<FindMissingBlobsRequest> requests_to_issue;
+    for (const Digest &digest : digests) {
+        if (request.ByteSizeLong() + digest.ByteSizeLong() >
+            BYTESTREAM_CHUNK_SIZE) {
+            requests_to_issue.push_back(request);
+            request.clear_blob_digests();
+        }
+
         auto entry = request.add_blob_digests();
         entry->CopyFrom(digest);
     }
-
-    FindMissingBlobsResponse response;
-    const auto status =
-        this->d_casClient->FindMissingBlobs(&context, request, &response);
-
-    if (!status.ok()) {
-        throw std::runtime_error("FindMissingBlobs() request failed.");
-    }
+    requests_to_issue.push_back(request);
 
     std::vector<Digest> missing_blobs;
-    for (const auto &digest : response.missing_blob_digests()) {
-        missing_blobs.push_back(digest);
+    for (const auto &request_to_issue : requests_to_issue) {
+        FindMissingBlobsResponse response;
+        const auto status = this->d_casClient->FindMissingBlobs(
+            &context, request_to_issue, &response);
+
+        if (!status.ok()) {
+            throw std::runtime_error("FindMissingBlobs() request failed.");
+        }
+
+        missing_blobs.insert(missing_blobs.end(),
+                             response.missing_blob_digests().cbegin(),
+                             response.missing_blob_digests().cend());
     }
+
     return missing_blobs;
 }
 
