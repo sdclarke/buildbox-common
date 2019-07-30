@@ -15,6 +15,7 @@
  */
 
 #include <buildboxcommon_connectionoptions.h>
+#include <buildboxcommon_fileutils.h>
 #include <buildboxcommon_logging.h>
 
 #include <cerrno>
@@ -33,33 +34,6 @@ namespace {
 static const char *HTTP_PREFIX = "http://";
 static const char *HTTPS_PREFIX = "https://";
 static const char *UNIX_SOCKET_PREFIX = "unix:";
-
-static std::string getFileContents(const char *filename)
-{
-    std::ifstream in(filename, std::ios::in | std::ios::binary);
-    if (!in) {
-        throw std::runtime_error(std::string("Failed to open file ") +
-                                 filename + std::string(": ") +
-                                 std::strerror(errno));
-    }
-
-    std::string contents;
-
-    in.seekg(0, std::ios::end);
-    contents.resize(in.tellg());
-
-    in.seekg(0, std::ios::beg);
-    in.read(&contents[0], contents.size());
-    if (!in) {
-        in.close();
-        throw std::runtime_error(std::string("Failed to read file ") +
-                                 filename + std::string(": ") +
-                                 std::strerror(errno));
-    }
-
-    in.close();
-    return contents;
-}
 
 static void printPadded(int padWidth, const std::string &str)
 {
@@ -170,19 +144,22 @@ std::shared_ptr<grpc::Channel> ConnectionOptions::createChannel() const
             options.pem_root_certs = this->d_serverCert;
         }
         else if (this->d_serverCertPath) {
-            options.pem_root_certs = getFileContents(this->d_serverCertPath);
+            options.pem_root_certs =
+                FileUtils::get_file_contents(this->d_serverCertPath);
         }
         if (this->d_clientKey) {
             options.pem_private_key = this->d_clientKey;
         }
         else if (this->d_clientKeyPath) {
-            options.pem_private_key = getFileContents(this->d_clientKeyPath);
+            options.pem_private_key =
+                FileUtils::get_file_contents(this->d_clientKeyPath);
         }
         if (this->d_clientCert) {
             options.pem_cert_chain = this->d_clientCert;
         }
         else if (this->d_clientCertPath) {
-            options.pem_cert_chain = getFileContents(this->d_clientCertPath);
+            options.pem_cert_chain =
+                FileUtils::get_file_contents(this->d_clientCertPath);
         }
         target = this->d_url + strlen(HTTPS_PREFIX);
         creds = grpc::SslCredentials(options);
