@@ -18,6 +18,21 @@
 #include <functional>
 
 namespace buildboxcommon {
+
+class GrpcError : public std::runtime_error {
+  public:
+    explicit GrpcError(const char *message, const grpc::Status &_status)
+        : std::runtime_error(message), status(_status)
+    {
+    }
+    explicit GrpcError(const std::string &message, const grpc::Status &_status)
+        : std::runtime_error(message), status(_status)
+    {
+    }
+
+    grpc::Status status;
+};
+
 /**
  * Call a GRPC method. On failure, retry up to RECC_RETRY_LIMIT times,
  * using binary exponential backoff to delay between calls.

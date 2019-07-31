@@ -71,9 +71,10 @@ void grpcRetry(
         }
     } while (nAttempts < grpcRetryLimit + 1);
 
-    throw std::runtime_error("Retry limit exceeded. Last gRPC error was " +
-                             std::to_string(status.error_code()) + ": " +
-                             status.error_message());
+    throw GrpcError("Retry limit exceeded. Last gRPC error was " +
+                        std::to_string(status.error_code()) + ": " +
+                        status.error_message(),
+                    status);
 }
 
 } // namespace buildboxcommon
