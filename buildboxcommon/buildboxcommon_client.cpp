@@ -375,10 +375,10 @@ void Client::upload(int fd, const Digest &digest)
               this->d_metadata_attach_function);
 }
 
-Client::UploadResults
+std::vector<Client::UploadResult>
 Client::uploadBlobs(const std::vector<UploadRequest> &requests)
 {
-    UploadResults results;
+    std::vector<Client::UploadResult> results;
 
     // We first sort the requests by their sizes in ascending order, so
     // that we can then iterate through that result greedily trying to add
@@ -401,10 +401,10 @@ Client::uploadBlobs(const std::vector<UploadRequest> &requests)
         const size_t batch_start = batch_range.first;
         const size_t batch_end = batch_range.second;
 
-        const std::vector<Digest> digests_not_uploaded =
+        const std::vector<Client::UploadResult> digests_not_uploaded =
             batchUpload(request_list, batch_start, batch_end);
-        for (const auto &digest : digests_not_uploaded) {
-            results.push_back(digest);
+        for (const auto &upload_result : digests_not_uploaded) {
+            results.push_back(upload_result);
         }
     }
 
@@ -423,8 +423,13 @@ Client::uploadBlobs(const std::vector<UploadRequest> &requests)
         try {
             upload(request_list[d].data, request_list[d].digest);
         }
-        catch (const std::runtime_error &) {
-            results.push_back(request_list[d].digest);
+        catch (const GrpcError &e) {
+            results.emplace_back(request_list[d].digest, e.status);
+        }
+        catch (const std::runtime_error &e) {
+            results.emplace_back(
+                request_list[d].digest,
+                grpc::Status(grpc::StatusCode::INTERNAL, e.what()));
         }
     }
 
@@ -607,7 +612,7 @@ CaptureTreeResponse Client::capture(const std::vector<std::string> &paths,
     return response;
 }
 
-Client::UploadResults
+std::vector<Client::UploadResult>
 Client::batchUpload(const std::vector<UploadRequest> &requests,
                     const size_t start_index, const size_t end_index)
 {
@@ -633,10 +638,13 @@ Client::batchUpload(const std::vector<UploadRequest> &requests,
     grpcRetry(batchUploadLamda, this->d_grpcRetryLimit, this->d_grpcRetryDelay,
               this->d_metadata_attach_function);
 
-    UploadResults results;
+    std::vector<Client::UploadResult> results;
     for (const auto &uploadResponse : response.responses()) {
         if (uploadResponse.status().code() != GRPC_STATUS_OK) {
-            results.push_back(uploadResponse.digest());
+            results.emplace_back(
+                uploadResponse.digest(),
+                grpc::Status(grpc::StatusCode(uploadResponse.status().code()),
+                             uploadResponse.status().message()));
         }
     }
     return results;
@@ -756,8 +764,8 @@ Client::findMissingBlobs(const std::vector<Digest> &digests)
     return missing_blobs;
 }
 
-Client::UploadResults Client::uploadDirectory(const std::string &path,
-                                              Digest *root_directory_digest)
+std::vector<Client::UploadResult>
+Client::uploadDirectory(const std::string &path, Digest *root_directory_digest)
 {
     // Recursing through the directory and building a map:
     digest_string_map directory_map;

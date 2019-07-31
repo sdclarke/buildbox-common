@@ -138,15 +138,23 @@ class Client {
             : digest(_digest), data(_data){};
     };
 
-    typedef std::vector<Digest> UploadResults;
+    struct UploadResult {
+        Digest digest;
+        grpc::Status status;
+
+        UploadResult(const Digest &_digest, const grpc::Status &_status)
+            : digest(_digest), status(_status){};
+    };
 
     /* Upload multiple digests in an efficient way, allowing each digest to
      * potentially fail separately.
      *
-     * Return a list containing the Digests that failed to be uploaded.
-     * (An empty result indicates that all digests were uploaded.)
+     * Return a list containing the Digests that failed to be uploaded and the
+     * errors they received. (An empty result indicates that all digests were
+     * uploaded.)
      */
-    UploadResults uploadBlobs(const std::vector<UploadRequest> &requests);
+    std::vector<UploadResult>
+    uploadBlobs(const std::vector<UploadRequest> &requests);
 
     typedef std::unordered_map<std::string, std::string> DownloadedData;
 
@@ -189,8 +197,9 @@ class Client {
      * If the optional `directory_digest` pointer is provided, the Digest of
      * the uploaded directory is copied to it.
      */
-    UploadResults uploadDirectory(const std::string &path,
-                                  Digest *directory_digest = nullptr);
+    std::vector<UploadResult>
+    uploadDirectory(const std::string &path,
+                    Digest *directory_digest = nullptr);
 
     /*
      * Send a LocalCas protocol `Capture()` request containing the given paths.
@@ -291,9 +300,9 @@ class Client {
      * The sum of bytes of the data in this range MUST NOT exceed the
      * maximum batch size request allowed.
      */
-    UploadResults batchUpload(const std::vector<UploadRequest> &requests,
-                              const size_t start_index,
-                              const size_t end_index);
+    std::vector<UploadResult>
+    batchUpload(const std::vector<UploadRequest> &requests,
+                const size_t start_index, const size_t end_index);
 
     /* Downloads the data for the Digests stored in the range
      * [start_index, end_index) of the given vector.

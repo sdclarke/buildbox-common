@@ -484,12 +484,12 @@ TEST_F(ClientTestFixture, UploadBlobsReturnsFailures)
     const auto failed_uploads = this->uploadBlobs(requests);
 
     ASSERT_EQ(failed_uploads.size(), 2);
-    ASSERT_EQ(
-        std::count(hashes.cbegin(), hashes.cend(), failed_uploads[0].hash()),
-        1);
-    ASSERT_EQ(
-        std::count(hashes.cbegin(), hashes.cend(), failed_uploads[1].hash()),
-        1);
+    ASSERT_EQ(std::count(hashes.cbegin(), hashes.cend(),
+                         failed_uploads[0].digest.hash()),
+              1);
+    ASSERT_EQ(std::count(hashes.cbegin(), hashes.cend(),
+                         failed_uploads[1].digest.hash()),
+              1);
 }
 
 TEST_F(ClientTestFixture, CaptureDirectory)
