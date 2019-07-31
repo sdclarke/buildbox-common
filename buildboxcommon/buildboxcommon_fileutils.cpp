@@ -138,19 +138,22 @@ void FileUtils::make_executable(const char *path)
 
 std::string FileUtils::get_file_contents(const char *path)
 {
-    std::string contents;
-    std::ifstream fileStream;
-    fileStream.exceptions(std::ifstream::failbit | std::ifstream::badbit);
-    fileStream.open(path, std::ios::in | std::ios::binary);
-    auto start = fileStream.tellg();
-    fileStream.seekg(0, std::ios::end);
-    auto size = fileStream.tellg() - start;
-    contents.resize(size);
-    fileStream.seekg(start);
-    if (fileStream) {
-        fileStream.read(&contents[0], contents.length());
+    std::ifstream file_stream(path, std::ios::in | std::ios::binary);
+    if (file_stream.bad() || file_stream.fail()) {
+        throw std::runtime_error("Failed to open file " + std::string(path) +
+                                 ": " + std::strerror(errno));
     }
-    return contents;
+
+    std::ostringstream file_stringstream;
+    file_stringstream << file_stream.rdbuf();
+    if (file_stream.bad()) {
+        throw std::runtime_error("Failed to read file " + std::string(path) +
+                                 ": " + std::strerror(errno));
+    }
+    // (`std::stringstream::failbit` is set if the opened file reached EOF.
+    // That is not an error: we can read empty files.)
+
+    return file_stringstream.str();
 }
 
 int FileUtils::write_file_atomically(const std::string &path,
