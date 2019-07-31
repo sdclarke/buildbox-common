@@ -263,9 +263,29 @@ void Runner::executeAndStore(std::vector<std::string> command,
         dup2(stderr_pipe[1], STDERR_FILENO);
         close(stderr_pipe[1]);
 
-        execvp(argv[0], const_cast<char *const *>(argv.get()));
+        const int exec_status =
+            execvp(argv[0], const_cast<char *const *>(argv.get()));
+
+        // The lines below will only be executed if `execvp()` failed.
+        int exit_code = 1;
+        if (exec_status != 0) {
+            const auto exec_error = errno;
+            BUILDBOX_LOG_ERROR("Error while calling `execvp("
+                               << logline.str()
+                               << ")`: " << strerror(exec_error));
+
+            // Following the Bash convention for exit codes.
+            // (https://gnu.org/software/bash/manual/html_node/Exit-Status.html)
+            if (exec_error == ENOENT) {
+                exit_code = 127; // "command not found"
+            }
+            else {
+                exit_code = 126; // Command invoked cannot execute
+            }
+        }
+
         perror(argv[0]);
-        _Exit(1);
+        _Exit(exit_code);
     }
 
     close(stdout_pipe[1]);
@@ -331,7 +351,31 @@ void Runner::executeAndStore(std::vector<std::string> command,
     if (waitpid(pid, &status, 0) == -1) {
         throw std::system_error(errno, std::system_category());
     }
-    result->set_exit_code(WEXITSTATUS(status));
+
+    if (WIFEXITED(status)) {
+        result->set_exit_code(WEXITSTATUS(status));
+    }
+    else if (WIFSIGNALED(status)) {
+        result->set_exit_code(128 + WTERMSIG(status));
+        // Exit code as returned by Bash.
+        // (https://gnu.org/software/bash/manual/html_node/Exit-Status.html)
+    }
+    else {
+        /* According to the documentation for `waitpid()` we should never get
+         * here:
+         *
+         * "If the information pointed to by stat_loc was stored by a call to
+         * waitpid() that did not specify the WUNTRACED  or
+         * CONTINUED flags, or by a call to the wait() function,
+         * exactly one of the macros WIFEXITED(*stat_loc) and
+         * WIFSIGNALED(*stat_loc) shall evaluate to a non-zero value."
+         *
+         * (https://pubs.opengroup.org/onlinepubs/009695399/functions/wait.html)
+         */
+        throw std::runtime_error(
+            "`waitpid()` returned an unexpected status: " +
+            std::to_string(status));
+    }
 }
 
 bool Runner::parseArguments(int argc, char *argv[])
