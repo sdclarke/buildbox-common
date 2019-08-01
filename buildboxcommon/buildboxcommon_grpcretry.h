@@ -40,6 +40,9 @@ class GrpcError : public std::runtime_error {
  * As input, takes a function that takes a grpc::ClientContext and returns a
  * grpc::Status.
  *
+ * In the second form, also takes a function that can preprocess the context by
+ * attaching metadata, setting a timeout, etc.
+ *
  */
 
 void grpcRetry(
