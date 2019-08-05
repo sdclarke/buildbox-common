@@ -173,7 +173,7 @@ void FallbackStagedDirectory::downloadDirectory(const Digest &digest,
         this->d_casClient->downloadDirectory(digest, path);
     }
     catch (const std::exception &e) {
-        BUILDBOX_LOG_DEBUG("Could not download directory with digest"
+        BUILDBOX_LOG_DEBUG("Could not download directory with digest "
                            << toString(digest) << " to " << path << ": "
                            << e.what());
         throw;
