@@ -175,12 +175,22 @@ int FileUtils::write_file_atomically(const std::string &path,
         temporary_directory = std::string(parent_directory);
     }
 
-    buildboxcommon::TemporaryFile temp_file(temporary_directory.c_str(),
-                                            prefix.c_str(), mode);
+    std::unique_ptr<buildboxcommon::TemporaryFile> temp_file = nullptr;
+    try {
+        temp_file = std::make_unique<buildboxcommon::TemporaryFile>(
+            temporary_directory.c_str(), prefix.c_str(), mode);
+    }
+    catch (const std::system_error &e) {
+        BUILDBOX_LOG_ERROR("Error creating intermediate file in " +
+                           temporary_directory + " for atomic write to " +
+                           path + ": " + std::string(e.what()));
+        throw e;
+    }
+
     // `temp_file`'s destructor will `unlink()` the created file, removing it
     // from the temporary directory.
 
-    const std::string temp_filename = temp_file.name();
+    const std::string temp_filename = temp_file->name();
 
     // Writing the data to it:
     std::ofstream file(temp_filename, std::fstream::binary);
