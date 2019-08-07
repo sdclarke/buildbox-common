@@ -16,6 +16,7 @@
 
 #include <buildboxcommon_runner.h>
 
+#include <buildboxcommon_temporaryfile.h>
 #include <fcntl.h>
 #include <gtest/gtest.h>
 
@@ -46,6 +47,25 @@ TEST(RunnerTest, ExecuteAndStoreHelloWorld)
     EXPECT_EQ(result.stdout_raw(), "hello world\n");
     EXPECT_EQ(result.stderr_raw(), "");
     EXPECT_EQ(result.exit_code(), 0);
+}
+
+TEST(RunnerTest, CommandNotFound)
+{
+    TestRunner runner;
+    ActionResult result;
+
+    runner.executeAndStore({"command-does-not-exist"}, &result);
+    EXPECT_EQ(result.exit_code(), 127); // "command not found" as in Bash
+}
+
+TEST(RunnerTest, CommandIsNotAnExecutable)
+{
+    TestRunner runner;
+    ActionResult result;
+
+    TemporaryFile non_executable_file;
+    runner.executeAndStore({non_executable_file.name()}, &result);
+    EXPECT_EQ(result.exit_code(), 126); // Command invoked cannot execute
 }
 
 TEST(RunnerTest, ExecuteAndStoreExitCode)
