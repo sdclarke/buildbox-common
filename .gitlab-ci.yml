@@ -70,6 +70,7 @@ e2e:
     image: registry.gitlab.com/buildgrid/buildbox/buildbox-e2e:latest
     stage: test
     dependencies: []
+    allow_failure: true
     script:
         - BUILDBOX_COMMON_SOURCE_ROOT=`pwd` end-to-end-test.sh
 
