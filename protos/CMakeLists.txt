@@ -9,6 +9,7 @@ if (NOT GRPC_CPP_PLUGIN)
 endif()
 
 set(PROTO_GEN_DIR ${CMAKE_CURRENT_BINARY_DIR})
+set(PROTO_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(PROTOS
     build/bazel/remote/execution/v2/remote_execution
     build/bazel/semver/semver
@@ -39,3 +40,5 @@ endforeach()
 add_custom_target(generate_protobufs DEPENDS ${PROTO_GENERATED_SRCS})
 set(PROTO_GEN_DIR ${PROTO_GEN_DIR} PARENT_SCOPE)
 set(PROTO_GENERATED_SRCS ${PROTO_GENERATED_SRCS} PARENT_SCOPE)
+set(PROTO_SOURCE_DIR ${PROTO_SOURCE_DIR} PARENT_SCOPE)
+

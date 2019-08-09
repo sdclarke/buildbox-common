@@ -90,11 +90,11 @@ install(
 
 file(GLOB BUILDBOXCOMMON_H "buildboxcommon/*.h")
 
-install(FILES
-    ${BUILDBOXCOMMON_H}
-    DESTINATION include/buildbox)
+install(FILES ${BUILDBOXCOMMON_H} DESTINATION include/buildbox)
 install(DIRECTORY ${PROTO_GEN_DIR}/google DESTINATION include/buildbox FILES_MATCHING PATTERN "*.h*")
+install(DIRECTORY ${PROTO_SOURCE_DIR}/google DESTINATION include/buildbox FILES_MATCHING PATTERN "*.proto")
 install(DIRECTORY ${PROTO_GEN_DIR}/build DESTINATION include/buildbox FILES_MATCHING PATTERN "*.h*")
+install(DIRECTORY ${PROTO_SOURCE_DIR}/build DESTINATION include/buildbox FILES_MATCHING PATTERN "*.proto")
 
 include(CMakePackageConfigHelpers)
 write_basic_package_version_file(
@@ -107,8 +107,8 @@ export(EXPORT BuildboxCommonTargets
     NAMESPACE Buildbox::
 )
 configure_file(cmake/BuildboxCommonConfig.cmake
-  "${CMAKE_CURRENT_BINARY_DIR}/BuildboxCommon/BuildboxCommonConfig.cmake"
-  COPYONLY
+    "${CMAKE_CURRENT_BINARY_DIR}/BuildboxCommon/BuildboxCommonConfig.cmake"
+    COPYONLY
 )
 install(
     EXPORT BuildboxCommonTargets
@@ -129,3 +129,4 @@ if(BUILD_TESTING)
     include_directories(third_party/grpc/include)
     add_subdirectory(test)
 endif()
+
