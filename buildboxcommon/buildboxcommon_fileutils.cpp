@@ -172,6 +172,14 @@ int FileUtils::write_file_atomically(const std::string &path,
         // `dirname()` modifies its input, so we give it a copy.
         std::vector<char> output_path(path.cbegin(), path.end());
         const char *parent_directory = dirname(&output_path[0]);
+
+        if (parent_directory == nullptr) {
+            throw std::system_error(
+                errno, std::system_category(),
+                "Could not determine intermediate "
+                "directory with `dirname(3)` for atomic write to " +
+                    path);
+        }
         temporary_directory = std::string(parent_directory);
     }
 
