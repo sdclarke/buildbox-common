@@ -38,7 +38,10 @@ class CASHash {
     /**
      * Return a `DigestFunction` message specifying the hash function used.
      */
-    static DigestFunction digestFunction() { return DigestFunction::SHA256; }
+    static DigestFunction_Value digestFunction()
+    {
+        return DigestFunction::SHA256;
+    }
 };
 } // namespace buildboxcommon
 
