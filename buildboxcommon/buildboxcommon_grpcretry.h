@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef INCLUDED_BUILDBOXCOMMON_GRPCRETRY
+#define INCLUDED_BUILDBOXCOMMON_GRPCRETRY
+
 #include <buildboxcommon_protos.h>
 #include <buildboxcommon_requestmetadata.h>
 
@@ -55,3 +58,5 @@ void grpcRetry(
     const std::function<void(grpc::ClientContext *)> &metadataAttacher);
 
 } // namespace buildboxcommon
+
+#endif
