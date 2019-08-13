@@ -33,6 +33,11 @@ struct ConnectionOptions {
     const char *d_clientKeyPath = nullptr;
     const char *d_clientCert = nullptr;
     const char *d_clientCertPath = nullptr;
+
+    /*
+     * These are strings to allow for easier
+     * propagation from the worker to the runner.
+     */
     const char *d_retryLimit = "0";
     const char *d_retryDelay = "100";
 
