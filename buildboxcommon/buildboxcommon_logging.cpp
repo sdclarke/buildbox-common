@@ -18,7 +18,10 @@
 
 #include <iomanip>
 #include <libgen.h>
+#include <pthread.h>
+#include <sys/types.h>
 #include <time.h>
+#include <unistd.h>
 
 namespace buildboxcommon {
 
@@ -56,23 +59,35 @@ void LoggerState::setLogStream(std::ostream &stream)
     d_os = std::make_shared<std::ostream>(stream.rdbuf());
 }
 
-/* Helper function for writePrefixIfNecessary below */
+// Helper function for writePrefixIfNecessary below
 std::string getBasename(const std::string &fullPath)
 {
     size_t startAt = std::max<size_t>(fullPath.find_last_of("/") + 1, 0);
     return fullPath.substr(startAt);
 }
 
-void writePrefixIfNecessary(std::ostream &os, const std::string file,
-                            const std::string &func)
+// 'file' purposely passed in by value
+void writePrefixIfNecessary(std::ostream &os, const std::string &severity,
+                            const std::string file, const int lineNumber)
 {
-    std::time_t now = std::time(nullptr);
-    struct tm localtime;
-    localtime_r(&now, &localtime);
     if (LoggerState::getInstance().isPrefixEnabled()) {
-        os << std::put_time(&localtime, "%F %T") << " " << getBasename(file)
-           << ":" << func << " ";
+        const std::chrono::system_clock::time_point now =
+            std::chrono::system_clock::now();
+        const time_t nowAsTimeT = std::chrono::system_clock::to_time_t(now);
+        const std::chrono::milliseconds nowMs =
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                now.time_since_epoch()) %
+            1000;
+        struct tm localtime;
+        localtime_r(&nowAsTimeT, &localtime);
+
+        os << std::put_time(&localtime, "%FT%T") << '.' << std::setfill('0')
+           << std::setw(3) << nowMs.count() << std::put_time(&localtime, "%z")
+           << " [" << getpid() << ":" << pthread_self() << "] [ " << file
+           << ":" << lineNumber << "] ";
     }
+
+    os << "[" << severity << "] ";
 }
 
 } // namespace buildboxcommon
