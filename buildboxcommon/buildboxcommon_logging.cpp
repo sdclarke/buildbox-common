@@ -24,6 +24,38 @@
 #include <unistd.h>
 
 namespace buildboxcommon {
+namespace {
+
+class StreamGuard {
+  public:
+    StreamGuard(std::ostream &os)
+        : d_stream(os), d_flags(os.flags()), d_prec(os.precision()),
+          d_width(os.width()), d_fill(os.fill())
+    {
+    }
+
+    ~StreamGuard() { reset(); }
+    void reset()
+    {
+        d_stream.flags(d_flags);
+        d_stream.precision(d_prec);
+        d_stream.width(d_width);
+        d_stream.fill(d_fill);
+    }
+
+  private:
+    std::ostream &d_stream;
+    std::ios_base::fmtflags d_flags;
+    std::streamsize d_prec;
+    std::streamsize d_width;
+    std::ostream::char_type d_fill;
+
+    // NOT IMPLEMENTED
+    StreamGuard(const StreamGuard &);
+    StreamGuard &operator=(const StreamGuard &);
+};
+
+} // namespace
 
 namespace logging {
 std::string stringifyLogLevels()
@@ -81,10 +113,11 @@ void writePrefixIfNecessary(std::ostream &os, const std::string &severity,
         struct tm localtime;
         localtime_r(&nowAsTimeT, &localtime);
 
+        StreamGuard guard(os);
         os << std::put_time(&localtime, "%FT%T") << '.' << std::setfill('0')
            << std::setw(3) << nowMs.count() << std::put_time(&localtime, "%z")
-           << " [" << getpid() << ":" << pthread_self() << "] [ " << file
-           << ":" << lineNumber << "] ";
+           << " [" << getpid() << ":" << pthread_self() << "] ["
+           << getBasename(file) << ":" << lineNumber << "] ";
     }
 
     os << "[" << severity << "] ";
