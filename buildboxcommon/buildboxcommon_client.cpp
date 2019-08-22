@@ -33,7 +33,9 @@
 
 namespace buildboxcommon {
 
-#define BYTESTREAM_CHUNK_SIZE (1024 * 1024)
+const size_t Client::s_bytestreamChunkSizeBytes = 1024 * 1024;
+// The default limit for gRPC messages is 4 MiB.
+// Limit payload to 1 MiB to leave sufficient headroom for metadata.
 
 void Client::init(const ConnectionOptions &options)
 {
@@ -70,9 +72,7 @@ void Client::init(
     this->d_localCasClient = localCasClient;
     this->d_capabilitiesClient = capabilitiesClient;
 
-    // The default limit for gRPC messages is 4 MiB.
-    // Limit payload to 1 MiB to leave sufficient headroom for metadata.
-    this->d_maxBatchTotalSizeBytes = BYTESTREAM_CHUNK_SIZE;
+    this->d_maxBatchTotalSizeBytes = s_bytestreamChunkSizeBytes;
 
     auto getCapabilitiesLambda = [&](grpc::ClientContext &context) {
         GetCapabilitiesRequest request;
@@ -298,8 +298,7 @@ void Client::upload(const std::string &str, const Digest &digest)
                 static_cast<google::protobuf::int64>(offset));
 
             const size_t uploadLength =
-                std::min(static_cast<size_t>(BYTESTREAM_CHUNK_SIZE),
-                         str.length() - offset);
+                std::min(s_bytestreamChunkSizeBytes, str.length() - offset);
 
             request.set_data(&str[offset], uploadLength);
             offset += uploadLength;
@@ -337,7 +336,7 @@ void Client::upload(const std::string &str, const Digest &digest)
 
 void Client::upload(int fd, const Digest &digest)
 {
-    std::vector<char> buffer(BYTESTREAM_CHUNK_SIZE);
+    std::vector<char> buffer(s_bytestreamChunkSizeBytes);
     BUILDBOX_LOG_DEBUG("Uploading " << digest.hash() << " from file");
 
     const std::string resourceName = this->makeResourceName(digest, true);
@@ -352,7 +351,7 @@ void Client::upload(int fd, const Digest &digest)
         bool lastChunk = false;
         while (!lastChunk) {
             const ssize_t bytesRead =
-                read(fd, &buffer[0], BYTESTREAM_CHUNK_SIZE);
+                read(fd, &buffer[0], s_bytestreamChunkSizeBytes);
             if (bytesRead < 0) {
                 throw std::system_error(errno, std::generic_category());
             }
@@ -752,7 +751,7 @@ Client::findMissingBlobs(const std::vector<Digest> &digests)
     std::vector<FindMissingBlobsRequest> requests_to_issue;
     for (const Digest &digest : digests) {
         if (request.ByteSizeLong() + digest.ByteSizeLong() >
-            BYTESTREAM_CHUNK_SIZE) {
+            s_bytestreamChunkSizeBytes) {
             requests_to_issue.push_back(request);
             request.clear_blob_digests();
         }
