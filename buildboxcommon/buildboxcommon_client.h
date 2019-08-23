@@ -123,7 +123,7 @@ class Client {
      * Upload the given string. If it can't be uploaded successfully, throw
      * an exception.
      */
-    void upload(const std::string &str, const Digest &digest);
+    void upload(const std::string &data, const Digest &digest);
 
     /**
      * Upload a blob from the given file descriptor. If it can't be uploaded

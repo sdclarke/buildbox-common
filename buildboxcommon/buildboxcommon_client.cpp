@@ -269,17 +269,16 @@ void Client::downloadDirectory(const Digest &digest, const std::string &path)
     }
 }
 
-void Client::upload(const std::string &str, const Digest &digest)
+void Client::upload(const std::string &data, const Digest &digest)
 {
     BUILDBOX_LOG_DEBUG("Uploading " << digest.hash() << " from string");
-    const auto string_length =
-        static_cast<google::protobuf::int64>(str.length());
+    const auto data_size = static_cast<google::protobuf::int64>(data.size());
 
-    if (string_length != digest.size_bytes()) {
+    if (data_size != digest.size_bytes()) {
         std::ostringstream errorMsg;
         errorMsg << "Digest length of " << digest.size_bytes() << " bytes for "
                  << digest.hash() << " does not match string length of "
-                 << str.length() << " bytes";
+                 << data_size << " bytes";
         throw std::logic_error(errorMsg.str());
     }
 
@@ -298,12 +297,12 @@ void Client::upload(const std::string &str, const Digest &digest)
                 static_cast<google::protobuf::int64>(offset));
 
             const size_t uploadLength =
-                std::min(s_bytestreamChunkSizeBytes, str.length() - offset);
+                std::min(s_bytestreamChunkSizeBytes, data.size() - offset);
 
-            request.set_data(&str[offset], uploadLength);
+            request.set_data(&data[offset], uploadLength);
             offset += uploadLength;
 
-            lastChunk = (offset == str.length());
+            lastChunk = (offset == data.size());
             if (lastChunk) {
                 request.set_finish_write(lastChunk);
             }
