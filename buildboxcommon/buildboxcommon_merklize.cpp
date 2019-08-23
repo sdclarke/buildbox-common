@@ -12,14 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <buildboxcommon_fileutils.h>
 #include <buildboxcommon_merklize.h>
+
+#include <buildboxcommon_cashash.h>
+#include <buildboxcommon_fileutils.h>
 
 #include <cerrno>
 #include <cstring>
 #include <dirent.h>
 #include <iostream>
-#include <openssl/evp.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <system_error>
@@ -124,35 +125,7 @@ Tree NestedDirectory::to_tree() const
     return result;
 }
 
-const auto HASH_ALGORITHM = EVP_sha256();
-const unsigned char HEX_DIGITS[] = "0123456789abcdef";
-
-Digest make_digest(const std::string &blob)
-{
-    Digest result;
-
-    // Calculate the hash.
-    auto hashContext = EVP_MD_CTX_create();
-    EVP_DigestInit(hashContext, HASH_ALGORITHM);
-    EVP_DigestUpdate(hashContext, &blob[0], blob.length());
-
-    // Store the hash in a char array.
-    int hashSize = EVP_MD_size(HASH_ALGORITHM);
-    unsigned char hash[hashSize];
-    EVP_DigestFinal_ex(hashContext, hash, nullptr);
-    EVP_MD_CTX_destroy(hashContext);
-
-    //  Convert the hash to hexadecimal.
-    std::string hashHex(hashSize * 2, '\0');
-    for (int i = 0; i < hashSize; ++i) {
-        hashHex[i * 2] = HEX_DIGITS[hash[i] >> 4];
-        hashHex[i * 2 + 1] = HEX_DIGITS[hash[i] & 0xF];
-    }
-
-    result.set_hash(hashHex);
-    result.set_size_bytes(blob.length());
-    return result;
-}
+Digest make_digest(const std::string &blob) { return CASHash::hash(blob); }
 
 NestedDirectory make_nesteddirectory(const char *path,
                                      digest_string_map *fileMap)
