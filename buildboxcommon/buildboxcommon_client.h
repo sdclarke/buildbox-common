@@ -285,12 +285,9 @@ class Client {
         return digest;
     }
 
-    std::string instanceName() const { return d_instanceName; }
+    std::string instanceName() const;
 
-    void setInstanceName(const std::string &instance_name)
-    {
-        d_instanceName = instance_name;
-    }
+    void setInstanceName(const std::string &instance_name);
 
   private:
     std::string makeResourceName(const Digest &digest, bool is_upload);

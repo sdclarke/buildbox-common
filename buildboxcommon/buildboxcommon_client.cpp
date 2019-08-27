@@ -111,6 +111,13 @@ void Client::init(
     uuid_unparse_lower(uu, &this->d_uuid[0]);
 }
 
+std::string Client::instanceName() const { return d_instanceName; }
+
+void Client::setInstanceName(const std::string &instance_name)
+{
+    d_instanceName = instance_name;
+}
+
 void Client::set_tool_details(const std::string &tool_name,
                               const std::string &tool_version)
 {
