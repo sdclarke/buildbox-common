@@ -72,7 +72,8 @@ void Client::init(
     this->d_localCasClient = localCasClient;
     this->d_capabilitiesClient = capabilitiesClient;
 
-    this->d_maxBatchTotalSizeBytes = s_bytestreamChunkSizeBytes;
+    this->d_maxBatchTotalSizeBytes =
+        static_cast<int64_t>(bytestreamChunkSizeBytes());
 
     auto getCapabilitiesLambda = [&](grpc::ClientContext &context) {
         GetCapabilitiesRequest request;
@@ -116,6 +117,11 @@ std::string Client::instanceName() const { return d_instanceName; }
 void Client::setInstanceName(const std::string &instance_name)
 {
     d_instanceName = instance_name;
+}
+
+size_t Client::bytestreamChunkSizeBytes()
+{
+    return s_bytestreamChunkSizeBytes;
 }
 
 void Client::set_tool_details(const std::string &tool_name,
@@ -304,7 +310,7 @@ void Client::upload(const std::string &data, const Digest &digest)
                 static_cast<google::protobuf::int64>(offset));
 
             const size_t uploadLength =
-                std::min(s_bytestreamChunkSizeBytes, data.size() - offset);
+                std::min(bytestreamChunkSizeBytes(), data.size() - offset);
 
             request.set_data(&data[offset], uploadLength);
             offset += uploadLength;
@@ -342,7 +348,7 @@ void Client::upload(const std::string &data, const Digest &digest)
 
 void Client::upload(int fd, const Digest &digest)
 {
-    std::vector<char> buffer(s_bytestreamChunkSizeBytes);
+    std::vector<char> buffer(bytestreamChunkSizeBytes());
     BUILDBOX_LOG_DEBUG("Uploading " << digest.hash() << " from file");
 
     const std::string resourceName = this->makeResourceName(digest, true);
@@ -357,7 +363,7 @@ void Client::upload(int fd, const Digest &digest)
         bool lastChunk = false;
         while (!lastChunk) {
             const ssize_t bytesRead =
-                read(fd, &buffer[0], s_bytestreamChunkSizeBytes);
+                read(fd, &buffer[0], bytestreamChunkSizeBytes());
             if (bytesRead < 0) {
                 throw std::system_error(errno, std::generic_category());
             }
@@ -757,7 +763,7 @@ Client::findMissingBlobs(const std::vector<Digest> &digests)
     std::vector<FindMissingBlobsRequest> requests_to_issue;
     for (const Digest &digest : digests) {
         if (request.ByteSizeLong() + digest.ByteSizeLong() >
-            s_bytestreamChunkSizeBytes) {
+            bytestreamChunkSizeBytes()) {
             requests_to_issue.push_back(request);
             request.clear_blob_digests();
         }

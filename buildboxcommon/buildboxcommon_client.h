@@ -289,6 +289,8 @@ class Client {
 
     void setInstanceName(const std::string &instance_name);
 
+    static size_t bytestreamChunkSizeBytes();
+
   private:
     std::string makeResourceName(const Digest &digest, bool is_upload);
 
