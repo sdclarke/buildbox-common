@@ -28,8 +28,6 @@
 
 namespace buildboxcommon {
 
-#define BYTESTREAM_CHUNK_SIZE (1024 * 1024)
-
 /**
  * Implements a mechanism to communicate with remote CAS servers, and includes
  * data members to keep track of an ongoing batch upload or batch download
@@ -60,6 +58,9 @@ class Client {
             d_metadata_generator.attach_request_metadata(context);
         };
 
+    // Maximum number of bytes that can be sent in a single gRPC message.
+    static const size_t s_bytestreamChunkSizeBytes;
+
   public:
     Client(){};
 
@@ -68,7 +69,7 @@ class Client {
            std::shared_ptr<LocalContentAddressableStorage::StubInterface>
                localCasClient,
            std::shared_ptr<Capabilities::StubInterface> capabilitiesClient,
-           int64_t maxBatchTotalSizeBytes = BYTESTREAM_CHUNK_SIZE)
+           int64_t maxBatchTotalSizeBytes = s_bytestreamChunkSizeBytes)
         : d_bytestreamClient(bytestreamClient), d_casClient(casClient),
           d_localCasClient(localCasClient),
           d_capabilitiesClient(capabilitiesClient),
@@ -122,7 +123,7 @@ class Client {
      * Upload the given string. If it can't be uploaded successfully, throw
      * an exception.
      */
-    void upload(const std::string &str, const Digest &digest);
+    void upload(const std::string &data, const Digest &digest);
 
     /**
      * Upload a blob from the given file descriptor. If it can't be uploaded
@@ -284,12 +285,11 @@ class Client {
         return digest;
     }
 
-    std::string instanceName() const { return d_instanceName; }
+    std::string instanceName() const;
 
-    void setInstanceName(const std::string &instance_name)
-    {
-        d_instanceName = instance_name;
-    }
+    void setInstanceName(const std::string &instance_name);
+
+    static size_t bytestreamChunkSizeBytes();
 
   private:
     std::string makeResourceName(const Digest &digest, bool is_upload);

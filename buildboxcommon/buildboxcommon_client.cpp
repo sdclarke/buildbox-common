@@ -33,7 +33,9 @@
 
 namespace buildboxcommon {
 
-#define BYTESTREAM_CHUNK_SIZE (1024 * 1024)
+const size_t Client::s_bytestreamChunkSizeBytes = 1024 * 1024;
+// The default limit for gRPC messages is 4 MiB.
+// Limit payload to 1 MiB to leave sufficient headroom for metadata.
 
 void Client::init(const ConnectionOptions &options)
 {
@@ -70,9 +72,8 @@ void Client::init(
     this->d_localCasClient = localCasClient;
     this->d_capabilitiesClient = capabilitiesClient;
 
-    // The default limit for gRPC messages is 4 MiB.
-    // Limit payload to 1 MiB to leave sufficient headroom for metadata.
-    this->d_maxBatchTotalSizeBytes = BYTESTREAM_CHUNK_SIZE;
+    this->d_maxBatchTotalSizeBytes =
+        static_cast<int64_t>(bytestreamChunkSizeBytes());
 
     auto getCapabilitiesLambda = [&](grpc::ClientContext &context) {
         GetCapabilitiesRequest request;
@@ -109,6 +110,18 @@ void Client::init(
     uuid_generate(uu);
     this->d_uuid = std::string(36, 0);
     uuid_unparse_lower(uu, &this->d_uuid[0]);
+}
+
+std::string Client::instanceName() const { return d_instanceName; }
+
+void Client::setInstanceName(const std::string &instance_name)
+{
+    d_instanceName = instance_name;
+}
+
+size_t Client::bytestreamChunkSizeBytes()
+{
+    return s_bytestreamChunkSizeBytes;
 }
 
 void Client::set_tool_details(const std::string &tool_name,
@@ -152,7 +165,7 @@ std::string Client::makeResourceName(const Digest &digest, bool isUpload)
 std::string Client::fetchString(const Digest &digest)
 {
     BUILDBOX_LOG_TRACE("Downloading " << digest.hash() << " to string");
-    std::string resourceName = this->makeResourceName(digest, false);
+    const std::string resourceName = this->makeResourceName(digest, false);
 
     std::string result;
 
@@ -160,7 +173,9 @@ std::string Client::fetchString(const Digest &digest)
         ReadRequest request;
         request.set_resource_name(resourceName);
         request.set_read_offset(0);
+
         auto reader = this->d_bytestreamClient->Read(&context, request);
+
         ReadResponse response;
         while (reader->Read(&response)) {
             result += response.data();
@@ -172,15 +187,17 @@ std::string Client::fetchString(const Digest &digest)
                                      read_status.error_message());
         }
 
-        if ((int)result.length() != digest.size_bytes()) {
-            std::stringstream errorMsg;
+        const auto bytes_downloaded =
+            static_cast<google::protobuf::int64>(result.size());
+        if (bytes_downloaded != digest.size_bytes()) {
+            std::ostringstream errorMsg;
             errorMsg << "Expected " << digest.size_bytes()
-                     << " bytes, but downloaded blob was " << result.length()
+                     << " bytes, but downloaded blob was " << bytes_downloaded
                      << " bytes";
             throw std::runtime_error(errorMsg.str());
         }
 
-        BUILDBOX_LOG_TRACE(resourceName << ": " << result.length()
+        BUILDBOX_LOG_TRACE(resourceName << ": " << bytes_downloaded
                                         << " bytes retrieved");
         return read_status;
     };
@@ -193,16 +210,18 @@ std::string Client::fetchString(const Digest &digest)
 void Client::download(int fd, const Digest &digest)
 {
     BUILDBOX_LOG_TRACE("Downloading " << digest.hash() << " to file");
-    std::string resourceName = this->makeResourceName(digest, false);
+    const std::string resourceName = this->makeResourceName(digest, false);
 
     auto downloadLambda = [&](grpc::ClientContext &context) {
         ReadRequest request;
         request.set_resource_name(resourceName);
         request.set_read_offset(0);
+
         auto reader = this->d_bytestreamClient->Read(&context, request);
+
         ReadResponse response;
         while (reader->Read(&response)) {
-            if (write(fd, response.data().c_str(), response.data().length()) <
+            if (write(fd, response.data().c_str(), response.data().size()) <
                 0) {
                 throw std::system_error(errno, std::generic_category());
             }
@@ -217,7 +236,7 @@ void Client::download(int fd, const Digest &digest)
         struct stat st;
         fstat(fd, &st);
         if (st.st_size != digest.size_bytes()) {
-            std::stringstream errorMsg;
+            std::ostringstream errorMsg;
             errorMsg << "Expected " << digest.size_bytes()
                      << " bytes, but downloaded blob was " << st.st_size
                      << " bytes";
@@ -227,6 +246,7 @@ void Client::download(int fd, const Digest &digest)
                                         << " bytes retrieved");
         return read_status;
     };
+
     grpcRetry(downloadLambda, this->d_grpcRetryLimit, this->d_grpcRetryDelay,
               this->d_metadata_attach_function);
 }
@@ -238,7 +258,8 @@ void Client::downloadDirectory(const Digest &digest, const std::string &path)
     // Downloading the files in this directory:
     OutputMap outputs;
     std::vector<Digest> file_digests;
-    file_digests.reserve(directory.files_size());
+    file_digests.reserve(static_cast<size_t>(directory.files_size()));
+
     for (const FileNode &file : directory.files()) {
         file_digests.push_back(file.digest());
 
@@ -261,36 +282,40 @@ void Client::downloadDirectory(const Digest &digest, const std::string &path)
     }
 }
 
-void Client::upload(const std::string &str, const Digest &digest)
+void Client::upload(const std::string &data, const Digest &digest)
 {
     BUILDBOX_LOG_DEBUG("Uploading " << digest.hash() << " from string");
-    if (digest.size_bytes() != (int)str.length()) {
-        std::stringstream errorMsg;
+    const auto data_size = static_cast<google::protobuf::int64>(data.size());
+
+    if (data_size != digest.size_bytes()) {
+        std::ostringstream errorMsg;
         errorMsg << "Digest length of " << digest.size_bytes() << " bytes for "
                  << digest.hash() << " does not match string length of "
-                 << str.length() << " bytes";
+                 << data_size << " bytes";
         throw std::logic_error(errorMsg.str());
     }
-    std::string resourceName = this->makeResourceName(digest, true);
+
+    const std::string resourceName = this->makeResourceName(digest, true);
 
     auto uploadLambda = [&](grpc::ClientContext &context) {
         WriteResponse response;
         auto writer = this->d_bytestreamClient->Write(&context, &response);
-        ssize_t offset = 0;
+
+        size_t offset = 0;
         bool lastChunk = false;
         while (!lastChunk) {
             WriteRequest request;
             request.set_resource_name(resourceName);
-            request.set_write_offset(offset);
+            request.set_write_offset(
+                static_cast<google::protobuf::int64>(offset));
 
-            long uploadLength =
-                std::min(static_cast<unsigned long>(BYTESTREAM_CHUNK_SIZE),
-                         str.length() - offset);
+            const size_t uploadLength =
+                std::min(bytestreamChunkSizeBytes(), data.size() - offset);
 
-            request.set_data(&str[offset], uploadLength);
+            request.set_data(&data[offset], uploadLength);
             offset += uploadLength;
 
-            lastChunk = (offset == (ssize_t)str.length());
+            lastChunk = (offset == data.size());
             if (lastChunk) {
                 request.set_finish_write(lastChunk);
             }
@@ -300,39 +325,45 @@ void Client::upload(const std::string &str, const Digest &digest)
                                          " failed: broken stream");
             }
         }
+
         writer->WritesDone();
         auto status = writer->Finish();
-        if (offset != digest.size_bytes()) {
-            std::stringstream errorMsg;
+        if (static_cast<google::protobuf::int64>(offset) !=
+            digest.size_bytes()) {
+            std::ostringstream errorMsg;
             errorMsg << "Expected to upload " << digest.size_bytes()
                      << " bytes for " << digest.hash()
                      << ", but uploaded blob was " << offset << " bytes";
             throw std::runtime_error(errorMsg.str());
         }
+
         BUILDBOX_LOG_DEBUG(resourceName << ": " << offset
                                         << " bytes uploaded");
         return status;
     };
+
     grpcRetry(uploadLambda, this->d_grpcRetryLimit, this->d_grpcRetryDelay,
               this->d_metadata_attach_function);
 }
 
 void Client::upload(int fd, const Digest &digest)
 {
-    std::vector<char> buffer(BYTESTREAM_CHUNK_SIZE);
+    std::vector<char> buffer(bytestreamChunkSizeBytes());
     BUILDBOX_LOG_DEBUG("Uploading " << digest.hash() << " from file");
 
-    std::string resourceName = this->makeResourceName(digest, true);
+    const std::string resourceName = this->makeResourceName(digest, true);
 
     lseek(fd, 0, SEEK_SET);
 
     auto uploadLambda = [&](grpc::ClientContext &context) {
         WriteResponse response;
         auto writer = this->d_bytestreamClient->Write(&context, &response);
+
         ssize_t offset = 0;
         bool lastChunk = false;
         while (!lastChunk) {
-            ssize_t bytesRead = read(fd, &buffer[0], BYTESTREAM_CHUNK_SIZE);
+            const ssize_t bytesRead =
+                read(fd, &buffer[0], bytestreamChunkSizeBytes());
             if (bytesRead < 0) {
                 throw std::system_error(errno, std::generic_category());
             }
@@ -340,7 +371,7 @@ void Client::upload(int fd, const Digest &digest)
             WriteRequest request;
             request.set_resource_name(resourceName);
             request.set_write_offset(offset);
-            request.set_data(&buffer[0], bytesRead);
+            request.set_data(&buffer[0], static_cast<size_t>(bytesRead));
 
             if (offset + bytesRead < digest.size_bytes()) {
                 if (bytesRead == 0) {
@@ -367,10 +398,12 @@ void Client::upload(int fd, const Digest &digest)
         if (offset != digest.size_bytes()) {
             throw std::runtime_error("Upload of " + digest.hash() + " failed");
         }
+
         BUILDBOX_LOG_DEBUG(resourceName << ": " << offset
                                         << " bytes uploaded");
         return status;
     };
+
     grpcRetry(uploadLambda, this->d_grpcRetryLimit, this->d_grpcRetryDelay,
               this->d_metadata_attach_function);
 }
@@ -411,13 +444,7 @@ Client::uploadBlobs(const std::vector<UploadRequest> &requests)
     // Fetching all those digests that might need to be uploaded using the
     // Bytestream API. Those will be in the range [batch_end,
     // batches.size()).
-    size_t batch_end;
-    if (batches.empty()) {
-        batch_end = 0;
-    }
-    else {
-        batch_end = batches.rbegin()->second;
-    }
+    const size_t batch_end = batches.empty() ? 0 : batches.rbegin()->second;
 
     for (auto d = batch_end; d < request_list.size(); d++) {
         try {
@@ -736,7 +763,7 @@ Client::findMissingBlobs(const std::vector<Digest> &digests)
     std::vector<FindMissingBlobsRequest> requests_to_issue;
     for (const Digest &digest : digests) {
         if (request.ByteSizeLong() + digest.ByteSizeLong() >
-            BYTESTREAM_CHUNK_SIZE) {
+            bytestreamChunkSizeBytes()) {
             requests_to_issue.push_back(request);
             request.clear_blob_digests();
         }
