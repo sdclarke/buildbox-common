@@ -5,7 +5,7 @@ find_dependency(PkgConfig)
 pkg_check_modules(protobuf REQUIRED IMPORTED_TARGET protobuf>=3.5)
 
 find_package(gRPC)
-if(grpc_FOUND)
+if(gRPC_FOUND)
     set(GRPC_TARGET gRPC::grpc++)
 else()
     pkg_check_modules(grpc++ REQUIRED IMPORTED_TARGET grpc++>=1.10)
