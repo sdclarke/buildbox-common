@@ -753,8 +753,6 @@ Client::makeBatches(const std::vector<Digest> &digests)
 std::vector<Digest>
 Client::findMissingBlobs(const std::vector<Digest> &digests)
 {
-    grpc::ClientContext context;
-
     FindMissingBlobsRequest request;
     request.set_instance_name(d_instanceName);
 
@@ -775,6 +773,7 @@ Client::findMissingBlobs(const std::vector<Digest> &digests)
 
     std::vector<Digest> missing_blobs;
     for (const auto &request_to_issue : requests_to_issue) {
+        grpc::ClientContext context;
         FindMissingBlobsResponse response;
         const auto status = this->d_casClient->FindMissingBlobs(
             &context, request_to_issue, &response);
