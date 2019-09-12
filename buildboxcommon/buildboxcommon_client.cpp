@@ -99,10 +99,15 @@ void Client::init(
         grpcRetry(getCapabilitiesLambda, this->d_grpcRetryLimit,
                   this->d_grpcRetryDelay, this->d_metadata_attach_function);
     }
-
-    catch (const std::runtime_error &e) {
-        BUILDBOX_LOG_DEBUG("Get capabilities request failed. Using default. "
-                           << e.what());
+    catch (const GrpcError &e) {
+        if (e.status.error_code() == grpc::StatusCode::UNIMPLEMENTED) {
+            BUILDBOX_LOG_DEBUG(
+                "Get capabilities request failed. Using default. "
+                << e.what());
+        }
+        else {
+            throw;
+        }
     }
 
     // Generate UUID to use for uploads
