@@ -63,8 +63,12 @@ class Runner {
     /**
      * Stage the directory with the given digest at an arbitrary path and
      * return a StagedDirectory object representing it.
+     *
+     * If `use_localcas_protocol` is `true` uses `LocalCasStagedDirectory`
+     * instead of `FallBackStagedDirectory`.
      */
-    std::unique_ptr<StagedDirectory> stage(const Digest &directoryDigest);
+    std::unique_ptr<StagedDirectory> stage(const Digest &directoryDigest,
+                                           bool use_localcas_protocol = false);
 
     std::shared_ptr<Client> d_casClient =
         std::shared_ptr<Client>(new Client());
