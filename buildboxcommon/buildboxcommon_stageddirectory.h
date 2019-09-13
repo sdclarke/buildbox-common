@@ -25,12 +25,13 @@
 namespace buildboxcommon {
 
 /**
- * Represents a directory that has been "staged" by downloading it from CAS
- * onto the local filesystem.
+ * Represents a directory that has been "staged", i.e. fetched from CAS and
+ * made available in a local filesystem path.
  *
- * Currently, the only class that implements this is FallbackStagedDirectory,
- * but once the LocalCAS protocol has been finalized, a LocalCASStagedDirectory
- * will also be provided.
+ * Currently there are two subclasses that employ different staging mechanisms:
+ * `FallbackStagedDirectory` and `LocalCasStagedDirectory`. The latter relies
+ * on the `StageTree()` call of the LocalCAS protocol.
+ *
  */
 class StagedDirectory {
   public:

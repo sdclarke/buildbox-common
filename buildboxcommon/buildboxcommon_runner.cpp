@@ -19,6 +19,7 @@
 #include <buildboxcommon_connectionoptions.h>
 #include <buildboxcommon_fallbackstageddirectory.h>
 #include <buildboxcommon_fileutils.h>
+#include <buildboxcommon_localcasstageddirectory.h>
 #include <buildboxcommon_logging.h>
 
 #include <algorithm>
@@ -208,11 +209,28 @@ int Runner::main(int argc, char *argv[])
     return result.exit_code();
 }
 
-std::unique_ptr<StagedDirectory> Runner::stage(const Digest &digest)
+std::unique_ptr<StagedDirectory> Runner::stage(const Digest &digest,
+                                               bool use_localcas_protocol)
 {
-    // TODO use the LocalCAS protocol when available.
-    return std::unique_ptr<StagedDirectory>(
-        new FallbackStagedDirectory(digest, this->d_casClient));
+    try {
+        if (use_localcas_protocol) {
+            return std::make_unique<LocalCasStagedDirectory>(
+                digest, this->d_casClient);
+        }
+        else {
+            return std::make_unique<FallbackStagedDirectory>(
+                digest, this->d_casClient);
+        }
+    }
+    catch (const std::exception &e) {
+        const auto staging_mechanism = use_localcas_protocol
+                                           ? "LocalCasStagedDirectory"
+                                           : "FallbackStagedDirectory";
+        BUILDBOX_LOG_DEBUG("Could not stage directory with digest \""
+                           << digest << "\" using `" << staging_mechanism
+                           << "`: " << e.what());
+        throw;
+    }
 }
 
 std::array<int, 2> Runner::createPipe() const
