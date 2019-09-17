@@ -129,6 +129,7 @@ TEST_F(ClientTestFixture, FetchStringTest)
     EXPECT_CALL(*reader, Read(_))
         .WillOnce(DoAll(SetArgPointee<0>(readResponse), Return(true)))
         .WillOnce(Return(false));
+    EXPECT_CALL(*reader, Finish()).WillOnce(Return(grpc::Status::OK));
 
     ReadRequest request;
     EXPECT_CALL(*bytestreamClient, ReadRaw(_, _))
@@ -155,6 +156,8 @@ TEST_F(ClientTestFixture, FetchStringEmptyResponse)
         .WillOnce(DoAll(SetArgPointee<0>(readResponse), Return(true)))
         .WillOnce(Return(false));
 
+    EXPECT_CALL(*reader, Finish()).WillOnce(Return(grpc::Status::OK));
+
     EXPECT_EQ(this->fetchString(digest), readResponse.data());
 }
 
@@ -168,6 +171,10 @@ TEST_F(ClientTestFixture, FetchStringSizeMismatch)
     EXPECT_CALL(*reader, Read(_))
         .WillOnce(DoAll(SetArgPointee<0>(readResponse), Return(true)))
         .WillOnce(Return(false));
+
+    EXPECT_CALL(*reader, Finish())
+        .WillOnce(
+            Return(grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "")));
 
     EXPECT_THROW(this->fetchString(digest), std::runtime_error);
 }
@@ -201,6 +208,8 @@ TEST_F(ClientTestFixture, DownloadTest)
     EXPECT_CALL(*reader, Read(_))
         .WillOnce(DoAll(SetArgPointee<0>(readResponse), Return(true)))
         .WillOnce(Return(false));
+
+    EXPECT_CALL(*reader, Finish()).WillOnce(Return(grpc::Status::OK));
 
     this->download(tmpfile.fd(), digest);
 
@@ -238,6 +247,8 @@ TEST_F(ClientTestFixture, DownloadSizeMismatch)
     EXPECT_CALL(*reader, Read(_))
         .WillOnce(DoAll(SetArgPointee<0>(readResponse), Return(true)))
         .WillOnce(Return(false));
+
+    EXPECT_CALL(*reader, Finish()).WillOnce(Return(grpc::Status::OK));
 
     EXPECT_THROW(this->download(tmpfile.fd(), digest), std::runtime_error);
 }
@@ -869,6 +880,8 @@ TEST_F(TransferDirectoryFixture, StageDirectoryThrowsOnError)
 
     EXPECT_CALL(*reader_writer, Write(_, _)).WillOnce(Return(false));
 
+    EXPECT_CALL(*reader_writer, Finish()).WillOnce(Return(grpc::Status::OK));
+
     EXPECT_THROW(this->stage(directory_digest, "/tmp/stage"),
                  std::runtime_error);
 }
@@ -918,6 +931,8 @@ TEST_P(DownloadBlobsFixture, FileTooLargeToBatchDownload)
         ASSERT_EQ(downloaded_data, data);
     };
 
+    EXPECT_CALL(*reader, Finish()).WillOnce(Return(grpc::Status::OK));
+
     const bool throw_on_error = GetParam();
     ASSERT_NO_THROW(this->downloadBlobs(requests, write_blob, throw_on_error));
 }
@@ -960,6 +975,7 @@ TEST_P(DownloadBlobsFixture, DownloadBlobs)
     EXPECT_CALL(*reader, Read(_))
         .WillOnce(DoAll(SetArgPointee<0>(readResponse), Return(true)))
         .WillOnce(Return(false));
+    EXPECT_CALL(*reader, Finish()).WillOnce(Return(grpc::Status::OK));
 
     // We will write the output results into a map indexed by hash:
     std::unordered_map<std::string, std::string> downloads;
@@ -1031,6 +1047,7 @@ TEST_P(DownloadBlobsFixture, DownloadBlobsFails)
         EXPECT_CALL(*reader, Read(_))
             .WillOnce(DoAll(SetArgPointee<0>(readResponse), Return(true)))
             .WillOnce(Return(false));
+        EXPECT_CALL(*reader, Finish()).WillOnce(Return(grpc::Status::OK));
 
         ASSERT_NO_THROW(
             this->downloadBlobs(requests, write_blob, throw_on_error));

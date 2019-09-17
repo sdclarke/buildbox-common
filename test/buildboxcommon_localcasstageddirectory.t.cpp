@@ -84,6 +84,8 @@ class LocalCasStagedDirectoryFixture : public ::testing::Test {
             .Times(2)
             .WillRepeatedly(Return(true));
 
+        EXPECT_CALL(*reader_writer, WritesDone());
+
         StageTreeResponse response;
         response.set_path("/path/to/staged_dir/");
         EXPECT_CALL(*reader_writer, Read(_))
