@@ -74,6 +74,7 @@ class Runner {
         std::shared_ptr<Client>(new Client());
 
     bool d_verbose;
+    bool d_use_localcas_protocol = false;
 
   private:
     /**
