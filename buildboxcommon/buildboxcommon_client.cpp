@@ -413,6 +413,36 @@ void Client::upload(int fd, const Digest &digest)
               this->d_metadata_attach_function);
 }
 
+grpc::Status Client::uploadRequest(const UploadRequest &request)
+{
+    try {
+        if (request.path.empty()) {
+            upload(request.data, request.digest);
+        }
+        else {
+            int fd = open(request.path.c_str(), O_RDONLY);
+            if (fd < 0) {
+                throw std::system_error(errno, std::system_category());
+            }
+            try {
+                upload(fd, request.digest);
+            }
+            catch (...) {
+                close(fd);
+                throw;
+            }
+            close(fd);
+        }
+        return grpc::Status::OK;
+    }
+    catch (const GrpcError &e) {
+        return e.status;
+    }
+    catch (const std::runtime_error &e) {
+        return grpc::Status(grpc::StatusCode::INTERNAL, e.what());
+    }
+}
+
 std::vector<Client::UploadResult>
 Client::uploadBlobs(const std::vector<UploadRequest> &requests)
 {
@@ -452,16 +482,9 @@ Client::uploadBlobs(const std::vector<UploadRequest> &requests)
     const size_t batch_end = batches.empty() ? 0 : batches.rbegin()->second;
 
     for (auto d = batch_end; d < request_list.size(); d++) {
-        try {
-            upload(request_list[d].data, request_list[d].digest);
-        }
-        catch (const GrpcError &e) {
-            results.emplace_back(request_list[d].digest, e.status);
-        }
-        catch (const std::runtime_error &e) {
-            results.emplace_back(
-                request_list[d].digest,
-                grpc::Status(grpc::StatusCode::INTERNAL, e.what()));
+        auto status = uploadRequest(request_list[d]);
+        if (!status.ok()) {
+            results.emplace_back(request_list[d].digest, status);
         }
     }
 
@@ -655,9 +678,17 @@ Client::batchUpload(const std::vector<UploadRequest> &requests,
     request.set_instance_name(d_instanceName);
 
     for (auto d = start_index; d < end_index; d++) {
+        std::string data;
+        if (requests[d].path.empty()) {
+            data = requests[d].data;
+        }
+        else {
+            data = FileUtils::get_file_contents(requests[d].path.c_str());
+        }
+
         auto entry = request.add_requests();
         entry->mutable_digest()->CopyFrom(requests[d].digest);
-        entry->set_data(requests[d].data);
+        entry->set_data(data);
     }
 
     BatchUpdateBlobsResponse response;
