@@ -134,9 +134,21 @@ class Client {
     struct UploadRequest {
         Digest digest;
         std::string data;
+        std::string path;
 
         UploadRequest(const Digest &_digest, const std::string _data)
             : digest(_digest), data(_data){};
+
+        static UploadRequest from_path(const Digest &_digest,
+                                       const std::string _path)
+        {
+            auto request = UploadRequest(_digest);
+            request.path = _path;
+            return request;
+        }
+
+      private:
+        UploadRequest(const Digest &_digest) : digest(_digest){};
     };
 
     struct UploadResult {
@@ -324,6 +336,9 @@ class Client {
      * with the subset of protos that need to be uploaded.
      */
     digest_string_map missingDigests(const digest_string_map &directory_map);
+
+    /* Upload a single request. */
+    grpc::Status uploadRequest(const UploadRequest &request);
 
     /*
      * RequestMetadata values. They will be attached to requests sent by this
