@@ -44,6 +44,12 @@ class CASHash {
     static Digest hash(const std::string &str);
 
     /**
+     * Return a Digest corresponding to the contents of the file in `path`.
+     *
+     */
+    static Digest hashFile(const std::string &path);
+
+    /**
      * Return a `DigestFunction` message specifying the hash function used.
      */
     static DigestFunction_Value digestFunction();
