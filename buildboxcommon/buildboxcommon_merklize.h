@@ -64,6 +64,7 @@ struct NestedDirectory {
     std::unique_ptr<subdir_map> d_subdirs;
     // Important to use a sorted map to keep files ordered by name
     std::map<std::string, File> d_files;
+    std::map<std::string, std::string> d_symlinks;
 
     NestedDirectory() : d_subdirs(new subdir_map){};
 

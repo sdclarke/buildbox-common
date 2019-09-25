@@ -24,6 +24,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <system_error>
+#include <unistd.h>
 
 namespace buildboxcommon {
 
@@ -93,6 +94,12 @@ Digest NestedDirectory::to_digest(digest_string_map *digestMap) const
         *directoryMessage.add_files() =
             fileIter.second.to_filenode(fileIter.first);
     }
+    for (const auto &symlinkIter : d_symlinks) {
+        SymlinkNode symlinkNode;
+        symlinkNode.set_name(symlinkIter.first);
+        symlinkNode.set_target(symlinkIter.second);
+        *directoryMessage.add_symlinks() = symlinkNode;
+    }
     for (const auto &subdirIter : *d_subdirs) {
         auto subdirNode = directoryMessage.add_directories();
         subdirNode->set_name(subdirIter.first);
@@ -113,6 +120,12 @@ Tree NestedDirectory::to_tree() const
     auto root = result.mutable_root();
     for (const auto &fileIter : d_files) {
         *root->add_files() = fileIter.second.to_filenode(fileIter.first);
+    }
+    for (const auto &symlinkIter : d_symlinks) {
+        SymlinkNode symlinkNode;
+        symlinkNode.set_name(symlinkIter.first);
+        symlinkNode.set_target(symlinkIter.second);
+        *root->add_symlinks() = symlinkNode;
     }
     for (const auto &subdirIter : *d_subdirs) {
         auto subtree = subdirIter.second.to_tree();
@@ -147,19 +160,26 @@ NestedDirectory make_nesteddirectory(const char *path,
         std::string entityPath = pathString + "/" + entityName;
 
         struct stat statResult;
-        if (stat(entityPath.c_str(), &statResult) != 0) {
+        if (lstat(entityPath.c_str(), &statResult) != 0) {
             continue;
         }
         if (S_ISDIR(statResult.st_mode)) {
             (*result.d_subdirs)[entityName] =
                 make_nesteddirectory(entityPath.c_str(), fileMap);
         }
-        else {
+        else if (S_ISREG(statResult.st_mode)) {
             File file(entityPath.c_str());
             result.d_files[entityName] = file;
             if (fileMap != nullptr) {
                 (*fileMap)[file.d_digest] = entityPath;
             }
+        }
+        else if (S_ISLNK(statResult.st_mode)) {
+            std::string target(statResult.st_size, '\0');
+            if (readlink(entityPath.c_str(), &target[0], target.size()) < 0) {
+                throw std::system_error(errno, std::system_category());
+            }
+            result.d_symlinks[entityName] = target;
         }
     }
     closedir(dir);
