@@ -299,15 +299,19 @@ TEST(NestedDirectoryTest, MakeNestedDirectory)
 
     EXPECT_EQ(1, nestedDirectory.d_subdirs->size());
     EXPECT_EQ(2, nestedDirectory.d_files.size());
+    EXPECT_EQ(1, nestedDirectory.d_symlinks.size());
 
     EXPECT_EQ(
         "abc",
         FileUtils::get_file_contents(
             fileMap[nestedDirectory.d_files["abc.txt"].d_digest].c_str()));
 
+    EXPECT_EQ("target", nestedDirectory.d_symlinks["symlink"]);
+
     auto subdirectory = &(*nestedDirectory.d_subdirs)["subdir"];
     EXPECT_EQ(0, subdirectory->d_subdirs->size());
     EXPECT_EQ(1, subdirectory->d_files.size());
+    EXPECT_EQ(0, subdirectory->d_symlinks.size());
     EXPECT_EQ("abc",
               FileUtils::get_file_contents(
                   fileMap[subdirectory->d_files["abc.txt"].d_digest].c_str()));
