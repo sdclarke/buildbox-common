@@ -31,7 +31,7 @@ namespace buildboxcommon {
 File::File(const char *path)
 {
     d_executable = FileUtils::is_executable(path);
-    d_digest = make_digest(FileUtils::get_file_contents(path));
+    d_digest = CASHash::hashFile(path);
     return;
 }
 
