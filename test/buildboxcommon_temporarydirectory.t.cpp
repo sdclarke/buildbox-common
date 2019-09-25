@@ -102,7 +102,7 @@ TEST(TemporaryDirectoryTests, TemporaryDirectoryDisableAutoRemove)
     ASSERT_EQ(stat(name.c_str(), &statResult), 0);
     ASSERT_TRUE(S_ISDIR(statResult.st_mode));
 
-    unlink(name.c_str());
+    FileUtils::delete_directory(name.c_str());
 }
 
 TEST(TemporaryDirectoryTests, CreateDeleteDirectory)
