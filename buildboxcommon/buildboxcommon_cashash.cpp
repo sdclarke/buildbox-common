@@ -16,6 +16,10 @@
 
 #include <buildboxcommon_cashash.h>
 #include <buildboxcommon_logging.h>
+
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 namespace buildboxcommon {
@@ -41,6 +45,25 @@ Digest CASHash::hash(int fd)
 Digest CASHash::hash(const std::string &str)
 {
     return DigestGenerator(s_digestFunctionValue).hash(str);
+}
+
+Digest CASHash::hashFile(const std::string &path)
+{
+    const int fd = open(path.c_str(), O_RDONLY);
+    if (fd == -1) {
+        throw std::system_error(errno, std::system_category(),
+                                "Error opening file");
+    }
+
+    try {
+        const Digest d = CASHash::hash(fd);
+        close(fd);
+        return d;
+    }
+    catch (...) {
+        close(fd);
+        throw;
+    }
 }
 
 DigestFunction_Value CASHash::digestFunction()

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Bloomberg Finance LP
+ * Copyright 2018-2019 Bloomberg Finance LP
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -71,6 +71,39 @@ TEST(CASHashTest, TestNonEmptyString)
     EXPECT_EQ(d1.hash(), expected_sha256_hash);
     EXPECT_EQ(d1.size_bytes(), TEST_STRING.size());
     EXPECT_EQ(d1, d2);
+}
+
+TEST(CasHashTest, FileDescriptor)
+{
+    int fd = open("test.txt", O_RDONLY);
+    const Digest d = DigestGenerator().hash(fd);
+    EXPECT_EQ(
+        d.hash(),
+        "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08");
+    EXPECT_EQ(d.size_bytes(), 4);
+    close(fd);
+}
+
+TEST(CasHashTest, PathToFile)
+{
+    const Digest d = CASHash::hashFile("test.txt");
+    EXPECT_EQ(
+        d.hash(),
+        "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08");
+    EXPECT_EQ(d.size_bytes(), 4);
+}
+
+TEST(CasHashTest, InvalidFileDescriptorFileThrows)
+{
+    const int invalid_fd = -2;
+    ASSERT_THROW(CASHash::hash(invalid_fd), std::runtime_error);
+}
+
+TEST(CasHashTest, PathToNonExistingFileThrows)
+{
+    const auto non_existent_path = "this-does-not-exist.txt";
+    ASSERT_FALSE(FileUtils::is_regular_file(non_existent_path));
+    ASSERT_THROW(CASHash::hashFile(non_existent_path), std::runtime_error);
 }
 
 TEST(DigestGeneratorTest, TestStringMD5)
