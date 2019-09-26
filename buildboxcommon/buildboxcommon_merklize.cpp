@@ -44,7 +44,7 @@ FileNode File::to_filenode(const std::string &name) const
     return result;
 }
 
-void NestedDirectory::add(File file, const char *relativePath)
+void NestedDirectory::add(const File &file, const char *relativePath)
 {
     const char *slash = strchr(relativePath, '/');
     if (slash) {
@@ -58,6 +58,24 @@ void NestedDirectory::add(File file, const char *relativePath)
     }
     else {
         d_files[std::string(relativePath)] = file;
+    }
+}
+
+void NestedDirectory::addSymlink(const std::string &target,
+                                 const char *relativePath)
+{
+    const char *slash = strchr(relativePath, '/');
+    if (slash) {
+        const std::string subdirKey(relativePath, slash - relativePath);
+        if (subdirKey.empty()) {
+            this->addSymlink(target, slash + 1);
+        }
+        else {
+            (*d_subdirs)[subdirKey].addSymlink(target, slash + 1);
+        }
+    }
+    else {
+        d_symlinks[std::string(relativePath)] = target;
     }
 }
 

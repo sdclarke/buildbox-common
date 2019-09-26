@@ -273,6 +273,16 @@ class Client {
                                            const std::string &path = "") const;
 
     /**
+     * Get the Directory tree whose root digest is 'digest', using the CAS
+     * GetTree() call.
+     *
+     * On success, return a vector of protobuf Directory structures
+     *
+     * On error throw an 'std::runtime_error' exception
+     */
+    std::vector<Directory> getTree(const Digest &digest);
+
+    /**
      * Fetch the Protocol Buffer message of the given type and digest and
      * deserialize it.
      */
