@@ -16,6 +16,7 @@
 
 #include <buildboxcommon_logging.h>
 
+#include <algorithm>
 #include <iomanip>
 #include <libgen.h>
 #include <pthread.h>
