@@ -72,9 +72,9 @@ Inside the above `grpc` directory run::
     cd third_party/protobuf
     [sudo] make install
 
-On Debian, you can simple install the packages with `apt`::
+On Debian 10 and newer versions of Ubuntu, you can simply install the packages with `apt`::
 
-    [sudo] apt-get install grpc++ libprotobuf-dev
+    [sudo] apt-get install grpc++ libprotobuf-dev libgmock-dev protobuf-compiler-grpc
 
 Compiling
 --------------
@@ -83,4 +83,3 @@ Once you've installed the dependencies, you can compile `buildbox-common` using 
     mkdir build
     cd build
     cmake .. && [sudo] make [install]
-
