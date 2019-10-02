@@ -141,8 +141,8 @@ TEST_F(CaptureTestFixture, CaptureDirectoryTest)
      * └── child
      * 	   └── child_test.txt
      */
-    copyDirectory("upload_test", fs.getPath());
-    OutputDirectory output_dir = fs.captureDirectory("upload_test");
+    copyDirectory("upload_test", fs.getPath() + std::string("/upload_testx"));
+    OutputDirectory output_dir = fs.captureDirectory("upload_testx");
 
     // expected filecontent hashes of files and directories
     // top level tree digest is expected to be in here

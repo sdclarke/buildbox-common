@@ -124,6 +124,15 @@ bool FileUtils::is_executable(const char *path)
     return false;
 }
 
+bool FileUtils::is_executable(const int fd)
+{
+    struct stat statResult;
+    if (fstat(fd, &statResult) == 0) {
+        return statResult.st_mode & S_IXUSR;
+    }
+    return false;
+}
+
 void FileUtils::make_executable(const char *path)
 {
     struct stat statResult;

@@ -62,6 +62,11 @@ struct FileUtils {
     static bool is_executable(const char *path);
 
     /**
+     * Return true if a given file descriptor is executable.
+     */
+    static bool is_executable(const int fd);
+
+    /**
      * Make the given file executable.
      */
     static void make_executable(const char *path);
