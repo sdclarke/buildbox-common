@@ -47,9 +47,17 @@ class FallbackStagedDirectory : public StagedDirectory {
     void downloadFile(const Digest &digest, bool executable,
                       const char *path) const;
 
-    Directory uploadDirectoryRecursively(Tree *tree,
-                                         const char *relative_path) const;
+    /**
+     * will close the file descriptor that is passed in
+     */
+    Directory uploadDirectoryRecursively(Tree *tree, const int dirFD) const;
 
+    /**
+     * Helper function to capture directory using file descriptor.
+     * Will not close file descriptor that is passed in.
+     */
+    OutputFile captureFileWithFD(const int dirFD,
+                                 const char *relative_path) const;
     std::shared_ptr<Client> d_casClient;
     TemporaryDirectory d_stage_directory;
 };
