@@ -21,6 +21,7 @@
 #include <buildboxcommon_fileutils.h>
 #include <buildboxcommon_localcasstageddirectory.h>
 #include <buildboxcommon_logging.h>
+#include <buildboxcommon_systemutils.h>
 
 #include <algorithm>
 #include <cerrno>
@@ -265,14 +266,6 @@ void Runner::executeAndStore(const std::vector<std::string> &command,
     }
 
     BUILDBOX_LOG_DEBUG("Executing command: " << logline.str());
-    const auto argc = command.size();
-
-    std::unique_ptr<const char *[]> argv(new const char *[argc + 1]);
-    for (unsigned int i = 0; i < argc; ++i) {
-        argv[i] = command[i].c_str();
-    }
-    argv[argc] = nullptr;
-
     // Create pipes for stdout and stderr
     auto stdout_pipe = createPipe();
     auto stderr_pipe = createPipe();
@@ -292,28 +285,13 @@ void Runner::executeAndStore(const std::vector<std::string> &command,
         dup2(stderr_pipe[1], STDERR_FILENO);
         close(stderr_pipe[1]);
 
-        const int exec_status =
-            execvp(argv[0], const_cast<char *const *>(argv.get()));
+        const int exit_code =
+            buildboxcommon::SystemUtils::executeCommand(command);
 
-        // The lines below will only be executed if `execvp()` failed.
-        int exit_code = 1;
-        if (exec_status != 0) {
-            const auto exec_error = errno;
-            BUILDBOX_LOG_ERROR("Error while calling `execvp("
-                               << logline.str()
-                               << ")`: " << strerror(exec_error));
-
-            // Following the Bash convention for exit codes.
-            // (https://gnu.org/software/bash/manual/html_node/Exit-Status.html)
-            if (exec_error == ENOENT) {
-                exit_code = 127; // "command not found"
-            }
-            else {
-                exit_code = 126; // Command invoked cannot execute
-            }
-        }
-
-        perror(argv[0]);
+        // `executeCommand()` only returns when encountering an error, so the
+        // lines below will only be executed in that case:
+        const char *command_name = command.front().c_str();
+        perror(command_name);
         _Exit(exit_code);
     }
 
