@@ -247,7 +247,7 @@ std::array<int, 2> Runner::createPipe() const
     return pipe_fds;
 }
 
-void Runner::executeAndStore(std::vector<std::string> command,
+void Runner::executeAndStore(const std::vector<std::string> &command,
                              ActionResult *result)
 {
     std::ostringstream logline;

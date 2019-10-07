@@ -58,7 +58,7 @@ class Runner {
      * Execute the given command (without attempting to sandbox it) and
      * store its stdout, stderr, and exit code in the given ActionResult.
      */
-    void executeAndStore(std::vector<std::string> command,
+    void executeAndStore(const std::vector<std::string> &command,
                          ActionResult *result);
     /**
      * Stage the directory with the given digest at an arbitrary path and
