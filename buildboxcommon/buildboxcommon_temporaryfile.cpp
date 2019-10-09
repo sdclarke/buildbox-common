@@ -67,12 +67,12 @@ void TemporaryFile::create(const char *directory, const char *prefix,
     if (this->d_fd == -1) {
         throw std::system_error(errno, std::system_category());
     }
-    this->d_name = name;
-
     /* mkstemp creates files with mode 0600 */
     if (mode != 0600) {
         fchmod(this->d_fd, mode);
     }
+
+    this->d_name = std::move(name);
 }
 
 } // namespace buildboxcommon
