@@ -40,6 +40,38 @@ TEST(TemporaryDirectoryTests, TemporaryDirectory)
     ASSERT_NE(stat(name.c_str(), &statResult), 0);
 }
 
+TEST(TemporaryDirectoryTests, TemporaryDirectoryEmptyPathString)
+{
+    std::string nameEmpty;
+    std::string nameNone;
+    std::string prefix = "test-prefix";
+    {
+        TemporaryDirectory tempDirEmpty =
+            TemporaryDirectory("", prefix.c_str());
+        TemporaryDirectory tempDirNone = TemporaryDirectory(prefix.c_str());
+        nameEmpty = std::string(tempDirEmpty.name());
+        nameNone = std::string(tempDirNone.name());
+        std::size_t emptyPos = nameEmpty.find(prefix) + prefix.size();
+        std::size_t nonePos = nameNone.find(prefix) + prefix.size();
+        // Expect Base Paths to be the same
+        EXPECT_EQ(nameEmpty.substr(0, emptyPos), nameNone.substr(0, nonePos));
+
+        // Verify that both directories exists and are directories.
+        struct stat statResultEmpty;
+        struct stat statResultNone;
+        ASSERT_EQ(stat(nameEmpty.c_str(), &statResultEmpty), 0);
+        ASSERT_EQ(stat(nameNone.c_str(), &statResultNone), 0);
+        ASSERT_TRUE(S_ISDIR(statResultEmpty.st_mode));
+        ASSERT_TRUE(S_ISDIR(statResultNone.st_mode));
+    }
+
+    // Verify that the directories no longer exist
+    struct stat statResultEmpty;
+    struct stat statResultNone;
+    ASSERT_NE(stat(nameEmpty.c_str(), &statResultEmpty), 0);
+    ASSERT_NE(stat(nameNone.c_str(), &statResultNone), 0);
+}
+
 TEST(TemporaryDirectoryTests, TemporaryDirectoryInPath)
 {
     std::string name;

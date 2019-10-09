@@ -32,8 +32,9 @@
 namespace buildboxcommon {
 
 FallbackStagedDirectory::FallbackStagedDirectory(
-    const Digest &digest, std::shared_ptr<Client> cas_client)
-    : d_casClient(cas_client), d_stage_directory("buildboxrun")
+    const Digest &digest, const std::string &path,
+    std::shared_ptr<Client> cas_client)
+    : d_casClient(cas_client), d_stage_directory(path.c_str(), "buildboxrun")
 {
     this->d_path = d_stage_directory.name();
     BUILDBOX_LOG_DEBUG("Downloading to " << this->d_path);

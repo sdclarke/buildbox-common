@@ -55,7 +55,7 @@ class TemporaryDirectory {
 
   private:
     std::string d_name;
-    bool d_auto_remove;
+    bool d_auto_remove = true;
 
     /* Creates a temporary file using `mkdtemp()` inside the given path.
      * The created directory's name will contain the given prefix, which is

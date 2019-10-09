@@ -73,7 +73,8 @@ class LocalCasStagedDirectoryFixture : public ::testing::Test {
 
     std::shared_ptr<Client> client;
 
-    std::unique_ptr<LocalCasStagedDirectory> stageDirectory()
+    std::unique_ptr<LocalCasStagedDirectory>
+    stageDirectory(const std::string &path)
     {
         EXPECT_CALL(*localCasClient.get(), StageTreeRaw(_))
             .WillOnce(Return(reader_writer));
@@ -95,15 +96,21 @@ class LocalCasStagedDirectoryFixture : public ::testing::Test {
         digest.set_hash("has12345");
         digest.set_size_bytes(1024);
 
-        return std::make_unique<LocalCasStagedDirectory>(digest, client);
+        return std::make_unique<LocalCasStagedDirectory>(digest, path, client);
     }
 };
 
-TEST_F(LocalCasStagedDirectoryFixture, StageDirectory) { stageDirectory(); }
+TEST_F(LocalCasStagedDirectoryFixture, StageDirectory) { stageDirectory(""); }
+
+// Just make sure constructor will accept non-empty strings
+TEST_F(LocalCasStagedDirectoryFixture, StageDirectoryCustomPath)
+{
+    stageDirectory("/stage/here/");
+}
 
 TEST_F(LocalCasStagedDirectoryFixture, CaptureCommandOutputs)
 {
-    auto fs = stageDirectory();
+    auto fs = stageDirectory("");
 
     // The directory is staged. Let's now capture the outputs:
     Command command;

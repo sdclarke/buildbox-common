@@ -79,6 +79,8 @@ static void usage(const char *name)
     std::clog << "    --log-file=FILE             File to write log to\n";
     std::clog
         << "    --use-localcas              Use LocalCAS protocol methods\n";
+    std::clog << "    --workspace-path=PATH           Location on disk which "
+                 "runner will use as root when executing jobs\n";
     ConnectionOptions::printArgHelp(BUILDBOXCOMMON_RUNNER_USAGE_PAD_WIDTH);
 }
 
@@ -212,16 +214,17 @@ int Runner::main(int argc, char *argv[])
 }
 
 std::unique_ptr<StagedDirectory> Runner::stage(const Digest &digest,
+                                               const std::string &stage_path,
                                                bool use_localcas_protocol)
 {
     try {
         if (use_localcas_protocol) {
             return std::make_unique<LocalCasStagedDirectory>(
-                digest, this->d_casClient);
+                digest, stage_path, this->d_casClient);
         }
         else {
             return std::make_unique<FallbackStagedDirectory>(
-                digest, this->d_casClient);
+                digest, stage_path, this->d_casClient);
         }
     }
     catch (const std::exception &e) {
@@ -233,6 +236,12 @@ std::unique_ptr<StagedDirectory> Runner::stage(const Digest &digest,
                            << "`: " << e.what());
         throw;
     }
+}
+
+std::unique_ptr<StagedDirectory> Runner::stage(const Digest &digest,
+                                               bool use_localcas_protocol)
+{
+    return stage(digest, "", use_localcas_protocol);
 }
 
 std::array<int, 2> Runner::createPipe() const
@@ -422,6 +431,9 @@ bool Runner::parseArguments(int argc, char *argv[])
                 }
                 else if (strncmp(arg, "action-result", key_len) == 0) {
                     this->d_outputPath = std::string(value);
+                }
+                else if (strncmp(arg, "workspace-path", key_len) == 0) {
+                    this->d_stage_path = std::string(value);
                 }
                 else if (strncmp(arg, "log-level", key_len) == 0) {
                     std::string level(value);

@@ -61,12 +61,17 @@ class Runner {
     void executeAndStore(const std::vector<std::string> &command,
                          ActionResult *result);
     /**
-     * Stage the directory with the given digest at an arbitrary path and
+     * Stage the directory with the given digest, to stage_path, and
      * return a StagedDirectory object representing it.
+     * If stage_path is empty, will stage directory to tmpdir.
      *
      * If `use_localcas_protocol` is `true` uses `LocalCasStagedDirectory`
      * instead of `FallBackStagedDirectory`.
      */
+    std::unique_ptr<StagedDirectory> stage(const Digest &directoryDigest,
+                                           const std::string &stage_path = "",
+                                           bool use_localcas_protocol = false);
+
     std::unique_ptr<StagedDirectory> stage(const Digest &directoryDigest,
                                            bool use_localcas_protocol = false);
 
@@ -75,6 +80,7 @@ class Runner {
 
     bool d_verbose;
     bool d_use_localcas_protocol = false;
+    std::string d_stage_path = "";
 
   private:
     /**

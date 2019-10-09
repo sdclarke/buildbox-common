@@ -26,6 +26,7 @@ class LocalCasStagedDirectory final : public StagedDirectory {
 
   public:
     explicit LocalCasStagedDirectory(const Digest &digest,
+                                     const std::string &path,
                                      std::shared_ptr<Client> cas_client);
 
     /**

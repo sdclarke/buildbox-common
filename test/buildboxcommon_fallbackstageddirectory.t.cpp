@@ -85,6 +85,14 @@ class CaptureTestFixture : public StubsFixture {
     }
 };
 
+class CaptureTestFixtureParameter
+    : public CaptureTestFixture,
+      public ::testing::WithParamInterface<std::string> {
+    /**
+     * Fixture needed to parameterize tests
+     */
+};
+
 /*
  * Construct a new writer for every write raw request
  * Also store argument for testing
@@ -112,7 +120,29 @@ void copyDirectory(std::string source, std::string destination)
     system(copyCommand.str().c_str());
 }
 
-TEST_F(CaptureTestFixture, CaptureDirectoryTest)
+/*
+ * Get current working directory.
+ */
+std::string get_current_working_directory()
+{
+    unsigned int bufferSize = 1024;
+    while (true) {
+        std::unique_ptr<char[]> buffer(new char[bufferSize]);
+        char *cwd = getcwd(buffer.get(), bufferSize);
+
+        if (cwd != nullptr) {
+            return std::string(cwd);
+        }
+        else if (errno == ERANGE) {
+            bufferSize *= 2;
+        }
+        else {
+            throw std::runtime_error("current working directory not found");
+        }
+    }
+}
+
+TEST_P(CaptureTestFixtureParameter, CaptureDirectoryTest)
 {
     std::vector<WriteRequest> requests(4);
     auto iter = requests.begin();
@@ -133,7 +163,13 @@ TEST_F(CaptureTestFixture, CaptureDirectoryTest)
         .WillOnce(Return(getWriter(iter)))
         .WillOnce(Return(getWriter(iter)));
 
-    FallbackStagedDirectory fs(digest, client);
+    // Get the stage location.
+    std::string stage_location = GetParam();
+    FallbackStagedDirectory fs(digest, stage_location, client);
+
+    // Make sure fs staged the directory in correct location
+    std::string staged_path = fs.getPath();
+    EXPECT_EQ(staged_path.find(stage_location), 0);
 
     /*
      * upload_test
@@ -202,3 +238,12 @@ TEST_F(CaptureTestFixture, CaptureDirectoryTest)
     ASSERT_EQ(captured_directories.size(), 1);
     ASSERT_EQ(captured_directories.count("/include"), 1);
 }
+
+/*
+ * Fallbackstageddirectory will have different behaviour
+ * depending on the stage location. Test both empty string
+ * and current working directory, to check both these cases
+ */
+INSTANTIATE_TEST_CASE_P(CaptureTests, CaptureTestFixtureParameter,
+                        ::testing::Values("",
+                                          get_current_working_directory()));
