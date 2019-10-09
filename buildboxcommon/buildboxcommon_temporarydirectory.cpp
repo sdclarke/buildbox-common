@@ -14,25 +14,44 @@
 
 #include <buildboxcommon_fileutils.h>
 #include <buildboxcommon_temporarydirectory.h>
+#include <cstring>
+#include <stdexcept>
+#include <string>
 #include <system_error>
 
 namespace buildboxcommon {
 
-TemporaryDirectory::TemporaryDirectory(const char *prefix)
-    : d_auto_remove(true)
-{
-    const char *tmpdir = getenv("TMPDIR");
-    if (tmpdir == nullptr || tmpdir[0] == '\0') {
-        tmpdir = TempDefaults::DEFAULT_TMP_DIR;
-    }
+namespace {
 
-    this->d_name = create(tmpdir, prefix);
+const char *constructTmpDirPath(const char *path)
+{
+    if (path == nullptr) {
+        throw std::runtime_error(
+            "NULL path was passed into TemporaryDirectory.");
+    }
+    if (strlen(path) == 0) {
+        const char *tmpdir = getenv("TMPDIR");
+        if (tmpdir == nullptr || tmpdir[0] == '\0') {
+            tmpdir = TempDefaults::DEFAULT_TMP_DIR;
+        }
+
+        return tmpdir;
+    }
+    else {
+        return path;
+    }
+}
+
+} // unnamed namespace
+
+TemporaryDirectory::TemporaryDirectory(const char *prefix)
+    : TemporaryDirectory("", prefix)
+{
 }
 
 TemporaryDirectory::TemporaryDirectory(const char *path, const char *prefix)
-    : d_auto_remove(true)
+    : d_name(create(constructTmpDirPath(path), prefix))
 {
-    this->d_name = create(path, prefix);
 }
 
 std::string TemporaryDirectory::create(const char *path, const char *prefix)

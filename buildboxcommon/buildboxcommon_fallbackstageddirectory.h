@@ -32,9 +32,10 @@ namespace buildboxcommon {
 class FallbackStagedDirectory : public StagedDirectory {
   public:
     /**
-     * Download the directory with the given digest from CAS.
+     * Download the directory with the given digest from CAS, to location on
+     * disk specified by path.
      */
-    FallbackStagedDirectory(const Digest &digest,
+    FallbackStagedDirectory(const Digest &digest, const std::string &path,
                             std::shared_ptr<Client> cas_client);
 
     ~FallbackStagedDirectory() override;

@@ -24,9 +24,10 @@
 using namespace buildboxcommon;
 
 LocalCasStagedDirectory::LocalCasStagedDirectory(
-    const Digest &digest, std::shared_ptr<Client> cas_client)
+    const Digest &digest, const std::string &path,
+    std::shared_ptr<Client> cas_client)
     : d_cas_client(cas_client),
-      d_cas_client_staged_directory(cas_client->stage(digest))
+      d_cas_client_staged_directory(cas_client->stage(digest, path))
 {
     this->d_path = d_cas_client_staged_directory->path();
 }
