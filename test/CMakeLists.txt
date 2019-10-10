@@ -43,6 +43,12 @@ add_executable(fileutils_tests
 target_link_libraries(fileutils_tests buildboxcommon ${GTEST_TARGET})
 add_test(NAME fileutils_tests COMMAND fileutils_tests)
 
+add_executable(systemutils_tests
+  buildboxcommon_systemutils.t.cpp
+  buildboxcommon_tests.m.cpp)
+target_link_libraries(systemutils_tests buildboxcommon ${GTEST_TARGET})
+add_test(NAME systemutils_tests COMMAND systemutils_tests)
+
 add_executable(logging_tests buildboxcommon_logging.t.cpp buildboxcommon_tests.m.cpp)
 target_link_libraries(logging_tests buildboxcommon ${GTEST_TARGET})
 add_test(NAME logging_tests COMMAND logging_tests)
