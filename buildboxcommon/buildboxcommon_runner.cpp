@@ -33,7 +33,6 @@
 #include <stdlib.h>
 #include <sys/select.h>
 #include <sys/stat.h>
-#include <sys/wait.h>
 #include <system_error>
 #include <unistd.h>
 
@@ -354,35 +353,8 @@ void Runner::executeAndStore(const std::vector<std::string> &command,
     uploadIfNeeded(result->mutable_stderr_raw(),
                    result->mutable_stderr_digest());
 
-    int status;
-    if (waitpid(pid, &status, 0) == -1) {
-        throw std::system_error(errno, std::system_category());
-    }
-
-    if (WIFEXITED(status)) {
-        result->set_exit_code(WEXITSTATUS(status));
-    }
-    else if (WIFSIGNALED(status)) {
-        result->set_exit_code(128 + WTERMSIG(status));
-        // Exit code as returned by Bash.
-        // (https://gnu.org/software/bash/manual/html_node/Exit-Status.html)
-    }
-    else {
-        /* According to the documentation for `waitpid()` we should never get
-         * here:
-         *
-         * "If the information pointed to by stat_loc was stored by a call to
-         * waitpid() that did not specify the WUNTRACED  or
-         * CONTINUED flags, or by a call to the wait() function,
-         * exactly one of the macros WIFEXITED(*stat_loc) and
-         * WIFSIGNALED(*stat_loc) shall evaluate to a non-zero value."
-         *
-         * (https://pubs.opengroup.org/onlinepubs/009695399/functions/wait.html)
-         */
-        throw std::runtime_error(
-            "`waitpid()` returned an unexpected status: " +
-            std::to_string(status));
-    }
+    const int exit_code = SystemUtils::waitPid(pid);
+    result->set_exit_code(exit_code);
 }
 
 bool Runner::parseArguments(int argc, char *argv[])
