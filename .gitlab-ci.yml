@@ -11,7 +11,8 @@ stages:
 variables:
   DOCKER_HOST: tcp://docker:2375
   DOCKER_DRIVER: overlay2
-  CONTAINER_TEST_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+  CONTAINER_BUILD_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG-build
+  CONTAINER_TEST_IMAGE: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG-test
   CONTAINER_RELEASE_IMAGE: $CI_REGISTRY_IMAGE:latest
 
 build:
@@ -19,29 +20,29 @@ build:
 
   script:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
-    - docker build --pull -t $CONTAINER_TEST_IMAGE .
-    - docker push $CONTAINER_TEST_IMAGE
+    - docker build --pull --target build -t $CONTAINER_BUILD_IMAGE .
+    - docker push $CONTAINER_BUILD_IMAGE
 
 tests:
   stage: test
   script:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
-    - docker pull $CONTAINER_TEST_IMAGE
-    - docker run -w /buildbox-common/build $CONTAINER_TEST_IMAGE sh -c 'cmake -DBUILD_TESTING=ON .. && make && make test'
+    - docker pull $CONTAINER_BUILD_IMAGE
+    - docker build --pull --target test -t $CONTAINER_TEST_IMAGE .
 
 test-compile-sample-project:
   stage: test
   script:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
-    - docker pull $CONTAINER_TEST_IMAGE
-    - docker run -w /buildbox-common/test $CONTAINER_TEST_IMAGE ./compile_sample_project.sh
+    - docker pull $CONTAINER_BUILD_IMAGE
+    - docker build --pull --target compile_sample_project -t $CONTAINER_TEST_IMAGE-compile .
 
 release-image:
   stage: release
   script:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
-    - docker pull $CONTAINER_TEST_IMAGE
-    - docker tag $CONTAINER_TEST_IMAGE $CONTAINER_RELEASE_IMAGE
+    - docker pull $CONTAINER_BUILD_IMAGE
+    - docker build --pull --target release -t $CONTAINER_RELEASE_IMAGE .
     - docker push $CONTAINER_RELEASE_IMAGE
   only:
     - master
