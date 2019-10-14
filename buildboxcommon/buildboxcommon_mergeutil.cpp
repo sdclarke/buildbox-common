@@ -142,6 +142,14 @@ std::ostream &operator<<(std::ostream &out, const NodeMetaData &obj)
     return out;
 }
 
+inline std::string genNewPath(const std::string &dirName,
+                              const std::string &nodeName)
+{
+    const std::string result =
+        dirName.empty() ? nodeName : dirName + "/" + nodeName;
+    return result;
+}
+
 /**
  * Create a string, one per file or directory by recursively iterating
  * over a chain of directories and subdirectores until arriving at the leaf
@@ -173,8 +181,7 @@ void buildFlattenedPath(PathNodeMetaDataMap *map,
 {
     // files
     for (const auto &node : directory.files()) {
-        const std::string newFile =
-            dirName.empty() ? node.name() : dirName + "/" + node.name();
+        const std::string newFile = genNewPath(dirName, node.name());
 
         // collision detection for files is defined as
         // same file name but different digest or 'is_executable' flag
@@ -196,8 +203,7 @@ void buildFlattenedPath(PathNodeMetaDataMap *map,
 
     // symlinks
     for (const auto &node : directory.symlinks()) {
-        const std::string newName =
-            dirName.empty() ? node.name() : dirName + "/" + node.name();
+        const std::string newName = genNewPath(dirName, node.name());
         const std::string key = newName + ":" + node.target();
 
         // collision detection for symlinks is defined as
@@ -220,8 +226,7 @@ void buildFlattenedPath(PathNodeMetaDataMap *map,
     // collisions in the subdirectory data, it will be detected at the file and
     // symlink level
     for (const auto &node : directory.directories()) {
-        const std::string newDirectoryPath =
-            dirName.empty() ? node.name() : dirName + "/" + node.name();
+        const std::string newDirectoryPath = genNewPath(dirName, node.name());
 
         map->emplace(newDirectoryPath, std::make_shared<DirNodeMetaData>(
                                            newDirectoryPath, node.digest()));
@@ -243,7 +248,7 @@ void buildDigestDirectoryMap(
 {
     for (const auto &directory : tree) {
         const auto serialized = directory.SerializeAsString();
-        const auto digest = buildboxcommon::make_digest(directory);
+        const auto digest = buildboxcommon::make_digest(serialized);
         if (!dsMap->emplace(digest, serialized).second) {
             BUILDBOX_LOG_DEBUG("digest ["
                                << digest

@@ -561,7 +561,6 @@ TEST_F(ClientTestFixture, CaptureDirectoryErrorThrows)
 
 class GetTreeFixture : public ClientTestFixture {
   protected:
-    Digest d_badDigest; // remains uninitialized
     Digest d_digest;
 
     void prepareDigest(Digest *digest)
@@ -648,7 +647,7 @@ TEST_F(GetTreeFixture, GetTreeSuccess)
         .WillOnce(Return(false));
     EXPECT_CALL(*gettreereader, Finish()).WillOnce(Return(grpc::Status::OK));
 
-    std::vector<Directory> tree = this->getTree(d_digest);
+    this->getTree(d_digest);
 }
 
 TEST_F(GetTreeFixture, GetTreeFail)
@@ -660,9 +659,10 @@ TEST_F(GetTreeFixture, GetTreeFail)
         .WillOnce(Return(false));
     EXPECT_CALL(*gettreereader, Finish())
         .WillOnce(Return(
-            grpc::Status(grpc::StatusCode::NOT_FOUND, "Digest not found!")));
+            grpc::Status(grpc::StatusCode::NOT_FOUND,
+                         "The root digest was not found in the local CAS.")));
 
-    EXPECT_THROW(this->getTree(d_badDigest), std::runtime_error);
+    EXPECT_THROW(this->getTree(d_digest), std::runtime_error);
 }
 
 class UploadFileFixture : public ClientTestFixture {
