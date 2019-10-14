@@ -18,6 +18,10 @@
 #include <buildboxcommon_temporaryfile.h>
 #include <gtest/gtest.h>
 
+#include <signal.h>
+#include <sys/types.h>
+#include <unistd.h>
+
 using namespace buildboxcommon;
 
 TEST(SystemUtilsTests, CommandNotFound)
@@ -34,4 +38,46 @@ TEST(SystemUtilsTests, CommandIsNotAnExecutable)
     ASSERT_EQ(buildboxcommon::SystemUtils::executeCommand(
                   {non_executable_file.name()}),
               126); // 126 == Command invoked cannot execute
+}
+
+TEST(SystemUtilsTests, WaitPidExitCode)
+{
+    // Creating a subprocess:
+    const int pid = fork();
+    ASSERT_NE(pid, -1);
+
+    // The subprocess exits:
+    if (pid == 0) {
+        exit(42);
+    }
+    // And the parent gets its exit code:
+    else {
+        const int exit_status = SystemUtils::waitPid(pid);
+        ASSERT_EQ(exit_status, 42);
+    }
+}
+
+TEST(SystemUtilsTests, WaitPidSignalNumber)
+{
+    // Creating a subprocess:
+    const int pid = fork();
+    ASSERT_NE(pid, -1);
+
+    const auto signal_number = SIGKILL;
+    // The subprocess gets signaled:
+    if (pid == 0) {
+        raise(signal_number);
+    }
+    // And the parent gets an exit code that encodes the signal number as done
+    // by Bash:
+    else {
+        const int exit_status = SystemUtils::waitPid(pid);
+        ASSERT_EQ(exit_status, signal_number + 128);
+    }
+}
+
+TEST(SystemUtilsTests, WaitPidThrowsOnError)
+{
+    const int invalid_pid = -1;
+    ASSERT_THROW(SystemUtils::waitPid(invalid_pid), std::system_error);
 }

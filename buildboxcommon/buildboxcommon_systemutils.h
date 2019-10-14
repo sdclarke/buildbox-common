@@ -18,6 +18,16 @@ struct SystemUtils {
      * permissions), or 127 if the command could not be found.
      */
     static int executeCommand(const std::vector<std::string> &command);
+
+    /*
+     * Waits for the given PID and returns an exit code following the
+     * convention used by Bash:
+     *  - If it exits: its status code,
+     *  - If it is signaled: 128 + the signal number
+     *
+     * On errors, throws an `std::system_error` exception.
+     */
+    static int waitPid(const pid_t pid);
 };
 
 } // namespace buildboxcommon
