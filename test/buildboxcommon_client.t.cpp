@@ -639,7 +639,7 @@ class GetTreeFixture : public ClientTestFixture {
     GetTreeFixture() { prepareDigest(&d_digest); }
 };
 
-TEST_F(GetTreeFixture, GetTree)
+TEST_F(GetTreeFixture, GetTreeSuccess)
 {
     EXPECT_CALL(*casClient, GetTreeRaw(_, _)).WillOnce(Return(gettreereader));
 
@@ -649,6 +649,20 @@ TEST_F(GetTreeFixture, GetTree)
     EXPECT_CALL(*gettreereader, Finish()).WillOnce(Return(grpc::Status::OK));
 
     std::vector<Directory> tree = this->getTree(d_digest);
+}
+
+TEST_F(GetTreeFixture, GetTreeFail)
+{
+    EXPECT_CALL(*casClient, GetTreeRaw(_, _)).WillOnce(Return(gettreereader));
+
+    EXPECT_CALL(*gettreereader, Read(_))
+        .WillOnce(Return(true))
+        .WillOnce(Return(false));
+    EXPECT_CALL(*gettreereader, Finish())
+        .WillOnce(Return(
+            grpc::Status(grpc::StatusCode::NOT_FOUND, "Digest not found!")));
+
+    EXPECT_THROW(this->getTree(d_badDigest), std::runtime_error);
 }
 
 class UploadFileFixture : public ClientTestFixture {

@@ -376,6 +376,7 @@ class MergeFixture : public ::testing::Test {
         std::endl; std::cout << "num_subdirs = " <<
         (*expected)["directories"].size() << std::endl;
         */
+
         // Exit early if there are more/less files or dirs in the given tree
         // than expected
         ASSERT_EQ(directory.files().size(), (*expected)["files"].size())
@@ -408,10 +409,6 @@ class MergeFixture : public ::testing::Test {
 // TEST CASES
 TEST_F(MergeFixture, MergeSuccessEmptyInputTree)
 {
-    /*
-    std::cout << "input tree\n" << d_emptyInputTree << std::endl;
-    std::cout << "chroot tree\n" << d_chrootTemplateTree << std::endl;
-    */
     // merge
     Digest mergedRootDigest;
     buildboxcommon::digest_string_map dsMap;
@@ -438,11 +435,6 @@ TEST_F(MergeFixture, MergeSuccessEmptyInputTree)
 
 TEST_F(MergeFixture, MergeSuccessNoOverlap)
 {
-    /*
-    std::cout << "input tree\n" << d_inputTreeWithExecutableTrue << std::endl;
-    std::cout << "chroot tree\n" << d_chrootTemplateTree << std::endl;
-    */
-
     // merge
     Digest mergedRootDigest;
     buildboxcommon::digest_string_map dsMap;
@@ -477,11 +469,6 @@ TEST_F(MergeFixture, MergeSuccessNoOverlap)
 
 TEST_F(MergeFixture, MergeSuccessOverlapWithoutConflict)
 {
-    /*
-    std::cout << "input tree\n"
-              << d_inputTreeWithOverlapWithoutConflict << std::endl;
-    std::cout << "chroot tree\n" << d_chrootTemplateTree << std::endl;
-    */
     // merge
     Digest mergedRootDigest;
     buildboxcommon::digest_string_map dsMap;
@@ -515,11 +502,6 @@ TEST_F(MergeFixture, MergeSuccessOverlapWithoutConflict)
 
 TEST_F(MergeFixture, MergeFailOverlapWithConflict)
 {
-    /*
-    std::cout << "input tree\n"
-              << d_inputTreeWithOverlapWithConflict << std::endl;
-    std::cout << "chroot tree\n" << d_chrootTemplateTree << std::endl;
-    */
     // merge
     Digest mergedRootDigest;
     buildboxcommon::digest_string_map dsMap;
@@ -531,11 +513,6 @@ TEST_F(MergeFixture, MergeFailOverlapWithConflict)
 
 TEST_F(MergeFixture, MergeMismatchIsExecutable)
 {
-    /*
-    std::cout << "input tree\n" << d_inputTreeWithExecutableTrue << std::endl;
-    std::cout << "chroot tree\n"
-              << d_inputTreeWithExecutableFalse << std::endl;
-    */
     // merge
     Digest mergedRootDigest;
     buildboxcommon::digest_string_map dsMap;

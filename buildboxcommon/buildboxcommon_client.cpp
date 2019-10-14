@@ -668,7 +668,9 @@ std::vector<Directory> Client::getTree(const Digest &root_digest)
     if (!status.ok()) {
         std::ostringstream oss;
         oss << "Error getting tree for digest \"" + toString(root_digest) +
-                   "\", status = \"" + status.error_message() + "\"";
+                   "\", status = ["
+            << status.error_code() << ": \"" + status.error_message() + "\"]";
+        BUILDBOX_LOG_ERROR(oss.str());
         throw std::runtime_error(oss.str());
     }
 
