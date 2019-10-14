@@ -562,8 +562,9 @@ TEST_F(ClientTestFixture, CaptureDirectoryErrorThrows)
 class GetTreeFixture : public ClientTestFixture {
   protected:
     Digest d_digest;
+    std::vector<buildboxcommon::Directory> d_directories;
 
-    void prepareDigest(Digest *digest)
+    void prepareDigest()
     {
         /* Creates the following directory structure:
          *
@@ -632,22 +633,40 @@ class GetTreeFixture : public ClientTestFixture {
 
         const auto root_directory_serialized =
             root_directory.SerializeAsString();
-        *digest = make_digest(root_directory_serialized);
+        d_digest = make_digest(root_directory_serialized);
+
+        d_directories.emplace_back(root_directory);
+        d_directories.emplace_back(src_directory);
+        d_directories.emplace_back(cpp_directory);
+        d_directories.emplace_back(headers_directory);
     }
 
-    GetTreeFixture() { prepareDigest(&d_digest); }
+    GetTreeFixture() { prepareDigest(); }
 };
 
 TEST_F(GetTreeFixture, GetTreeSuccess)
 {
-    EXPECT_CALL(*casClient, GetTreeRaw(_, _)).WillOnce(Return(gettreereader));
+    // prepare request
+    GetTreeRequest request;
+    request.set_instance_name("");
+    request.mutable_root_digest()->CopyFrom(d_digest);
+
+    EXPECT_CALL(*casClient, GetTreeRaw(_, _))
+        .WillOnce(DoAll(SaveArg<1>(&request), Return(gettreereader)));
+
+    // prepare expected response
+    GetTreeResponse response;
+    for (const auto &d : d_directories) {
+        response.add_directories()->CopyFrom(d);
+    }
 
     EXPECT_CALL(*gettreereader, Read(_))
-        .WillOnce(Return(true))
+        .WillOnce(DoAll(SetArgPointee<0>(response), Return(true)))
         .WillOnce(Return(false));
     EXPECT_CALL(*gettreereader, Finish()).WillOnce(Return(grpc::Status::OK));
 
-    this->getTree(d_digest);
+    std::vector<Directory> result = this->getTree(d_digest);
+    ASSERT_EQ(result.size(), d_directories.size());
 }
 
 TEST_F(GetTreeFixture, GetTreeFail)
