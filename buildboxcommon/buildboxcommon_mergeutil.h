@@ -73,7 +73,7 @@ struct MergeUtil {
     static bool createMergedDigest(const DirectoryTree &inputTree,
                                    const DirectoryTree &templateTree,
                                    Digest *rootDigest,
-                                   digest_string_map *dsMap = nullptr);
+                                   digest_string_map *dsMap);
 };
 
 // convenience streaming operators
