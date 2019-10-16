@@ -28,6 +28,13 @@ struct SystemUtils {
      * On errors, throws an `std::system_error` exception.
      */
     static int waitPid(const pid_t pid);
+
+    /*
+     * Get current working directory. Uses getcwd()
+     *
+     * On error, throws as 'std::runtime_error` exception
+     */
+    static std::string get_current_working_directory();
 };
 
 } // namespace buildboxcommon
