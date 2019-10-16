@@ -58,6 +58,7 @@ struct File {
  * Represents a directory that, optionally, has other directories inside.
  */
 struct NestedDirectory {
+  public:
     // Important to use a sorted map to keep subdirectories ordered by name
     typedef std::map<std::string, NestedDirectory> subdir_map;
     typedef std::map<std::string, NestedDirectory>::iterator subdir_map_it;
@@ -72,7 +73,13 @@ struct NestedDirectory {
      * Add the given File to this NestedDirectory at the given relative path,
      * which may include subdirectories.
      */
-    void add(File, const char *relativePath);
+    void add(const File &file, const char *relativePath);
+
+    /**
+     * Add the given symlink to this NestedDirectory at the given relative
+     * path, which may include subdirectories
+     */
+    void addSymlink(const std::string &target, const char *relativePath);
 
     /**
      * Add the given Directory to this NestedDirectory at a given relative

@@ -112,6 +112,10 @@ class ClientTestFixture : public StubsFixture, public Client {
         new grpc::testing::MockClientReaderWriter<
             typename build::buildgrid::StageTreeRequest,
             typename build::buildgrid::StageTreeResponse>();
+    grpc::testing::MockClientReader<
+        typename build::bazel::remote::execution::v2::GetTreeResponse>
+        *gettreereader = new grpc::testing::MockClientReader<
+            typename build::bazel::remote::execution::v2::GetTreeResponse>();
 
     ClientTestFixture(int64_t max_batch_size_bytes = MAX_BATCH_SIZE_BYTES)
         : Client(bytestreamClient, casClient, localCasClient,
@@ -505,7 +509,6 @@ TEST_F(ClientTestFixture, UploadBlobsReturnsFailures)
 
 TEST_F(ClientTestFixture, CaptureDirectory)
 {
-
     const std::string path_to_capture = "/path/to/stage";
     std::vector<std::string> paths = {path_to_capture};
 
@@ -554,6 +557,131 @@ TEST_F(ClientTestFixture, CaptureDirectoryErrorThrows)
                                                   "Something went wrong."))));
 
     ASSERT_THROW(this->capture(paths, false), std::runtime_error);
+}
+
+class GetTreeFixture : public ClientTestFixture {
+  protected:
+    Digest d_digest;
+    std::vector<buildboxcommon::Directory> d_directories;
+
+    void prepareDigest()
+    {
+        /* Creates the following directory structure:
+         *
+         * ./
+         *   src/
+         *       build.sh*
+         *       headers/
+         *               file1.h
+         *               file2.h
+         *               file3.h
+         *       cpp/
+         *           file1.cpp
+         *           file2.cpp
+         *           file3.cpp
+         *           symlink: file4.cpp --> file3.cpp
+         */
+
+        // ./src/headers
+        Directory headers_directory;
+        std::vector<std::string> headerFiles = {"file1.h", "file2.h",
+                                                "file3.h"};
+        for (const auto &file : headerFiles) {
+            FileNode *fileNode = headers_directory.add_files();
+            fileNode->set_name(file);
+            fileNode->set_is_executable(false);
+            fileNode->mutable_digest()->CopyFrom(
+                make_digest(file + "_contents"));
+        }
+        const auto headers_directory_digest = make_digest(headers_directory);
+
+        // ./src/cpp
+        Directory cpp_directory;
+        std::vector<std::string> cppFiles = {"file1.cpp", "file2.cpp",
+                                             "file3.cpp"};
+        for (const auto &file : cppFiles) {
+            FileNode *fileNode = cpp_directory.add_files();
+            fileNode->set_name(file);
+            fileNode->set_is_executable(false);
+            fileNode->mutable_digest()->CopyFrom(
+                make_digest(file + "_contents"));
+        }
+        SymlinkNode *symNode = cpp_directory.add_symlinks();
+        symNode->set_name("file4.cpp");
+        symNode->set_target("file3.cpp");
+        const auto cpp_directory_digest = make_digest(cpp_directory);
+
+        // ./src
+        Directory src_directory;
+        DirectoryNode *headersNode = src_directory.add_directories();
+        headersNode->set_name("headers");
+        headersNode->mutable_digest()->CopyFrom(headers_directory_digest);
+        DirectoryNode *cppNode = src_directory.add_directories();
+        cppNode->set_name("cpp");
+        cppNode->mutable_digest()->CopyFrom(cpp_directory_digest);
+        FileNode *fileNode = src_directory.add_files();
+        fileNode->set_name("build.sh");
+        fileNode->set_is_executable(true);
+        fileNode->mutable_digest()->CopyFrom(make_digest("build.sh_contents"));
+        const auto src_directory_digest = make_digest(src_directory);
+
+        // .
+        Directory root_directory;
+        DirectoryNode *srcNode = root_directory.add_directories();
+        srcNode->set_name("src");
+        srcNode->mutable_digest()->CopyFrom(src_directory_digest);
+
+        const auto root_directory_serialized =
+            root_directory.SerializeAsString();
+        d_digest = make_digest(root_directory_serialized);
+
+        d_directories.emplace_back(root_directory);
+        d_directories.emplace_back(src_directory);
+        d_directories.emplace_back(cpp_directory);
+        d_directories.emplace_back(headers_directory);
+    }
+
+    GetTreeFixture() { prepareDigest(); }
+};
+
+TEST_F(GetTreeFixture, GetTreeSuccess)
+{
+    // prepare request
+    GetTreeRequest request;
+    request.set_instance_name("");
+    request.mutable_root_digest()->CopyFrom(d_digest);
+
+    EXPECT_CALL(*casClient, GetTreeRaw(_, _))
+        .WillOnce(DoAll(SaveArg<1>(&request), Return(gettreereader)));
+
+    // prepare expected response
+    GetTreeResponse response;
+    for (const auto &d : d_directories) {
+        response.add_directories()->CopyFrom(d);
+    }
+
+    EXPECT_CALL(*gettreereader, Read(_))
+        .WillOnce(DoAll(SetArgPointee<0>(response), Return(true)))
+        .WillOnce(Return(false));
+    EXPECT_CALL(*gettreereader, Finish()).WillOnce(Return(grpc::Status::OK));
+
+    std::vector<Directory> result = this->getTree(d_digest);
+    ASSERT_EQ(result.size(), d_directories.size());
+}
+
+TEST_F(GetTreeFixture, GetTreeFail)
+{
+    EXPECT_CALL(*casClient, GetTreeRaw(_, _)).WillOnce(Return(gettreereader));
+
+    EXPECT_CALL(*gettreereader, Read(_))
+        .WillOnce(Return(true))
+        .WillOnce(Return(false));
+    EXPECT_CALL(*gettreereader, Finish())
+        .WillOnce(Return(
+            grpc::Status(grpc::StatusCode::NOT_FOUND,
+                         "The root digest was not found in the local CAS.")));
+
+    EXPECT_THROW(this->getTree(d_digest), std::runtime_error);
 }
 
 class UploadFileFixture : public ClientTestFixture {

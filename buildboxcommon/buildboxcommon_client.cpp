@@ -18,7 +18,7 @@
 #include <buildboxcommon_fileutils.h>
 #include <buildboxcommon_grpcretry.h>
 #include <buildboxcommon_logging.h>
-#include <buildboxcommon_merklize.h>
+#include <buildboxcommon_mergeutil.h>
 
 #include <algorithm>
 #include <errno.h>
@@ -644,6 +644,37 @@ Client::stage(const Digest &root_digest, const std::string &path) const
 
     return std::make_unique<StagedDirectory>(context, reader_writer,
                                              response.path());
+}
+
+std::vector<Directory> Client::getTree(const Digest &root_digest)
+{
+    grpc::ClientContext context;
+    GetTreeRequest request;
+    request.set_instance_name(d_instanceName);
+    request.mutable_root_digest()->CopyFrom(root_digest);
+
+    std::unique_ptr<grpc::ClientReaderInterface<GetTreeResponse>> reader(
+        d_casClient->GetTree(&context, request));
+
+    std::vector<Directory> tree;
+    GetTreeResponse response;
+    while (reader->Read(&response)) {
+        BUILDBOX_LOG_TRACE("\n" << response.directories());
+        tree.insert(tree.end(), response.directories().begin(),
+                    response.directories().end());
+    }
+
+    grpc::Status status = reader->Finish();
+    if (!status.ok()) {
+        std::ostringstream oss;
+        oss << "Error getting tree for digest \"" + toString(root_digest) +
+                   "\", status = ["
+            << status.error_code() << ": \"" + status.error_message() + "\"]";
+        BUILDBOX_LOG_ERROR(oss.str());
+        throw std::runtime_error(oss.str());
+    }
+
+    return tree;
 }
 
 CaptureTreeResponse Client::capture(const std::vector<std::string> &paths,

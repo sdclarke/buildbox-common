@@ -72,13 +72,12 @@ add_test(NAME temporaryfile_tests COMMAND temporaryfile_tests)
 add_executable(grpcretry_tests
   buildboxcommon_grpcretry.t.cpp
   buildboxcommon_tests.m.cpp)
-
 target_link_libraries(grpcretry_tests buildboxcommon ${GTEST_TARGET})
 add_test(NAME grpcretry_tests COMMAND grpcretry_tests)
+
 add_executable(merklize_tests
   buildboxcommon_merklize.t.cpp
   buildboxcommon_tests.m.cpp)
-
 target_link_libraries(merklize_tests buildboxcommon ${GTEST_TARGET})
 add_test(NAME merklize_tests
         COMMAND merklize_tests
@@ -95,3 +94,9 @@ add_executable(requestmetadata_tests
   buildboxcommon_tests.m.cpp)
 target_link_libraries(requestmetadata_tests buildboxcommon ${GTEST_TARGET})
 add_test(NAME requestmetadata_tests COMMAND requestmetadata_tests)
+
+add_executable(mergeutil_tests
+  buildboxcommon_mergeutil.t.cpp
+  buildboxcommon_tests.m.cpp)
+target_link_libraries(mergeutil_tests buildboxcommon ${GTEST_TARGET})
+add_test(NAME mergeutil_tests COMMAND mergeutil_tests)
