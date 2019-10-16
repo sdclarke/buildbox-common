@@ -116,3 +116,22 @@ int SystemUtils::waitPid(const pid_t pid)
             std::to_string(status));
     }
 }
+
+std::string SystemUtils::get_current_working_directory()
+{
+    unsigned int bufferSize = 1024;
+    while (true) {
+        std::unique_ptr<char[]> buffer(new char[bufferSize]);
+        char *cwd = getcwd(buffer.get(), bufferSize);
+
+        if (cwd != nullptr) {
+            return std::string(cwd);
+        }
+        else if (errno == ERANGE) {
+            bufferSize *= 2;
+        }
+        else {
+            throw std::runtime_error("current working directory not found");
+        }
+    }
+}
