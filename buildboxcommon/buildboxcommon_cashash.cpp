@@ -24,7 +24,7 @@
 
 namespace buildboxcommon {
 
-const size_t DigestGenerator::HASH_BUFFER_SIZE_BYTES = (1024 * 1024);
+const size_t DigestGenerator::HASH_BUFFER_SIZE_BYTES = (1024 * 64);
 
 const std::set<DigestFunction_Value>
     DigestGenerator::s_supportedDigestFunctions = {
