@@ -178,3 +178,19 @@ TEST_F(LoggingFixture, SwitchFileToStream)
     std::string clogOutput = testing::internal::GetCapturedStderr();
     EXPECT_EQ(clogOutput, "[ERROR] This is a message to std::clog.\n");
 }
+
+TEST(LoggingTest, PrintableCommandLineTest)
+{
+    std::vector<std::string> command{"these", " ", "be", "seperate"};
+    std::string result = logging::printableCommandLine(command);
+    std::string expected = "these   be seperate";
+    EXPECT_EQ(result, expected);
+}
+
+TEST(LoggingTest, PrintableCommandLineTestEmpty)
+{
+    std::vector<std::string> command{};
+    std::string result = logging::printableCommandLine(command);
+    std::string expected = "";
+    EXPECT_EQ(result, expected);
+}

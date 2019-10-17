@@ -75,6 +75,18 @@ class Runner {
     std::unique_ptr<StagedDirectory> stage(const Digest &directoryDigest,
                                            bool use_localcas_protocol = false);
 
+    /**
+     * Create parent output directories, in staged directory, as specified by
+     * command
+     *
+     * Given an output file or directory, creates all the parent directories
+     * leading up to the directory or file. But not including it. The output
+     * files and directories should be relative to workingDir. They should also
+     * not contain any trailing or leading slashes.
+     */
+    void createOutputDirectories(const Command &command,
+                                 const std::string &workingDir) const;
+
     std::shared_ptr<Client> d_casClient =
         std::shared_ptr<Client>(new Client());
 

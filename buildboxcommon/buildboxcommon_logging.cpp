@@ -18,6 +18,7 @@
 
 #include <algorithm>
 #include <iomanip>
+#include <iterator>
 #include <pthread.h>
 #include <sys/types.h>
 #include <time.h>
@@ -68,6 +69,21 @@ std::string stringifyLogLevels()
     logLevels.pop_back();
     return logLevels;
 }
+
+std::string printableCommandLine(const std::vector<std::string> &commandLine)
+{
+    if (commandLine.empty()) {
+        return "";
+    }
+    std::ostringstream commandLineStream;
+    // -1, to avoid putting space at end of string
+    copy(commandLine.begin(), commandLine.end() - 1,
+         std::ostream_iterator<std::string>(commandLineStream, " "));
+    std::string commandLineString =
+        commandLineStream.str() + commandLine.back();
+    return commandLineString;
+}
+
 } // namespace logging
 
 LoggerState &LoggerState::getInstance()
