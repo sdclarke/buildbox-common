@@ -26,6 +26,7 @@
 #include <sstream>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace buildboxcommon {
 
@@ -50,6 +51,8 @@ const std::map<LogLevel, std::string> logLevelToString = {
     {LogLevel::ERROR, "error"}};
 
 std::string stringifyLogLevels();
+
+std::string printableCommandLine(const std::vector<std::string> &commandLine);
 
 } // namespace logging
 

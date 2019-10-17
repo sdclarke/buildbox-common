@@ -244,6 +244,36 @@ std::unique_ptr<StagedDirectory> Runner::stage(const Digest &digest,
     return stage(digest, "", use_localcas_protocol);
 }
 
+void Runner::createOutputDirectories(const Command &command,
+                                     const std::string &workingDir) const
+{
+    auto createDirectoryIfNeeded = [&](const std::string &output) {
+        if (output.find("/") != std::string::npos) {
+            std::string directory_location =
+                workingDir + "/" + output.substr(0, output.rfind("/"));
+            try {
+                FileUtils::create_directory(directory_location.c_str());
+            }
+            catch (const std::system_error &e) {
+                BUILDBOX_LOG_ERROR("Error while creating directory "
+                                   << directory_location << " : " << e.what());
+                throw;
+            }
+            BUILDBOX_LOG_DEBUG(
+                "Created parent output directory: " << directory_location);
+        }
+    };
+
+    // Create parent directories for output files
+    std::for_each(command.output_files().cbegin(),
+                  command.output_files().cend(), createDirectoryIfNeeded);
+
+    // Create parent directories for out directories
+    std::for_each(command.output_directories().cbegin(),
+                  command.output_directories().cend(),
+                  createDirectoryIfNeeded);
+}
+
 std::array<int, 2> Runner::createPipe() const
 {
     std::array<int, 2> pipe_fds = {0, 0};

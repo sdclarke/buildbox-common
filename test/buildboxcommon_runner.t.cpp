@@ -16,7 +16,10 @@
 
 #include <buildboxcommon_runner.h>
 
+#include <buildboxcommon_fileutils.h>
+#include <buildboxcommon_systemutils.h>
 #include <buildboxcommon_temporaryfile.h>
+
 #include <fcntl.h>
 #include <gtest/gtest.h>
 
@@ -27,6 +30,12 @@ class TestRunner : public Runner {
     ActionResult execute(const Command &command, const Digest &inputRoot)
     {
         return ActionResult();
+    }
+    // expose createOutputDirectories for testing
+    void testCreateOutputDirectories(const Command &command,
+                                     const std::string &workingDir) const
+    {
+        createOutputDirectories(command, workingDir);
     }
     using Runner::executeAndStore;
 };
@@ -90,4 +99,42 @@ TEST(RunnerTest, ExecuteAndStoreStderr)
     EXPECT_EQ(result.stdout_raw(), "hello\n");
     EXPECT_EQ(result.stderr_raw(), "world\n");
     EXPECT_EQ(result.exit_code(), 0);
+}
+
+TEST(RunnerTest, CreateOutputDirectoriesTest)
+{
+    TestRunner runner;
+    const std::string cwd = SystemUtils::get_current_working_directory();
+    std::vector<std::string> output_directories{"build_t/intermediate",
+                                                "tmp_t/build", "empty", ""};
+    std::vector<std::string> output_files{
+        "intermediate_t/tmp.o", "artifacts_t/build.o", "empty.txt", ""};
+
+    std::vector<std::string> expected_directories{
+        "build_t", "tmp_t", "intermediate_t", "artifacts_t"};
+
+    for (const auto &dir : expected_directories) {
+        std::string full_path = cwd + "/" + dir;
+        // directories should not exist
+        EXPECT_FALSE(FileUtils::is_directory(full_path.c_str()));
+    }
+
+    Command command;
+    for (const auto &dir : output_directories) {
+        *command.add_output_directories() = dir;
+    }
+
+    for (const auto &dir : output_files) {
+        *command.add_output_files() = dir;
+    }
+
+    runner.testCreateOutputDirectories(command, cwd);
+
+    for (const auto &dir : expected_directories) {
+        std::string full_path = cwd + "/" + dir;
+        // directories should now exist
+        EXPECT_TRUE(FileUtils::is_directory(full_path.c_str()));
+        // clean up directory now
+        FileUtils::delete_directory(full_path.c_str());
+    }
 }
