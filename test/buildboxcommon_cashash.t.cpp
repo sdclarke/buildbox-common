@@ -29,68 +29,53 @@ const std::string TEST_STRING =
     "This is a sample blob to hash. \0 It contains some NUL characters "
     "\0."s;
 
-TEST(CASHashTest, DefaultFunction)
+TEST(CASHashTest, DefaultFunctionSelectedViaCompilerFlag)
 {
-    ASSERT_EQ(CASHash::digestFunction(),
-              DigestFunction_Value::DigestFunction_Value_SHA256);
+    // By default we use the digest function selected during compile time:
+    const auto digest_function_selected = static_cast<DigestFunction_Value>(
+        BUILDBOXCOMMON_DIGEST_FUNCTION_VALUE);
+
+    ASSERT_EQ(CASHash::digestFunction(), digest_function_selected);
 
     const std::string data = "Hello, world!";
 
-    const Digest d1 =
-        DigestGenerator(DigestFunction_Value::DigestFunction_Value_SHA256)
-            .hash(data);
-    const Digest d2 = DigestGenerator().hash(data);
+    const Digest d1 = DigestGenerator(digest_function_selected).hash(data);
+    const Digest d2 = CASHash::hash(data);
 
     ASSERT_EQ(d1, d2);
 }
 
 TEST(CASHashTest, EmptyString)
 {
-
-    const Digest d =
-        DigestGenerator(DigestFunction_Value::DigestFunction_Value_SHA256)
-            .hash("");
-    EXPECT_EQ(
-        d.hash(),
-        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855");
+    const Digest d = CASHash::hash("");
     EXPECT_EQ(d.size_bytes(), 0);
-}
-
-TEST(CASHashTest, TestNonEmptyString)
-{
-
-    const Digest d1 = CASHash::hash(TEST_STRING);
-
-    DigestGenerator dg =
-        DigestGenerator(DigestFunction::Value::DigestFunction_Value_SHA256);
-    const Digest d2 = dg.hash(TEST_STRING);
-
-    const std::string expected_sha256_hash =
-        "b1c4daf6e3812505064c07f1ad0b1d6693d93b1b28c452e55ad17e38c30e89aa";
-
-    EXPECT_EQ(d1.hash(), expected_sha256_hash);
-    EXPECT_EQ(d1.size_bytes(), TEST_STRING.size());
-    EXPECT_EQ(d1, d2);
 }
 
 TEST(CasHashTest, FileDescriptor)
 {
+    // Hashing the file:
     int fd = open("test.txt", O_RDONLY);
-    const Digest d = DigestGenerator().hash(fd);
-    EXPECT_EQ(
-        d.hash(),
-        "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08");
-    EXPECT_EQ(d.size_bytes(), 4);
+    const Digest digest_from_fd = CASHash::hash(fd);
     close(fd);
+
+    // Reading and hashing the contents directly:
+    const std::string file_contents =
+        buildboxcommon::FileUtils::get_file_contents("test.txt");
+    const Digest digest_from_string = CASHash::hash(file_contents);
+
+    EXPECT_EQ(digest_from_fd, digest_from_string);
 }
 
 TEST(CasHashTest, PathToFile)
 {
-    const Digest d = CASHash::hashFile("test.txt");
-    EXPECT_EQ(
-        d.hash(),
-        "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08");
-    EXPECT_EQ(d.size_bytes(), 4);
+    const Digest digest_from_path = CASHash::hashFile("test.txt");
+
+    // Reading and hashing the contents directly:
+    const std::string file_contents =
+        buildboxcommon::FileUtils::get_file_contents("test.txt");
+    const Digest digest_from_string = CASHash::hash(file_contents);
+
+    ASSERT_EQ(digest_from_path, digest_from_string);
 }
 
 TEST(CasHashTest, InvalidFileDescriptorFileThrows)

@@ -142,6 +142,31 @@ std::string get_current_working_directory()
     }
 }
 
+std::set<std::string>
+getHashesFromRequest(const std::vector<WriteRequest> &requests,
+                     const std::string &resource_name_prefix)
+{
+    std::set<std::string> requested_hashes;
+
+    for (const auto &entry : requests) {
+        const std::string resource_name = entry.resource_name();
+        // Resource names should have the form {prefix/hash/size_bytes},
+        // e.g.: "uploads//blobs/fb7adfd80c02df9fa12fb82aabe167fe577a79b5/64"
+
+        const auto hash_start = resource_name_prefix.size();
+        const std::string resource_digest_string =
+            resource_name.substr(hash_start);
+
+        // Getting only the hash portion, dropping the size:
+        const std::string resource_hash = resource_digest_string.substr(
+            0, resource_digest_string.rfind('/'));
+
+        requested_hashes.insert(resource_hash);
+    }
+
+    return requested_hashes;
+}
+
 TEST_P(CaptureTestFixtureParameter, CaptureDirectoryTest)
 {
     std::vector<WriteRequest> requests(4);
@@ -164,12 +189,14 @@ TEST_P(CaptureTestFixtureParameter, CaptureDirectoryTest)
         .WillOnce(Return(getWriter(iter)));
 
     // Get the stage location.
-    std::string stage_location = GetParam();
+    const std::string stage_location = GetParam();
     FallbackStagedDirectory fs(digest, stage_location, client);
 
     // Make sure fs staged the directory in correct location
-    std::string staged_path = fs.getPath();
+    const std::string staged_path = fs.getPath();
     EXPECT_EQ(staged_path.find(stage_location), 0);
+
+    EXPECT_EQ(requests.size(), 4);
 
     /*
      * upload_test
@@ -180,30 +207,23 @@ TEST_P(CaptureTestFixtureParameter, CaptureDirectoryTest)
     copyDirectory("upload_test", fs.getPath() + std::string("/upload_testx"));
     OutputDirectory output_dir = fs.captureDirectory("upload_testx");
 
-    // expected filecontent hashes of files and directories
-    // top level tree digest is expected to be in here
-    std::vector<std::string> expected_hashes = {
-        "4620034124b155a66572b8f5e6205d17cfc11de6cdabb4406e97cbf5d4e5fb9f",
-        "54f2540e9e3c7681005e969e9f0efec0912e2a7807a537d46eedbb805479b9f2",
-        "70986761e554610afe6ecf9e81e789c64ac954ad24f8dca87623220a8c361995",
-        "aa7d7a98cbe729f06c50f0a67d3afa8de2d7f68196e89521c10fbf65b1768db0"};
+    const std::string prefix = "uploads//blobs/";
+    const Digest tree_digest = output_dir.tree_digest();
 
-    std::string prefix = "uploads//blobs/";
-    std::string tree_digest = output_dir.mutable_tree_digest()->hash();
+    // Expected hashes of the files and root directory tree digest:
+    std::vector<Digest> expected_digests = {
+        CASHash::hashFile(fs.getPath() +
+                          std::string("/upload_testx/test.txt")),
+        CASHash::hashFile(fs.getPath() +
+                          std::string("/upload_testx/child/child_test.txt")),
+        tree_digest};
 
-    EXPECT_EQ(
-        tree_digest,
-        "aa7d7a98cbe729f06c50f0a67d3afa8de2d7f68196e89521c10fbf65b1768db0");
-    EXPECT_EQ(requests.size(), 4);
-
-    auto compare = [](auto a, auto b) {
-        return a.resource_name() < b.resource_name();
-    };
-    std::sort(requests.begin(), requests.end(), compare);
-    for (int i = 0; i < requests.size(); i++) {
-        // Check if expected hashes are in response
-        std::string response = requests[i].resource_name();
-        EXPECT_EQ(response.find(prefix + expected_hashes[i]), 0);
+    // Taking the hashes from the request and checking that the files to be
+    // captured are there:
+    const std::set<std::string> requested_hashes =
+        getHashesFromRequest(requests, prefix);
+    for (const Digest &digest : expected_digests) {
+        ASSERT_EQ(requested_hashes.count(digest.hash()), 1);
     }
 
     // The directory is staged. Let's now simulate capturing outputs:

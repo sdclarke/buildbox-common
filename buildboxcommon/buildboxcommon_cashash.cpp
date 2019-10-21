@@ -32,6 +32,13 @@ const std::set<DigestFunction_Value>
         DigestFunction_Value_SHA256, DigestFunction_Value_SHA384,
         DigestFunction_Value_SHA512};
 
+#ifndef BUILDBOXCOMMON_DIGEST_FUNCTION_VALUE
+#error "Digest function not defined"
+#else
+const DigestFunction_Value CASHash::s_digestFunctionValue =
+    static_cast<DigestFunction_Value>(BUILDBOXCOMMON_DIGEST_FUNCTION_VALUE);
+#endif
+
 /**
  * For backwards compatibility, `CASHash` encapsulates an instance of the newer
  * `DigestGenerator` class.
