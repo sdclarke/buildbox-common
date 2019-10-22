@@ -31,6 +31,8 @@ struct FileUtils {
      */
     static bool is_directory(const char *path);
 
+    static bool is_directory(const int fd);
+
     /**
      * Return true if the given file path is a regular file.
      */
