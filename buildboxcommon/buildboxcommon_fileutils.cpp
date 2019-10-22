@@ -52,6 +52,15 @@ bool FileUtils::is_directory(const char *path)
     return false;
 }
 
+bool FileUtils::is_directory(const int fd)
+{
+    struct stat statResult;
+    if (fstat(fd, &statResult) == 0) {
+        return S_ISDIR(statResult.st_mode);
+    }
+    return false;
+}
+
 bool FileUtils::directory_is_empty(const char *path)
 {
     DIR *dir_stream = opendir(path);

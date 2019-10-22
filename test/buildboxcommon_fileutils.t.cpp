@@ -16,6 +16,7 @@
 
 #include <buildboxcommon_fileutils.h>
 #include <buildboxcommon_temporarydirectory.h>
+#include <buildboxcommon_temporaryfile.h>
 #include <gtest/gtest.h>
 
 // To create tempfiles
@@ -23,6 +24,7 @@
 #include <iostream>
 
 #include <dirent.h>
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -77,6 +79,30 @@ TEST(FileUtilsTests, IsFile)
 
     ASSERT_TRUE(FileUtils::is_regular_file(path));
     ASSERT_FALSE(FileUtils::is_directory(path));
+}
+
+TEST(FileUtilsTests, IsFileFD)
+{
+    TemporaryFile file;
+
+    ASSERT_NE(file.fd(), -1);
+    ASSERT_FALSE(FileUtils::is_directory(file.fd()));
+}
+
+TEST(FileUtilsTests, IsNotFileFD)
+{
+    TemporaryDirectory dir;
+
+    const int dir_fd = open(dir.name(), O_RDONLY);
+    ASSERT_NE(dir_fd, -1);
+
+    ASSERT_TRUE(FileUtils::is_directory(dir_fd));
+}
+
+TEST(FileUtilsTests, IsDirectoryBadFdReturnsFalse)
+{
+    const int bad_fd = -1;
+    ASSERT_FALSE(FileUtils::is_directory(bad_fd));
 }
 
 TEST(FileUtilsTests, ExecutableTests)

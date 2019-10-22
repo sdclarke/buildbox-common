@@ -49,13 +49,16 @@ FallbackStagedDirectory::captureFileWithFD(const int dirFD,
 {
     BUILDBOX_LOG_DEBUG("Uploading " << relative_path);
 
-    // need to use O_RDWR or else wont throw error on directory
-    const int fd = openat(dirFD, relative_path, O_RDWR);
+    const int fd = openat(dirFD, relative_path, O_RDONLY);
     if (fd == -1) {
-        if (errno == EACCES || errno == EISDIR || errno == ENOENT) {
+        if (errno == EACCES || errno == ENOENT) {
             return OutputFile();
         }
         throw std::system_error(errno, std::system_category());
+    }
+    if (FileUtils::is_directory(fd)) {
+        close(fd);
+        return OutputFile();
     }
 
     const Digest digest = CASHash::hash(fd);
