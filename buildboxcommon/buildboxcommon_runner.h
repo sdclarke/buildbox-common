@@ -125,6 +125,12 @@ class Runner {
 
     void writeActionResult(const ActionResult &action_result,
                            const std::string &path) const;
+
+    // Given file descriptors to `stdout` and `stderr` pipes' reading ends, get
+    // their contents and add them to the `ActionResult`.
+    static void writeStandardStreamsToResult(const int stdout_read_fd,
+                                             const int stderr_read_fd,
+                                             ActionResult *result);
 };
 
 #define BUILDBOX_RUNNER_MAIN(x)                                               \
