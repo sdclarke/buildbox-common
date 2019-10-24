@@ -51,6 +51,7 @@ LocalCasStagedDirectory::captureDirectory(const char *relative_path) const
 
     OutputDirectory captured_directory;
     captured_directory.set_path(relative_path);
-    captured_directory.set_path(capture_response.responses(0).path());
+    captured_directory.mutable_tree_digest()->CopyFrom(
+        capture_response.responses(0).tree_digest());
     return captured_directory;
 }
