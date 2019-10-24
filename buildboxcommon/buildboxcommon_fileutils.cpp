@@ -92,6 +92,11 @@ bool FileUtils::directory_is_empty(const char *path)
 
 void FileUtils::create_directory(const char *path)
 {
+    // Normalize path first as the parent directory creation logic below
+    // can't handle paths with '..' components.
+    std::string normalized_path = normalize_path(path);
+    path = normalized_path.c_str();
+
     if (mkdir(path, 0777) != 0) {
         if (errno == EEXIST) {
             // The directory already exists, so return.
