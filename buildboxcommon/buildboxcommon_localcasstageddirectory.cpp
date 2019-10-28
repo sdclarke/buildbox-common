@@ -35,8 +35,35 @@ LocalCasStagedDirectory::LocalCasStagedDirectory(
 OutputFile
 LocalCasStagedDirectory::captureFile(const char *relative_path) const
 {
-    return StagedDirectory::captureFile(relative_path, this->d_path.c_str(),
-                                        this->d_cas_client);
+    const std::string absolute_path =
+        FileUtils::make_path_absolute(relative_path, this->d_path);
+
+    const CaptureFilesResponse response =
+        this->d_cas_client->captureFiles({absolute_path}, false);
+
+    if (response.responses().empty()) {
+        const auto error_message = "Error capturing \"" + absolute_path +
+                                   "\": server returned empty response.";
+        BUILDBOX_LOG_DEBUG(error_message);
+        throw std::runtime_error(error_message);
+    }
+
+    const auto captured_file = response.responses(0);
+
+    if (captured_file.status().code() != grpc::StatusCode::OK) {
+        const auto error_message = "Error capturing \"" + absolute_path +
+                                   "\": " + captured_file.status().message();
+
+        BUILDBOX_LOG_DEBUG(error_message);
+        throw std::runtime_error(error_message);
+    }
+
+    OutputFile output_file;
+    output_file.set_path(relative_path);
+    output_file.mutable_digest()->CopyFrom(captured_file.digest());
+    output_file.set_is_executable(
+        FileUtils::is_executable(absolute_path.c_str()));
+    return output_file;
 }
 
 OutputDirectory
