@@ -286,6 +286,54 @@ std::array<int, 2> Runner::createPipe() const
     return pipe_fds;
 }
 
+void Runner::writeStandardStreamsToResult(const int stdout_read_fd,
+                                          const int stderr_read_fd,
+                                          ActionResult *result)
+{
+    fd_set fds_to_read;
+    FD_ZERO(&fds_to_read);
+    FD_SET(stdout_read_fd, &fds_to_read);
+    FD_SET(stderr_read_fd, &fds_to_read);
+
+    char buffer[4096];
+
+    // Reading from a source FD, write to the destination FD and append the
+    // data to the `result_output` string. Clear the `fds_to_read` set if
+    // necessary.
+    const auto writeStreamContents =
+        [&buffer, &fds_to_read](const int source_fd, const int destination_fd,
+                                std::string *result_output) {
+            const auto bytesRead = read(source_fd, buffer, sizeof(buffer));
+
+            if (bytesRead > 0) {
+                writeAll(destination_fd, buffer, bytesRead);
+                // TODO: do we wanna try and handle stdout/stderr that's too
+                // big to fit in memory?
+                result_output->append(buffer, static_cast<size_t>(bytesRead));
+            }
+            else if (bytesRead == 0 ||
+                     (bytesRead == -1 && errno != EINTR && errno != EAGAIN)) {
+                FD_CLR(source_fd, &fds_to_read);
+            }
+        };
+
+    while (FD_ISSET(stdout_read_fd, &fds_to_read) ||
+           FD_ISSET(stderr_read_fd, &fds_to_read)) {
+
+        fd_set fdsSuccessfullyRead = fds_to_read;
+        select(FD_SETSIZE, &fdsSuccessfullyRead, nullptr, nullptr, nullptr);
+
+        if (FD_ISSET(stdout_read_fd, &fdsSuccessfullyRead)) {
+            writeStreamContents(stdout_read_fd, STDOUT_FILENO,
+                                result->mutable_stdout_raw());
+        }
+        if (FD_ISSET(stderr_read_fd, &fdsSuccessfullyRead)) {
+            writeStreamContents(stderr_read_fd, STDERR_FILENO,
+                                result->mutable_stderr_raw());
+        }
+    }
+}
+
 void Runner::executeAndStore(const std::vector<std::string> &command,
                              ActionResult *result)
 {
@@ -295,6 +343,7 @@ void Runner::executeAndStore(const std::vector<std::string> &command,
     }
 
     BUILDBOX_LOG_DEBUG("Executing command: " << logline.str());
+
     // Create pipes for stdout and stderr
     auto stdout_pipe = createPipe();
     auto stderr_pipe = createPipe();
@@ -327,56 +376,12 @@ void Runner::executeAndStore(const std::vector<std::string> &command,
     close(stdout_pipe[1]);
     close(stderr_pipe[1]);
 
-    fd_set fds_to_read;
-    FD_ZERO(&fds_to_read);
-    FD_SET(stdout_pipe[0], &fds_to_read);
-    FD_SET(stderr_pipe[0], &fds_to_read);
-
-    char buffer[4096];
-    while (FD_ISSET(stdout_pipe[0], &fds_to_read) ||
-           FD_ISSET(stderr_pipe[0], &fds_to_read)) {
-
-        fd_set fdsSuccessfullyRead = fds_to_read;
-        select(FD_SETSIZE, &fdsSuccessfullyRead, nullptr, nullptr, nullptr);
-
-        if (FD_ISSET(stdout_pipe[0], &fdsSuccessfullyRead)) {
-            const auto bytesRead =
-                read(stdout_pipe[0], buffer, sizeof(buffer));
-
-            if (bytesRead > 0) {
-                writeAll(STDOUT_FILENO, buffer, bytesRead);
-                // TODO: do we wanna try and handle stdout/stderr that's too
-                // big to fit in memory?
-                *(result->mutable_stdout_raw()) +=
-                    std::string(buffer, bytesRead);
-            }
-            else if (!(bytesRead == -1 &&
-                       (errno == EINTR || errno == EAGAIN))) {
-                FD_CLR(stdout_pipe[0], &fds_to_read);
-            }
-        }
-
-        if (FD_ISSET(stderr_pipe[0], &fdsSuccessfullyRead)) {
-            const auto bytesRead =
-                read(stderr_pipe[0], buffer, sizeof(buffer));
-
-            if (bytesRead > 0) {
-                writeAll(STDERR_FILENO, buffer, bytesRead);
-                // TODO: do we wanna try and handle stdout/stderr that's too
-                // big to fit in memory?
-                *(result->mutable_stderr_raw()) +=
-                    std::string(buffer, bytesRead);
-            }
-            else if (!(bytesRead == -1 &&
-                       (errno == EINTR || errno == EAGAIN))) {
-                FD_CLR(stderr_pipe[0], &fds_to_read);
-            }
-        }
-    }
+    // Read `stdout` and `stderr` and add the contents to the `ActionResult`:
+    writeStandardStreamsToResult(stdout_pipe[0], stderr_pipe[0], result);
+    BUILDBOX_LOG_DEBUG("Finished reading commands's stdout/err");
 
     close(stdout_pipe[0]);
     close(stderr_pipe[0]);
-    BUILDBOX_LOG_DEBUG("Finished reading");
 
     uploadIfNeeded(result->mutable_stdout_raw(),
                    result->mutable_stdout_digest());
