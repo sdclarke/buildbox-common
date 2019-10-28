@@ -560,6 +560,74 @@ TEST_F(ClientTestFixture, CaptureDirectoryErrorThrows)
     ASSERT_THROW(this->captureTree(paths, false), std::runtime_error);
 }
 
+TEST_F(ClientTestFixture, CaptureFiles)
+{
+
+    const std::vector<std::string> files_to_capture = {
+        "/path/to/stage/file1.txt", "/path/to/stage/file2.txt"};
+
+    // Response that the server will return to the client:
+    CaptureFilesResponse response;
+    auto entry1 = response.add_responses();
+    entry1->set_path(files_to_capture[0]);
+    entry1->mutable_digest()->CopyFrom(make_digest("file1.txt-contents"));
+    entry1->mutable_status()->set_code(grpc::StatusCode::OK);
+
+    auto entry2 = response.add_responses();
+    entry2->set_path(files_to_capture[1]);
+    entry2->mutable_digest()->CopyFrom(make_digest("file2.txt-contents"));
+    entry2->mutable_status()->set_code(grpc::StatusCode::OK);
+
+    CaptureFilesRequest request;
+
+    EXPECT_CALL(*localCasClient.get(), CaptureFiles(_, _, _))
+        .WillOnce(DoAll(SaveArg<1>(&request), SetArgPointee<2>(response),
+                        Return(grpc::Status::OK)));
+
+    const CaptureFilesResponse returned_response =
+        this->captureFiles(files_to_capture, false);
+
+    // Checking that the request issued contains the data we expect:
+    const std::set<std::string> files_to_capture_set(files_to_capture.cbegin(),
+                                                     files_to_capture.cend());
+
+    ASSERT_EQ(request.path_size(), 2);
+    ASSERT_EQ(files_to_capture_set.count(request.path(0)), 1);
+    ASSERT_EQ(files_to_capture_set.count(request.path(1)), 1);
+
+    ASSERT_FALSE(request.bypass_local_cache());
+
+    ASSERT_EQ(request.instance_name(), this->instanceName());
+
+    // Checking that the response returned by the client; it should match the
+    // one issued by the server:
+    ASSERT_EQ(returned_response.responses_size(), 2);
+
+    ASSERT_NE(returned_response.responses(0).path(),
+              returned_response.responses(1).path());
+
+    ASSERT_EQ(
+        files_to_capture_set.count(returned_response.responses(0).path()), 1);
+    ASSERT_EQ(
+        files_to_capture_set.count(returned_response.responses(1).path()), 1);
+
+    ASSERT_EQ(returned_response.responses(0).status().code(),
+              grpc::StatusCode::OK);
+    ASSERT_EQ(returned_response.responses(1).status().code(),
+              grpc::StatusCode::OK);
+}
+
+TEST_F(ClientTestFixture, CaptureFilesErrorThrows)
+{
+    // The retry logic throws after running out of tries:
+    EXPECT_CALL(*localCasClient.get(), CaptureFiles(_, _, _))
+        .WillOnce(Return(
+            grpc::Status(grpc::StatusCode::UNKNOWN, "Something went wrong.")));
+
+    ASSERT_THROW(this->captureFiles({"/path/to/stage/file.txt"}, false),
+                 std::runtime_error);
+}
+
 class GetTreeFixture : public ClientTestFixture {
   protected:
     Digest d_digest;

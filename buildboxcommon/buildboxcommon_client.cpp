@@ -698,6 +698,28 @@ CaptureTreeResponse Client::captureTree(const std::vector<std::string> &paths,
     return response;
 }
 
+CaptureFilesResponse
+Client::captureFiles(const std::vector<std::string> &paths,
+                     bool bypass_local_cache) const
+{
+    CaptureFilesRequest request;
+    request.set_instance_name(d_instanceName);
+    request.set_bypass_local_cache(bypass_local_cache);
+
+    for (const std::string &path : paths) {
+        request.add_path(path);
+    }
+
+    CaptureFilesResponse response;
+
+    const auto captureLambda = [&](grpc::ClientContext &context) {
+        return d_localCasClient->CaptureFiles(&context, request, &response);
+    };
+
+    grpcRetry(captureLambda, d_grpcRetryLimit, d_grpcRetryDelay);
+    return response;
+}
+
 std::vector<Client::UploadResult>
 Client::batchUpload(const std::vector<UploadRequest> &requests,
                     const size_t start_index, const size_t end_index)

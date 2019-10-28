@@ -224,6 +224,16 @@ class Client {
     CaptureTreeResponse captureTree(const std::vector<std::string> &paths,
                                     bool bypass_local_cache) const;
 
+    /*
+     * Send a LocalCas protocol `CaptureFiles()` request containing the given
+     * paths. If successful, returns a `CaptureFilesResponse` object (it
+     * contains a Status for each path).
+     *
+     * If the request fails, throws an `std::runtime_exception`.
+     */
+    CaptureFilesResponse captureFiles(const std::vector<std::string> &paths,
+                                      bool bypass_local_cache) const;
+
     class StagedDirectory {
         /*
          * Represents a staged directory. It encapsulates the gRPC stream's
