@@ -81,8 +81,37 @@ FallbackStagedDirectory::captureFileWithFD(const int dirFD,
 OutputFile
 FallbackStagedDirectory::captureFile(const char *relative_path) const
 {
-    return StagedDirectory::captureFile(relative_path, this->d_path.c_str(),
-                                        this->d_casClient);
+    BUILDBOX_LOG_DEBUG("Uploading " << relative_path);
+    const std::string file = this->d_path + std::string("/") + relative_path;
+
+    const int fd = open(file.c_str(), O_RDONLY);
+    if (fd == -1) {
+        if (errno == EACCES || errno == ENOENT) {
+            return OutputFile();
+        }
+        throw std::system_error(errno, std::system_category());
+    }
+    if (FileUtils::is_directory(fd)) {
+        close(fd);
+        return OutputFile();
+    }
+
+    const Digest digest = CASHash::hash(fd);
+
+    try {
+        this->d_casClient->upload(fd, digest);
+        close(fd);
+    }
+    catch (...) {
+        close(fd);
+        throw;
+    }
+
+    OutputFile output_file;
+    output_file.set_path(relative_path);
+    output_file.mutable_digest()->CopyFrom(digest);
+    output_file.set_is_executable(FileUtils::is_executable(file.c_str()));
+    return output_file;
 }
 
 Directory
@@ -206,5 +235,4 @@ void FallbackStagedDirectory::downloadDirectory(const Digest &digest,
         throw;
     }
 }
-
 } // namespace buildboxcommon
