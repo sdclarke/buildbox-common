@@ -677,8 +677,8 @@ std::vector<Directory> Client::getTree(const Digest &root_digest)
     return tree;
 }
 
-CaptureTreeResponse Client::capture(const std::vector<std::string> &paths,
-                                    bool bypass_local_cache) const
+CaptureTreeResponse Client::captureTree(const std::vector<std::string> &paths,
+                                        bool bypass_local_cache) const
 {
     CaptureTreeRequest request;
     request.set_instance_name(d_instanceName);

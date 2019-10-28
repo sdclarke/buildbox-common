@@ -47,7 +47,7 @@ LocalCasStagedDirectory::captureDirectory(const char *relative_path) const
         FileUtils::make_path_absolute(relative_path, this->d_path);
 
     const CaptureTreeResponse capture_response =
-        this->d_cas_client->capture({absolute_path}, false);
+        this->d_cas_client->captureTree({absolute_path}, false);
 
     OutputDirectory captured_directory;
     captured_directory.set_path(relative_path);

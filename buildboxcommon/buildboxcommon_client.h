@@ -215,14 +215,14 @@ class Client {
                     Digest *directory_digest = nullptr);
 
     /*
-     * Send a LocalCas protocol `Capture()` request containing the given paths.
-     * If successful, returns a `CaptureTreeResponse` object (it contains
-     * a Status for each path).
+     * Send a LocalCas protocol `CaptureTree()` request containing the given
+     * paths. If successful, returns a `CaptureTreeResponse` object (it
+     * contains a Status for each path).
      *
      * If the request fails, throws an `std::runtime_exception`.
      */
-    CaptureTreeResponse capture(const std::vector<std::string> &paths,
-                                bool bypass_local_cache) const;
+    CaptureTreeResponse captureTree(const std::vector<std::string> &paths,
+                                    bool bypass_local_cache) const;
 
     class StagedDirectory {
         /*

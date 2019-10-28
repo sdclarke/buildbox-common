@@ -524,7 +524,8 @@ TEST_F(ClientTestFixture, CaptureDirectory)
         .WillOnce(DoAll(SaveArg<1>(&request), SetArgPointee<2>(response),
                         Return(grpc::Status::OK)));
 
-    const CaptureTreeResponse returned_response = this->capture(paths, false);
+    const CaptureTreeResponse returned_response =
+        this->captureTree(paths, false);
 
     // Checking that the request has the data we expect:
     ASSERT_EQ(request.path_size(), 1);
@@ -556,7 +557,7 @@ TEST_F(ClientTestFixture, CaptureDirectoryErrorThrows)
                               Return(grpc::Status(grpc::StatusCode::UNKNOWN,
                                                   "Something went wrong."))));
 
-    ASSERT_THROW(this->capture(paths, false), std::runtime_error);
+    ASSERT_THROW(this->captureTree(paths, false), std::runtime_error);
 }
 
 class GetTreeFixture : public ClientTestFixture {
