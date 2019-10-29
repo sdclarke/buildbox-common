@@ -677,8 +677,8 @@ std::vector<Directory> Client::getTree(const Digest &root_digest)
     return tree;
 }
 
-CaptureTreeResponse Client::capture(const std::vector<std::string> &paths,
-                                    bool bypass_local_cache) const
+CaptureTreeResponse Client::captureTree(const std::vector<std::string> &paths,
+                                        bool bypass_local_cache) const
 {
     CaptureTreeRequest request;
     request.set_instance_name(d_instanceName);
@@ -692,6 +692,28 @@ CaptureTreeResponse Client::capture(const std::vector<std::string> &paths,
 
     const auto captureLambda = [&](grpc::ClientContext &context) {
         return d_localCasClient->CaptureTree(&context, request, &response);
+    };
+
+    grpcRetry(captureLambda, d_grpcRetryLimit, d_grpcRetryDelay);
+    return response;
+}
+
+CaptureFilesResponse
+Client::captureFiles(const std::vector<std::string> &paths,
+                     bool bypass_local_cache) const
+{
+    CaptureFilesRequest request;
+    request.set_instance_name(d_instanceName);
+    request.set_bypass_local_cache(bypass_local_cache);
+
+    for (const std::string &path : paths) {
+        request.add_path(path);
+    }
+
+    CaptureFilesResponse response;
+
+    const auto captureLambda = [&](grpc::ClientContext &context) {
+        return d_localCasClient->CaptureFiles(&context, request, &response);
     };
 
     grpcRetry(captureLambda, d_grpcRetryLimit, d_grpcRetryDelay);
