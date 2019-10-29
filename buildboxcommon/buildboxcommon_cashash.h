@@ -58,8 +58,8 @@ class CASHash {
     /**
      * For backwards compatibility, `CASHash` uses SHA256.
      */
-    static const DigestFunction_Value s_digestFunctionValue =
-        DigestFunction_Value_SHA256;
+
+    static const DigestFunction_Value s_digestFunctionValue;
 };
 
 class DigestGenerator {
@@ -108,7 +108,8 @@ class DigestGenerator {
     // Create and initialize an OpenSSL digest context to be used during a
     // call to `hash()`.
     // The context needs to be freed after use, so by storing it in an
-    // `unique_ptr` we ensure it is destroyed automatically even if we throw.
+    // `unique_ptr` we ensure it is destroyed automatically even if we
+    // throw.
     static void deleteDigestContext(EVP_MD_CTX *context);
 
     typedef std::unique_ptr<EVP_MD_CTX, decltype(&deleteDigestContext)>
@@ -124,8 +125,8 @@ class DigestGenerator {
     static Digest makeDigest(EVP_MD_CTX *digest_context,
                              const size_t data_size);
 
-    // Calculate the hash of a portion of a file. This allows to read a file
-    // from disk in chunks to avoid storing it wholly in memory.
+    // Calculate the hash of a portion of a file. This allows to read a
+    // file from disk in chunks to avoid storing it wholly in memory.
     static void digestUpdate(const EVP_MD_CTX_ptr &digest_context,
                              const char *data, size_t size);
 
@@ -134,10 +135,10 @@ class DigestGenerator {
     static std::string hashToHex(const unsigned char *hash_buffer,
                                  unsigned int hash_size);
 
-    // If `status_code` is 0, throw an `std::runtime_error` exception with a
-    // description containing `function_name`. Otherwise, do
-    // nothing.
-    // (Note that this considers 0 an error, following the OpenSSL convention.)
+    // If `status_code` is 0, throw an `std::runtime_error` exception with
+    // a description containing `function_name`. Otherwise, do nothing.
+    // (Note that this considers 0 an error, following the OpenSSL
+    // convention.)
     static void throwIfNotSuccessful(int status_code,
                                      const std::string &function_name);
 

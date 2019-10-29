@@ -18,44 +18,6 @@
 
 using namespace buildboxcommon;
 
-TEST(DigestTest, EmptyDigest)
-{
-    auto digest = make_digest(std::string(""));
-    EXPECT_EQ(0, digest.size_bytes());
-    EXPECT_EQ(
-        "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-        digest.hash());
-}
-
-TEST(DigestTest, TrivialDigest)
-{
-    auto digest = make_digest(std::string("abc"));
-    EXPECT_EQ(3, digest.size_bytes());
-    EXPECT_EQ(
-        "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
-        digest.hash());
-}
-
-TEST(FileTest, TrivialFile)
-{
-    File file("abc.txt");
-    EXPECT_EQ(3, file.d_digest.size_bytes());
-    EXPECT_EQ(
-        "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
-        file.d_digest.hash());
-    EXPECT_FALSE(file.d_executable);
-}
-
-TEST(FileTest, ExecutableFile)
-{
-    File file("script.sh");
-    EXPECT_EQ(41, file.d_digest.size_bytes());
-    EXPECT_EQ(
-        "a56e86eefe699eb6a759ff6ddf94ca54efc2f6463946b9585858511e07c88b8c",
-        file.d_digest.hash());
-    EXPECT_TRUE(file.d_executable);
-}
-
 TEST(FileTest, ToFilenode)
 {
     File file;

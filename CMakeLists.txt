@@ -106,6 +106,22 @@ install(
     INCLUDES DESTINATION include/buildbox
 )
 
+
+# Hash function used to calculate Digests.
+# Integer value as defined in `enum DigestFunction.Value` in the REAPI proto
+# (`protos/build/bazel/remote/execution/v2/remote_execution.proto`).
+if(NOT BUILDBOXCOMMON_DIGEST_FUNCTION_VALUE)
+    set(BUILDBOXCOMMON_DIGEST_FUNCTION_VALUE 1) # By default, use SHA-256
+    message("`BUILDBOXCOMMON_DIGEST_FUNCTION_VALUE` not set, "
+            "setting `DigestFunction.Value` to default value: 1 (SHA-256)")
+else()
+    message("Setting `DigestFunction.Value` to "
+            "${BUILDBOXCOMMON_DIGEST_FUNCTION_VALUE}")
+endif()
+
+add_compile_definitions(BUILDBOXCOMMON_DIGEST_FUNCTION_VALUE=${BUILDBOXCOMMON_DIGEST_FUNCTION_VALUE})
+
+
 file(GLOB BUILDBOXCOMMON_H "buildboxcommon/*.h")
 
 install(FILES ${BUILDBOXCOMMON_H} DESTINATION include/buildbox)
