@@ -200,7 +200,7 @@ NestedDirectory make_nesteddirectory(const char *path,
             }
         }
         else if (S_ISLNK(statResult.st_mode)) {
-            std::string target(statResult.st_size, '\0');
+            std::string target(static_cast<size_t>(statResult.st_size), '\0');
 
             if (readlink(entityPath.c_str(), &target[0], target.size()) < 0) {
                 const int readlinkError = errno;
