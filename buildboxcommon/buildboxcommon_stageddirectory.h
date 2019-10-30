@@ -85,17 +85,6 @@ class StagedDirectory {
 
   protected:
     std::string d_path;
-
-    /**
-     * Given a file located in `relativePath` inside a `workingDirectory`,
-     * use CAS client to upload the file.
-
-     * (This function is defined here since it is common to the
-     * `FallbackStagedDirectory` and the `LocalCasStagedDirectory` classes.)
-     */
-    static OutputFile captureFile(const char *relative_path,
-                                  const char *working_directory,
-                                  std::shared_ptr<Client> cas_client);
 };
 } // namespace buildboxcommon
 

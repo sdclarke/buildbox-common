@@ -61,6 +61,9 @@ class FallbackStagedDirectory : public StagedDirectory {
                                  const char *relative_path) const;
     std::shared_ptr<Client> d_casClient;
     TemporaryDirectory d_stage_directory;
+
+    OutputFile captureFile(const char *relative_path,
+                           const char *workingDirectory) const;
 };
 } // namespace buildboxcommon
 
