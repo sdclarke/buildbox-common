@@ -16,6 +16,7 @@
 
 #include <buildboxcommon_cashash.h>
 #include <buildboxcommon_fileutils.h>
+#include <buildboxcommon_logging.h>
 
 #include <cerrno>
 #include <cstring>
@@ -164,7 +165,10 @@ NestedDirectory make_nesteddirectory(const char *path,
     NestedDirectory result;
     auto dir = opendir(path);
     if (dir == NULL) {
-        throw std::system_error(errno, std::system_category());
+        const int opendirError = errno;
+        BUILDBOX_LOG_ERROR("Failed to open path \""
+                           << path << "\": " << strerror(opendirError));
+        throw std::system_error(opendirError, std::system_category());
     }
 
     std::string pathString(path);
@@ -195,7 +199,12 @@ NestedDirectory make_nesteddirectory(const char *path,
         else if (S_ISLNK(statResult.st_mode)) {
             std::string target(statResult.st_size, '\0');
             if (readlink(entityPath.c_str(), &target[0], target.size()) < 0) {
-                throw std::system_error(errno, std::system_category());
+                const int readlinkError = errno;
+                BUILDBOX_LOG_ERROR(
+                    "Error reading symlink at \""
+                    << entityPath << "\": " << strerror(readlinkError)
+                    << ". (st_size == " << statResult.st_size << ")");
+                throw std::system_error(readlinkError, std::system_category());
             }
             result.d_symlinks[entityName] = target;
         }
