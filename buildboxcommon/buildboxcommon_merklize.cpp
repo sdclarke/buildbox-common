@@ -163,41 +163,45 @@ NestedDirectory make_nesteddirectory(const char *path,
                                      digest_string_map *fileMap)
 {
     NestedDirectory result;
-    auto dir = opendir(path);
-    if (dir == NULL) {
+    const auto dir = opendir(path);
+    if (dir == nullptr) {
         const int opendirError = errno;
         BUILDBOX_LOG_ERROR("Failed to open path \""
                            << path << "\": " << strerror(opendirError));
         throw std::system_error(opendirError, std::system_category());
     }
 
-    std::string pathString(path);
+    const std::string pathString(path);
     for (auto dirent = readdir(dir); dirent != nullptr;
          dirent = readdir(dir)) {
         if (strcmp(dirent->d_name, ".") == 0 ||
             strcmp(dirent->d_name, "..") == 0) {
             continue;
         }
-        std::string entityName(dirent->d_name);
-        std::string entityPath = pathString + "/" + entityName;
+
+        const std::string entityName(dirent->d_name);
+        const std::string entityPath = pathString + "/" + entityName;
 
         struct stat statResult;
         if (lstat(entityPath.c_str(), &statResult) != 0) {
             continue;
         }
+
         if (S_ISDIR(statResult.st_mode)) {
             (*result.d_subdirs)[entityName] =
                 make_nesteddirectory(entityPath.c_str(), fileMap);
         }
         else if (S_ISREG(statResult.st_mode)) {
-            File file(entityPath.c_str());
+            const File file(entityPath.c_str());
             result.d_files[entityName] = file;
+
             if (fileMap != nullptr) {
                 (*fileMap)[file.d_digest] = entityPath;
             }
         }
         else if (S_ISLNK(statResult.st_mode)) {
             std::string target(statResult.st_size, '\0');
+
             if (readlink(entityPath.c_str(), &target[0], target.size()) < 0) {
                 const int readlinkError = errno;
                 BUILDBOX_LOG_ERROR(
