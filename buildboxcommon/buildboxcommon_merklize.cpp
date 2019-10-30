@@ -208,11 +208,13 @@ NestedDirectory make_nesteddirectory(const char *path,
                     "Error reading symlink at \""
                     << entityPath << "\": " << strerror(readlinkError)
                     << ". (st_size == " << statResult.st_size << ")");
+                closedir(dir);
                 throw std::system_error(readlinkError, std::system_category());
             }
             result.d_symlinks[entityName] = target;
         }
     }
+
     closedir(dir);
     return result;
 }
