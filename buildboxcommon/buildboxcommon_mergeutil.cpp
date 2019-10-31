@@ -35,6 +35,7 @@ class NodeMetaData {
 
   public:
     const std::string &path() const { return d_path; }
+    virtual const std::string &target() const { return d_path; }
     virtual const Digest &digest() const = 0;
     virtual void addToNestedDirectory(NestedDirectory *nd) const = 0;
     virtual bool isExecutable() const { return false; }
@@ -89,6 +90,8 @@ class SymlinkNodeMetaData : public NodeMetaData {
         : NodeMetaData(symlinkName), d_symlinkTarget(symlinkTarget)
     {
     }
+
+    const std::string &target() const override { return d_symlinkTarget; }
 
     // symlinks have no digest, so return an empty one
     // see
@@ -203,21 +206,25 @@ void buildFlattenedPath(PathNodeMetaDataMap *map,
 
     // symlinks
     for (const auto &node : directory.symlinks()) {
-        const std::string newName = genNewPath(dirName, node.name());
-        const std::string key = newName + ":" + node.target();
+        const std::string newSymlinkName = genNewPath(dirName, node.name());
 
         // collision detection for symlinks is defined as
-        // same name and target
-        const auto it = map->find(key);
-        if (it != map->end()) {
+        // same name but different target, ie;
+        // 1. /some/path/name1 -> ../target1   # OK
+        // 2. /some/path/name1 -> ../target2   # BAD
+        // 3. /some/path/name2 -> ../target1   # OK
+        const auto it = map->find(newSymlinkName);
+        // same path/name but different target - not allowed
+        if (it != map->end() && it->second->target() != node.target()) {
             std::ostringstream oss;
-            oss << "symlink collision: existing name/target \"" << it->first
-                << "\" detected while attempting to add new name/target \""
-                << key << "\"";
+            oss << "symlink collision: existing name/target " << it->first
+                << " -> " << it->second->target()
+                << " detected while attempting to add new name/target "
+                << newSymlinkName << " -> " << node.target();
             throw std::runtime_error(oss.str());
         }
-        map->emplace(key, std::make_shared<SymlinkNodeMetaData>(
-                              newName, node.target()));
+        map->emplace(newSymlinkName, std::make_shared<SymlinkNodeMetaData>(
+                                         newSymlinkName, node.target()));
     }
 
     // subdirectories
