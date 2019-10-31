@@ -35,7 +35,6 @@ class NodeMetaData {
 
   public:
     const std::string &path() const { return d_path; }
-    virtual const std::string &target() const { return d_path; }
     virtual const Digest &digest() const = 0;
     virtual void addToNestedDirectory(NestedDirectory *nd) const = 0;
     virtual bool isExecutable() const { return false; }
@@ -91,7 +90,7 @@ class SymlinkNodeMetaData : public NodeMetaData {
     {
     }
 
-    const std::string &target() const override { return d_symlinkTarget; }
+    const std::string &target() const { return d_symlinkTarget; }
 
     // symlinks have no digest, so return an empty one
     // see
@@ -156,24 +155,26 @@ inline std::string genNewPath(const std::string &dirName,
 /**
  * Create a string, one per file or directory by recursively iterating
  * over a chain of directories and subdirectores until arriving at the leaf
- * node. For example the following directory tree:
+ * node. For example, the following directory tree:
  *   src/
  *       headers/
  *               foo.h
  *       cpp/
  *           foo.cpp
+ *           foo1.cpp -> foo.cpp
  *   local/
  *         lib/
  *             libc.so
  *   var/
  *
  *  can be expressed as a series of path names which
- *  we can pass to the NestedDirectory::add() and
- *  NestedDirectory::addDirectory() methods:
+ *  we can pass to the NestedDirectory::add(), NestedDirectory::addSymlink()
+ *  and NestedDirectory::addDirectory() methods:
  *
  *  NestedDirectory result;
  *  result.add("src/headers/foo.h");
  *  result.add("src/cpp/foo.cpp");
+ *  result.addSymlink("src/cpp/foo1.cpp");
  *  result.add("local/lib/libc.so");
  *  result.addDirectory("var");
  */
@@ -197,6 +198,7 @@ void buildFlattenedPath(PathNodeMetaDataMap *map,
                 << " detected while attempting to add new file [" << newFile
                 << ":" << node.digest() << ":" << std::boolalpha
                 << node.is_executable();
+            BUILDBOX_LOG_ERROR(oss.str());
             throw std::runtime_error(oss.str());
         }
         map->emplace(newFile,
@@ -214,14 +216,18 @@ void buildFlattenedPath(PathNodeMetaDataMap *map,
         // 2. /some/path/name1 -> ../target2   # BAD
         // 3. /some/path/name2 -> ../target1   # OK
         const auto it = map->find(newSymlinkName);
-        // same path/name but different target - not allowed
-        if (it != map->end() && it->second->target() != node.target()) {
-            std::ostringstream oss;
-            oss << "symlink collision: existing name/target " << it->first
-                << " -> " << it->second->target()
-                << " detected while attempting to add new name/target "
-                << newSymlinkName << " -> " << node.target();
-            throw std::runtime_error(oss.str());
+        if (it != map->end()) {
+            // same path/name but different target - not allowed
+            const auto *metaNode = dynamic_cast<SymlinkNodeMetaData*>(it->second.get());
+            if (metaNode != nullptr && metaNode->target() != node.target()) {
+                std::ostringstream oss;
+                oss << "error processing symlink: existing symlink [" << it->first
+                    << " -> " << metaNode->target()
+                    << "] has the same name but different target than new symlink ["
+                    << newSymlinkName << " -> " << node.target() << "]";
+                BUILDBOX_LOG_ERROR(oss.str());
+                throw std::runtime_error(oss.str());
+            }
         }
         map->emplace(newSymlinkName, std::make_shared<SymlinkNodeMetaData>(
                                          newSymlinkName, node.target()));
@@ -293,7 +299,6 @@ bool MergeUtil::createMergedDigest(const DirectoryTree &inputTree,
         buildFlattenedPath(&map, templateTree.at(0), *dsMap);
     }
     catch (const std::runtime_error &e) {
-        BUILDBOX_LOG_ERROR(e.what());
         return false;
     }
 
