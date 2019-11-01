@@ -667,8 +667,8 @@ class MergeFixture : public ::testing::Test {
             if (verbose) {
                 std::cout << "checking subdirectories" << std::endl;
             }
-            verify_merkle_tree(subdirectory.digest(), tree, ++index, end, blobs,
-                               verbose);
+            verify_merkle_tree(subdirectory.digest(), tree, ++index, end,
+                               blobs, verbose);
         }
     }
 };

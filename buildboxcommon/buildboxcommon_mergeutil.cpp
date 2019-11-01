@@ -218,12 +218,14 @@ void buildFlattenedPath(PathNodeMetaDataMap *map,
         const auto it = map->find(newSymlinkName);
         if (it != map->end()) {
             // same path/name but different target - not allowed
-            const auto *metaNode = dynamic_cast<SymlinkNodeMetaData*>(it->second.get());
+            const auto *metaNode =
+                dynamic_cast<SymlinkNodeMetaData *>(it->second.get());
             if (metaNode != nullptr && metaNode->target() != node.target()) {
                 std::ostringstream oss;
-                oss << "error processing symlink: existing symlink [" << it->first
-                    << " -> " << metaNode->target()
-                    << "] has the same name but different target than new symlink ["
+                oss << "error processing symlink: existing symlink ["
+                    << it->first << " -> " << metaNode->target()
+                    << "] has the same name but different target than new "
+                       "symlink ["
                     << newSymlinkName << " -> " << node.target() << "]";
                 BUILDBOX_LOG_ERROR(oss.str());
                 throw std::runtime_error(oss.str());
