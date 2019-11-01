@@ -31,7 +31,10 @@ class MergeFixture : public ::testing::Test {
     MergeUtil::DirectoryTree d_inputTreeWithExecutableFalse;
     MergeUtil::DirectoryTree d_inputTreeWithOverlapWithoutConflict;
     MergeUtil::DirectoryTree d_inputTreeWithOverlapWithConflict;
+    MergeUtil::DirectoryTree d_inputTreeWithSymlinks;
     MergeUtil::DirectoryTree d_chrootTemplateTree;
+    MergeUtil::DirectoryTree d_chrootTemplateTreeWithSymlinkCollision;
+    MergeUtil::DirectoryTree d_chrootTemplateTreeWithoutSymlinkCollision;
 
   public:
     typedef std::unordered_map<std::string, std::vector<std::string>>
@@ -48,6 +51,13 @@ class MergeFixture : public ::testing::Test {
         prepareInputTreeWithOverlap(&d_inputTreeWithOverlapWithConflict,
                                     "lib_so_contents_but_with_different_data");
         prepareTemplateTree(&d_chrootTemplateTree);
+
+        // symlink specific test cases
+        prepareInputTreeWithSymlinks(&d_inputTreeWithSymlinks);
+        prepareTemplateTreeWithSymlinkCollision(
+            &d_chrootTemplateTreeWithSymlinkCollision);
+        prepareTemplateTreeWithoutSymlinkCollision(
+            &d_chrootTemplateTreeWithoutSymlinkCollision);
     }
 
     void prepareEmptyInputTree(MergeUtil::DirectoryTree *tree)
@@ -211,6 +221,56 @@ class MergeFixture : public ::testing::Test {
         tree->emplace_back(lib_directory);
     }
 
+    void prepareInputTreeWithSymlinks(MergeUtil::DirectoryTree *tree)
+    {
+        /* Creates the following directory structure:
+         *
+         * ./
+         *   include/
+         *           headers1/
+         *                   file1.h
+         *           headers2/
+         *                   file2.h --> ../headers1/file1.h
+         */
+
+        // ./include/headers1
+        Directory headers1_directory;
+        FileNode *fileNode = headers1_directory.add_files();
+        fileNode->set_name("file1.h");
+        fileNode->set_is_executable(false);
+        fileNode->mutable_digest()->CopyFrom(make_digest("file1_h_contents"));
+        const auto headers1_directory_digest = make_digest(headers1_directory);
+
+        // ./include/headers2
+        Directory headers2_directory;
+        SymlinkNode *symNode = headers2_directory.add_symlinks();
+        symNode->set_name("file2.h");
+        symNode->set_target("../headers1/file1.cpp");
+        const auto headers2_directory_digest = make_digest(headers2_directory);
+
+        // ./include
+        Directory include_directory;
+        DirectoryNode *headers1Node = include_directory.add_directories();
+        headers1Node->set_name("headers1");
+        headers1Node->mutable_digest()->CopyFrom(headers1_directory_digest);
+        DirectoryNode *headers2Node = include_directory.add_directories();
+        headers2Node->set_name("headers2");
+        headers2Node->mutable_digest()->CopyFrom(headers2_directory_digest);
+        const auto include_directory_digest = make_digest(include_directory);
+
+        // .
+        Directory root_directory;
+        DirectoryNode *includeNode = root_directory.add_directories();
+        includeNode->set_name("include");
+        includeNode->mutable_digest()->CopyFrom(include_directory_digest);
+
+        // create the tree
+        tree->emplace_back(root_directory);
+        tree->emplace_back(include_directory);
+        tree->emplace_back(headers1_directory);
+        tree->emplace_back(headers2_directory);
+    }
+
     void prepareTemplateTree(MergeUtil::DirectoryTree *tree)
     {
         /* Creates the following directory structure:
@@ -293,6 +353,196 @@ class MergeFixture : public ::testing::Test {
         tree->emplace_back(var_directory);
     }
 
+    void
+    prepareTemplateTreeWithSymlinkCollision(MergeUtil::DirectoryTree *tree)
+    {
+        /* Creates the following directory structure:
+         *
+         * ./
+         *   include/
+         *           time.h
+         *           headers1/
+         *                    file.h
+         *           headers2/
+         *                    file2.h --> ../headers1/file.h
+         *   local/
+         *         lib/
+         *             libc.so
+         *   var/
+         */
+
+        // ./include/headers1
+        Directory headers1_directory;
+        FileNode *fileNode = headers1_directory.add_files();
+        fileNode->set_name("file.h");
+        fileNode->set_is_executable(false);
+        fileNode->mutable_digest()->CopyFrom(make_digest("file_h_contents"));
+        const auto headers1_directory_digest = make_digest(headers1_directory);
+
+        // ./include/headers2
+        Directory headers2_directory;
+        SymlinkNode *symNode = headers2_directory.add_symlinks();
+        symNode->set_name("file2.h");
+        symNode->set_target("../headers1/file.cpp");
+        const auto headers2_directory_digest = make_digest(headers2_directory);
+
+        // ./include
+        Directory include_directory;
+        FileNode *includeFileNodes = include_directory.add_files();
+        includeFileNodes->set_name("time.h");
+        includeFileNodes->set_is_executable(false);
+        includeFileNodes->mutable_digest()->CopyFrom(
+            make_digest("time_h_contents"));
+        DirectoryNode *headers1Node = include_directory.add_directories();
+        headers1Node->set_name("headers1");
+        headers1Node->mutable_digest()->CopyFrom(headers1_directory_digest);
+        DirectoryNode *headers2Node = include_directory.add_directories();
+        headers2Node->set_name("headers2");
+        headers2Node->mutable_digest()->CopyFrom(headers2_directory_digest);
+        const auto include_directory_digest = make_digest(include_directory);
+
+        // ./local/lib
+        Directory lib_directory;
+        FileNode *libFileNode = lib_directory.add_files();
+        libFileNode->set_name("libc.so");
+        libFileNode->set_is_executable(false);
+        libFileNode->mutable_digest()->CopyFrom(
+            make_digest("libc_so_contents"));
+        const auto lib_directory_digest = make_digest(lib_directory);
+
+        // ./local
+        Directory local_directory;
+        DirectoryNode *libNode = local_directory.add_directories();
+        libNode->set_name("lib");
+        libNode->mutable_digest()->CopyFrom(lib_directory_digest);
+        const auto local_directory_digest = make_digest(local_directory);
+
+        // ./var
+        Directory var_directory;
+        const auto var_directory_digest = make_digest(var_directory);
+
+        // .
+        Directory root_directory;
+        // add include to root
+        DirectoryNode *includeNode = root_directory.add_directories();
+        includeNode->set_name("include");
+        includeNode->mutable_digest()->CopyFrom(include_directory_digest);
+
+        // add local to root
+        DirectoryNode *localNode = root_directory.add_directories();
+        localNode->set_name("local");
+        localNode->mutable_digest()->CopyFrom(local_directory_digest);
+
+        // add var to root
+        DirectoryNode *varNode = root_directory.add_directories();
+        varNode->set_name("var");
+        varNode->mutable_digest()->CopyFrom(var_directory_digest);
+
+        // create the tree
+        tree->emplace_back(root_directory);
+        tree->emplace_back(include_directory);
+        tree->emplace_back(headers1_directory);
+        tree->emplace_back(headers2_directory);
+        tree->emplace_back(local_directory);
+        tree->emplace_back(lib_directory);
+        tree->emplace_back(var_directory);
+    }
+
+    void
+    prepareTemplateTreeWithoutSymlinkCollision(MergeUtil::DirectoryTree *tree)
+    {
+        /* Creates the following directory structure:
+         *
+         * ./
+         *   include/
+         *           time.h
+         *           headers1/
+         *                    file1.h
+         *           headers2/
+         *                    file2.h --> ../headers1/file1.h
+         *   local/
+         *         lib/
+         *             libc.so
+         *   var/
+         */
+
+        // ./include/headers1
+        Directory headers1_directory;
+        FileNode *fileNode = headers1_directory.add_files();
+        fileNode->set_name("file1.h");
+        fileNode->set_is_executable(false);
+        fileNode->mutable_digest()->CopyFrom(make_digest("file1_h_contents"));
+        const auto headers1_directory_digest = make_digest(headers1_directory);
+
+        // ./include/headers2
+        Directory headers2_directory;
+        SymlinkNode *symNode = headers2_directory.add_symlinks();
+        symNode->set_name("file2.h");
+        symNode->set_target("../headers1/file1.cpp");
+        const auto headers2_directory_digest = make_digest(headers2_directory);
+
+        // ./include
+        Directory include_directory;
+        FileNode *includeFileNodes = include_directory.add_files();
+        includeFileNodes->set_name("time.h");
+        includeFileNodes->set_is_executable(false);
+        includeFileNodes->mutable_digest()->CopyFrom(
+            make_digest("time_h_contents"));
+        DirectoryNode *headers1Node = include_directory.add_directories();
+        headers1Node->set_name("headers1");
+        headers1Node->mutable_digest()->CopyFrom(headers1_directory_digest);
+        DirectoryNode *headers2Node = include_directory.add_directories();
+        headers2Node->set_name("headers2");
+        headers2Node->mutable_digest()->CopyFrom(headers2_directory_digest);
+        const auto include_directory_digest = make_digest(include_directory);
+
+        // ./local/lib
+        Directory lib_directory;
+        FileNode *libFileNode = lib_directory.add_files();
+        libFileNode->set_name("libc.so");
+        libFileNode->set_is_executable(false);
+        libFileNode->mutable_digest()->CopyFrom(
+            make_digest("libc_so_contents"));
+        const auto lib_directory_digest = make_digest(lib_directory);
+
+        // ./local
+        Directory local_directory;
+        DirectoryNode *libNode = local_directory.add_directories();
+        libNode->set_name("lib");
+        libNode->mutable_digest()->CopyFrom(lib_directory_digest);
+        const auto local_directory_digest = make_digest(local_directory);
+
+        // ./var
+        Directory var_directory;
+        const auto var_directory_digest = make_digest(var_directory);
+
+        // .
+        Directory root_directory;
+        // add include to root
+        DirectoryNode *includeNode = root_directory.add_directories();
+        includeNode->set_name("include");
+        includeNode->mutable_digest()->CopyFrom(include_directory_digest);
+
+        // add local to root
+        DirectoryNode *localNode = root_directory.add_directories();
+        localNode->set_name("local");
+        localNode->mutable_digest()->CopyFrom(local_directory_digest);
+
+        // add var to root
+        DirectoryNode *varNode = root_directory.add_directories();
+        varNode->set_name("var");
+        varNode->mutable_digest()->CopyFrom(var_directory_digest);
+
+        // create the tree
+        tree->emplace_back(root_directory);
+        tree->emplace_back(include_directory);
+        tree->emplace_back(headers1_directory);
+        tree->emplace_back(headers2_directory);
+        tree->emplace_back(local_directory);
+        tree->emplace_back(lib_directory);
+        tree->emplace_back(var_directory);
+    }
+
     void print(const Digest &d, const Directory &directory)
     {
         const auto digest = CASHash::hash(directory.SerializeAsString());
@@ -341,8 +591,11 @@ class MergeFixture : public ::testing::Test {
     void printMerkleTree(const MerkleTree &tree)
     {
         for (size_t i = 0; i < tree.size(); ++i) {
-            for (const auto &it : tree.at(i)) {
-                std::cout << it.first << " --> ";
+            const BasicTree &basicTree = tree.at(i);
+            for (const auto &it : basicTree) {
+                std::cout << "tree[" << i << "," << std::hex
+                          << (void *)&basicTree << "]: " << it.first
+                          << " --> ";
                 for (const auto &entry : it.second) {
                     std::cout << entry << ", ";
                 }
@@ -354,10 +607,11 @@ class MergeFixture : public ::testing::Test {
     // Recursively verify that a merkle tree matches an expected input layout.
     // This doesn't look at the hashes, just that the declared layout matches
     // (copied from RECC)
-    void verify_merkle_tree(Digest digest, MerkleTreeItr expected,
-                            MerkleTreeItr end, digest_string_map blobs)
+    void verify_merkle_tree(const Digest &digest, MerkleTree &tree, int &index,
+                            int end, const digest_string_map &blobs,
+                            const bool verbose = false)
     {
-        ASSERT_NE(expected, end) << "Reached end of expected output early";
+        ASSERT_NE(index, end) << "Reached end of expected output early";
         auto current_blob = blobs.find(digest);
         ASSERT_NE(current_blob, blobs.end())
             << "No blob found for digest " << digest.hash();
@@ -365,43 +619,56 @@ class MergeFixture : public ::testing::Test {
         Directory directory;
         directory.ParseFromString(current_blob->second);
 
-        /*
-        print(digest, directory);
-        for (const auto &vec : (*expected)) {
-            for (const auto &file : vec.second) {
-                std::cout << vec.first << ": " << file << std::endl;
+        if (verbose) {
+            if (index == 0) {
+                printMerkleTree(tree);
             }
+
+            std::cout << std::hex << (void *)&tree.at(index) << std::endl;
+            print(digest, directory);
+            for (const auto &it : tree.at(index)) {
+                for (const auto &entry : it.second) {
+                    std::cout << it.first << ": " << entry << std::endl;
+                }
+            }
+            std::cout << "num_files = " << tree[index]["files"].size()
+                      << std::endl;
+            std::cout << "num_symlinks = " << tree[index]["symlinks"].size()
+                      << std::endl;
+            std::cout << "num_subdirs = " << tree[index]["directories"].size()
+                      << std::endl;
         }
-        std::cout << "num_files = " << (*expected)["files"].size() <<
-        std::endl; std::cout << "num_subdirs = " <<
-        (*expected)["directories"].size() << std::endl;
-        */
 
         // Exit early if there are more/less files or dirs in the given tree
         // than expected
-        ASSERT_EQ(directory.files().size(), (*expected)["files"].size())
+        ASSERT_EQ(directory.files().size(), tree[index]["files"].size())
             << "Wrong number of files at current level";
+        ASSERT_EQ(directory.symlinks().size(), tree[index]["symlinks"].size())
+            << "Wrong number of symlinks at current level";
         ASSERT_EQ(directory.directories().size(),
-                  (*expected)["directories"].size())
+                  tree[index]["directories"].size())
             << "Wrong number of directories at current level";
 
         int f_index = 0;
         for (auto &file : directory.files()) {
-            ASSERT_EQ(file.name(), (*expected)["files"][f_index])
+            ASSERT_EQ(file.name(), tree[index]["files"][f_index])
                 << "Wrong file found";
             f_index++;
         }
         int d_index = 0;
         for (auto &subdirectory : directory.directories()) {
-            ASSERT_EQ(subdirectory.name(), (*expected)["directories"][d_index])
+            ASSERT_EQ(subdirectory.name(), tree[index]["directories"][d_index])
                 << "Wrong directory found";
             d_index++;
         }
         // All the files/directories at this level are correct, now check all
         // the subdirectories
         for (auto &subdirectory : directory.directories()) {
-            verify_merkle_tree(subdirectory.digest(), ++expected, end, blobs);
-            ++expected;
+            if (verbose) {
+                std::cout << "checking subdirectories" << std::endl;
+            }
+            verify_merkle_tree(subdirectory.digest(), tree, ++index, end,
+                               blobs, verbose);
         }
     }
 };
@@ -429,8 +696,10 @@ TEST_F(MergeFixture, MergeSuccessEmptyInputTree)
         {{"files", {"libc.so"}}},
         // contents of 'var'
         {{"directories", {}}}};
-    verify_merkle_tree(mergedRootDigest, expected_tree.begin(),
-                       expected_tree.end(), dsMap);
+
+    int startIndex = 0;
+    verify_merkle_tree(mergedRootDigest, expected_tree, startIndex,
+                       expected_tree.size(), dsMap);
 }
 
 TEST_F(MergeFixture, MergeSuccessNoOverlap)
@@ -446,25 +715,35 @@ TEST_F(MergeFixture, MergeSuccessNoOverlap)
     MerkleTree expected_tree = {
         // top level, aka 'root'
         {{"directories", {"include", "local", "src", "var"}}},
+
         // contents of 'include'
         {{"files", {"time.h"}}, {"directories", {"sys"}}},
+
         // contents of 'include/sys'
         {{"files", {"stat.h"}}},
+
         // contents of 'local'
         {{"directories", {"lib"}}},
+
         // contents of 'lib'
         {{"files", {"libc.so"}}},
+
         // contents of 'src'
         {{"files", {"build.sh"}}, {"directories", {"cpp", "headers"}}},
+
         // contents of 'cpp'
-        {{"files", {"file1.cpp", "file2.cpp", "file3.cpp"}}},
-        // contents of 'var'
-        {{"directories", {}}},
+        {{"files", {"file1.cpp", "file2.cpp", "file3.cpp"}},
+         {"symlinks", {"file4.h"}}},
+
         // contents of 'headers'
         {{"files", {"file1.h", "file2.h", "file3.h"}}},
-    };
-    verify_merkle_tree(mergedRootDigest, expected_tree.begin(),
-                       expected_tree.end(), dsMap);
+
+        // contents of 'var'
+        {{"directories", {}}}};
+
+    int startIndex = 0;
+    verify_merkle_tree(mergedRootDigest, expected_tree, startIndex,
+                       expected_tree.size(), dsMap);
 }
 
 TEST_F(MergeFixture, MergeSuccessOverlapWithoutConflict)
@@ -480,24 +759,34 @@ TEST_F(MergeFixture, MergeSuccessOverlapWithoutConflict)
     MerkleTree expected_tree = {
         // top level, aka 'root'
         {{"directories", {"include", "local", "src", "var"}}},
+
         // contents of 'include'
         {{"files", {"time.h"}}, {"directories", {"sys"}}},
+
         // contents of 'include/sys'
         {{"files", {"stat.h"}}},
+
         // contents of 'local'
         {{"directories", {"lib"}}},
+
         // contents of 'lib'
         {{"files", {"libc.so"}}},
+
         // contents of 'src'
         {{"directories", {"cpp", "headers"}}},
+
         // contents of 'cpp'
         {{"files", {"foo.cpp"}}},
-        // contents of 'var'
-        {{"directories", {}}},
+
         // contents of 'headers'
-        {{"files", {"foo.h"}}}};
-    verify_merkle_tree(mergedRootDigest, expected_tree.begin(),
-                       expected_tree.end(), dsMap);
+        {{"files", {"foo.h"}}},
+
+        // contents of 'var'
+        {{"directories", {}}}};
+
+    int startIndex = 0;
+    verify_merkle_tree(mergedRootDigest, expected_tree, startIndex,
+                       expected_tree.size(), dsMap);
 }
 
 TEST_F(MergeFixture, MergeFailOverlapWithConflict)
@@ -518,6 +807,55 @@ TEST_F(MergeFixture, MergeMismatchIsExecutable)
     buildboxcommon::digest_string_map dsMap;
     const bool result = MergeUtil::createMergedDigest(
         d_inputTreeWithExecutableTrue, d_inputTreeWithExecutableFalse,
+        &mergedRootDigest, &dsMap);
+    ASSERT_FALSE(result);
+}
+
+TEST_F(MergeFixture, MergeSuccessSymlinkCollision)
+{
+    // merge
+    Digest mergedRootDigest;
+    buildboxcommon::digest_string_map dsMap;
+    const bool result = MergeUtil::createMergedDigest(
+        d_inputTreeWithSymlinks, d_chrootTemplateTreeWithoutSymlinkCollision,
+        &mergedRootDigest, &dsMap);
+    ASSERT_TRUE(result);
+
+    MerkleTree expected_tree = {
+        // top level, aka 'root'
+        {{"directories", {"include", "local", "var"}}},
+
+        // contents of 'include'
+        {{"files", {"time.h"}}, {"directories", {"headers1", "headers2"}}},
+
+        // contents of 'include/headers1'
+        {{"files", {"file1.h"}}},
+
+        // contents of 'include/headers2'
+        {{"symlinks", {"file2.h"}}},
+
+        // contents of 'local'
+        {{"directories", {"lib"}}},
+
+        // contents of 'lib'
+        {{"files", {"libc.so"}}},
+
+        // contents of 'var'
+        {{"directories", {}}},
+    };
+
+    int startingIndex = 0;
+    verify_merkle_tree(mergedRootDigest, expected_tree, startingIndex,
+                       expected_tree.size(), dsMap);
+}
+
+TEST_F(MergeFixture, MergeFailureSymlinkCollision)
+{
+    // merge
+    Digest mergedRootDigest;
+    buildboxcommon::digest_string_map dsMap;
+    const bool result = MergeUtil::createMergedDigest(
+        d_inputTreeWithSymlinks, d_chrootTemplateTreeWithSymlinkCollision,
         &mergedRootDigest, &dsMap);
     ASSERT_FALSE(result);
 }

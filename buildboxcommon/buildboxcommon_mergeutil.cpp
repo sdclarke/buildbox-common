@@ -90,6 +90,8 @@ class SymlinkNodeMetaData : public NodeMetaData {
     {
     }
 
+    const std::string &target() const { return d_symlinkTarget; }
+
     // symlinks have no digest, so return an empty one
     // see
     // https://gitlab.com/BuildGrid/buildbox/buildbox-common/blob/master/protos/build/bazel/remote/execution/v2/remote_execution.proto#L658
@@ -153,24 +155,26 @@ inline std::string genNewPath(const std::string &dirName,
 /**
  * Create a string, one per file or directory by recursively iterating
  * over a chain of directories and subdirectores until arriving at the leaf
- * node. For example the following directory tree:
+ * node. For example, the following directory tree:
  *   src/
  *       headers/
  *               foo.h
  *       cpp/
  *           foo.cpp
+ *           foo1.cpp -> foo.cpp
  *   local/
  *         lib/
  *             libc.so
  *   var/
  *
  *  can be expressed as a series of path names which
- *  we can pass to the NestedDirectory::add() and
- *  NestedDirectory::addDirectory() methods:
+ *  we can pass to the NestedDirectory::add(), NestedDirectory::addSymlink()
+ *  and NestedDirectory::addDirectory() methods:
  *
  *  NestedDirectory result;
  *  result.add("src/headers/foo.h");
  *  result.add("src/cpp/foo.cpp");
+ *  result.addSymlink("src/cpp/foo1.cpp");
  *  result.add("local/lib/libc.so");
  *  result.addDirectory("var");
  */
@@ -194,6 +198,7 @@ void buildFlattenedPath(PathNodeMetaDataMap *map,
                 << " detected while attempting to add new file [" << newFile
                 << ":" << node.digest() << ":" << std::boolalpha
                 << node.is_executable();
+            BUILDBOX_LOG_ERROR(oss.str());
             throw std::runtime_error(oss.str());
         }
         map->emplace(newFile,
@@ -203,21 +208,31 @@ void buildFlattenedPath(PathNodeMetaDataMap *map,
 
     // symlinks
     for (const auto &node : directory.symlinks()) {
-        const std::string newName = genNewPath(dirName, node.name());
-        const std::string key = newName + ":" + node.target();
+        const std::string newSymlinkName = genNewPath(dirName, node.name());
 
         // collision detection for symlinks is defined as
-        // same name and target
-        const auto it = map->find(key);
+        // same name but different target, ie;
+        // 1. /some/path/name1 -> ../target1   # OK
+        // 2. /some/path/name1 -> ../target2   # BAD
+        // 3. /some/path/name2 -> ../target1   # OK
+        const auto it = map->find(newSymlinkName);
         if (it != map->end()) {
-            std::ostringstream oss;
-            oss << "symlink collision: existing name/target \"" << it->first
-                << "\" detected while attempting to add new name/target \""
-                << key << "\"";
-            throw std::runtime_error(oss.str());
+            // same path/name but different target - not allowed
+            const auto *metaNode =
+                dynamic_cast<SymlinkNodeMetaData *>(it->second.get());
+            if (metaNode != nullptr && metaNode->target() != node.target()) {
+                std::ostringstream oss;
+                oss << "error processing symlink: existing symlink ["
+                    << it->first << " -> " << metaNode->target()
+                    << "] has the same name but different target than new "
+                       "symlink ["
+                    << newSymlinkName << " -> " << node.target() << "]";
+                BUILDBOX_LOG_ERROR(oss.str());
+                throw std::runtime_error(oss.str());
+            }
         }
-        map->emplace(key, std::make_shared<SymlinkNodeMetaData>(
-                              newName, node.target()));
+        map->emplace(newSymlinkName, std::make_shared<SymlinkNodeMetaData>(
+                                         newSymlinkName, node.target()));
     }
 
     // subdirectories
@@ -286,7 +301,6 @@ bool MergeUtil::createMergedDigest(const DirectoryTree &inputTree,
         buildFlattenedPath(&map, templateTree.at(0), *dsMap);
     }
     catch (const std::runtime_error &e) {
-        BUILDBOX_LOG_ERROR(e.what());
         return false;
     }
 
