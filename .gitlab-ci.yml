@@ -66,13 +66,21 @@ check_formatting:
         - echo "$linter_errors"
         - if [[ ! -z "$linter_errors" ]]; then echo "Detected formatting issues; please fix"; exit 1; else echo "Formatting is correct"; exit 0; fi
 
-e2e:
+e2e-casd-staging:
     image: registry.gitlab.com/buildgrid/buildbox/buildbox-e2e:latest
     stage: test
     dependencies: []
     allow_failure: true
     script:
         - BUILDBOX_COMMON_SOURCE_ROOT=`pwd` end-to-end-test.sh
+
+e2e-fallback-staging:
+    image: registry.gitlab.com/buildgrid/buildbox/buildbox-e2e:latest
+    stage: test
+    dependencies: []
+    allow_failure: true
+    script:
+        - BUILDBOX_E2E_DISABLE_CASD_STAGE=1 BUILDBOX_COMMON_SOURCE_ROOT=`pwd` end-to-end-test.sh
 
 trigger_e2e_rebuild:
     image: ubuntu:bionic
