@@ -80,7 +80,7 @@ e2e-fallback-staging:
     dependencies: []
     allow_failure: true
     script:
-        - BUILDBOX_E2E_DISABLE_CASD_STAGE=1 BUILDBOX_COMMON_SOURCE_ROOT=`pwd` end-to-end-test.sh
+        - BUILDBOX_E2E_RUNNER_DISABLE_CASD=1 BUILDBOX_COMMON_SOURCE_ROOT=`pwd` end-to-end-test.sh
 
 trigger_e2e_rebuild:
     image: ubuntu:bionic
