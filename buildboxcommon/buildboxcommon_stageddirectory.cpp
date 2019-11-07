@@ -43,9 +43,16 @@ void StagedDirectory::captureAllOutputs(
     StagedDirectory::CaptureFileCallback capture_file_function,
     StagedDirectory::CaptureDirectoryCallback capture_directory_function) const
 {
+
+    // According to the REAPI, `Command.working_directory()` can be empty.
+    // In that case, we want to avoid adding leading slashes to paths, which
+    // would make them absolute.
+    const std::string base_path = command.working_directory().empty()
+                                      ? ""
+                                      : command.working_directory() + "/";
+
     for (const auto &outputFilename : command.output_files()) {
-        const std::string path =
-            command.working_directory() + "/" + outputFilename;
+        const std::string path = base_path + outputFilename;
 
         OutputFile outputFile = capture_file_function(path.c_str());
         if (!outputFile.path().empty()) {
@@ -56,8 +63,7 @@ void StagedDirectory::captureAllOutputs(
     }
 
     for (const auto &outputDirName : command.output_directories()) {
-        const std::string path =
-            command.working_directory() + "/" + outputDirName;
+        const std::string path = base_path + outputDirName;
 
         OutputDirectory outputDirectory =
             capture_directory_function(path.c_str());

@@ -138,9 +138,9 @@ TEST_F(LocalCasStagedDirectoryFixture, CaptureCommandOutputs)
                           capture_directory_function);
 
     ASSERT_EQ(captured_files.size(), 2);
-    ASSERT_EQ(captured_files.count("/a.out"), 1);
-    ASSERT_EQ(captured_files.count("/lib.so"), 1);
+    ASSERT_EQ(captured_files.count("a.out"), 1);
+    ASSERT_EQ(captured_files.count("lib.so"), 1);
 
     ASSERT_EQ(captured_directories.size(), 1);
-    ASSERT_EQ(captured_directories.count("/include"), 1);
+    ASSERT_EQ(captured_directories.count("include"), 1);
 }
