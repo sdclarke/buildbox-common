@@ -14,6 +14,15 @@ add_executable(client_tests
 target_link_libraries(client_tests buildboxcommon ${GMOCK_TARGET})
 add_test(NAME client_tests COMMAND client_tests)
 
+add_executable(stageddirectory_tests
+  buildboxcommon_stageddirectory.t.cpp
+  buildboxcommon_tests.m.cpp)
+target_link_libraries(stageddirectory_tests buildboxcommon ${GMOCK_TARGET})
+add_test(
+    NAME stageddirectory_tests
+    COMMAND stageddirectory_tests
+)
+
 add_executable(fallbackstageddirectory_tests
   buildboxcommon_fallbackstageddirectory.t.cpp
   buildboxcommon_tests.m.cpp)
