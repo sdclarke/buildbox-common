@@ -51,7 +51,23 @@ void StagedDirectory::captureAllOutputs(
                                       ? ""
                                       : command.working_directory() + "/";
 
+    // Also:
+    //  "The paths are relative to the working directory of the action
+    //   execution. [...] The path MUST NOT include a trailing slash,
+    //   nor a leading slash, being a relative path."
+    auto assert_no_invalid_slashes = [](const std::string &path) {
+        if (path.front() == '/' || path.back() == '/') {
+            const auto error_message = "Output path in `Command` has "
+                                       "leading or trailing slashes: \"" +
+                                       path + "\"";
+            BUILDBOX_LOG_ERROR(error_message);
+            throw std::invalid_argument(error_message);
+        }
+    };
+
     for (const auto &outputFilename : command.output_files()) {
+        assert_no_invalid_slashes(outputFilename);
+
         const std::string path = base_path + outputFilename;
 
         OutputFile outputFile = capture_file_function(path.c_str());
@@ -63,6 +79,8 @@ void StagedDirectory::captureAllOutputs(
     }
 
     for (const auto &outputDirName : command.output_directories()) {
+        assert_no_invalid_slashes(outputDirName);
+
         const std::string path = base_path + outputDirName;
 
         OutputDirectory outputDirectory =
