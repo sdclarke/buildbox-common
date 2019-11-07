@@ -30,6 +30,7 @@
 
 #include <fstream>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 using namespace buildboxcommon;
@@ -143,6 +144,31 @@ TEST_F(LocalCasStagedDirectoryFixture, CaptureCommandOutputs)
 
     ASSERT_EQ(captured_directories.size(), 1);
     ASSERT_EQ(captured_directories.count("include"), 1);
+}
+
+TEST_F(LocalCasStagedDirectoryFixture, EmptyDirectoryPathIsAllowed)
+{
+    auto fs = stageDirectory("");
+
+    Command command;
+    *command.add_output_directories() = "";
+
+    StagedDirectory::CaptureFileCallback capture_file_function =
+        [&](const char *) { return OutputFile(); };
+
+    bool captured_empty_path = false;
+    StagedDirectory::CaptureDirectoryCallback capture_directory_function =
+        [&](const char *relative_path) {
+            captured_empty_path = (strlen(relative_path) == 0);
+            return OutputDirectory();
+        };
+
+    ActionResult action_result;
+    ASSERT_NO_THROW(fs->captureAllOutputs(command, &action_result,
+                                          capture_file_function,
+                                          capture_directory_function));
+
+    ASSERT_TRUE(captured_empty_path);
 }
 
 TEST_F(LocalCasStagedDirectoryFixture, FilePathWithLeadingSlashThrows)
