@@ -208,11 +208,12 @@ class Client {
      * or throws a runtime_exception if the request failed.
      *
      * If the optional `directory_digest` pointer is provided, the Digest of
-     * the uploaded directory is copied to it.
+     * the uploaded directory is copied to it. Likewise for the `tree`
+     * pointer and the `Tree` object that is generated for the directory.
      */
     std::vector<UploadResult>
     uploadDirectory(const std::string &path,
-                    Digest *directory_digest = nullptr);
+                    Digest *directory_digest = nullptr, Tree *tree = nullptr);
 
     /*
      * Send a LocalCas protocol `CaptureTree()` request containing the given

@@ -93,31 +93,113 @@ class CaptureTestFixtureParameter
      */
 };
 
-/*
- * Construct a new writer for every write raw request
- * Also store argument for testing
- */
-auto getWriter(std::vector<WriteRequest>::iterator &iter)
+TEST_P(CaptureTestFixtureParameter, CaptureDirectoryTest)
 {
-    grpc::testing::MockClientWriter<google::bytestream::WriteRequest> *writer =
-        new grpc::testing::MockClientWriter<
-            google::bytestream::WriteRequest>();
-    EXPECT_CALL(*writer, Write(_, _))
-        .WillRepeatedly(DoAll(SaveArg<0>(iter++), Return(true)));
-    EXPECT_CALL(*writer, WritesDone()).WillOnce(Return(true));
-    EXPECT_CALL(*writer, Finish()).WillOnce(Return(grpc::Status::OK));
-    return writer;
+    // FallBackStagedDirectory will first download the contents using the CAS
+    // client:
+    EXPECT_CALL(*bytestreamClient, ReadRaw(_, _))
+        .WillRepeatedly(Return(reader));
+
+    EXPECT_CALL(*reader, Read(_))
+        .WillOnce(Return(true))
+        .WillOnce(Return(false));
+
+    EXPECT_CALL(*reader, Finish()).WillRepeatedly(Return(grpc::Status::OK));
+
+    // Get the stage location:
+    const std::string stage_location = GetParam();
+    FallbackStagedDirectory fs(digest, stage_location, client);
+
+    // Making sure `fs` staged the directory in correct location:
+    const std::string staged_path = fs.getPath();
+    EXPECT_EQ(staged_path.find(stage_location), 0);
+
+    const Digest tree_digest = make_digest("directory-tree");
+    // Verifying that the CAS client's `uploadDirectory()` method is invoked
+    // with the correct absolute path:
+    std::string upload_directory_argument;
+    auto upload_directory_function = [&upload_directory_argument,
+                                      tree_digest](const std::string &path) {
+        upload_directory_argument = path;
+        return tree_digest;
+    };
+
+    // We want to capture `upload_testx/` located in the `staged_path`.
+    // We expect the CAS client to be invoked for `staged_path/upload_testx`.
+    const std::string subdirectory_to_capture = "upload_testx";
+    const std::string absolute_path_to_capture =
+        staged_path + "/" + subdirectory_to_capture;
+
+    const OutputDirectory output_dir = fs.captureDirectory(
+        subdirectory_to_capture.c_str(), upload_directory_function);
+
+    ASSERT_EQ(upload_directory_argument, absolute_path_to_capture);
+
+    // The OutputDirectory contains the correct information:
+    ASSERT_EQ(output_dir.tree_digest(), tree_digest);
+    ASSERT_EQ(output_dir.path(), "upload_testx");
 }
 
-/*
- * Copy source directory  into destination path
- * Destination should already exist
- */
-void copyDirectory(std::string source, std::string destination)
+TemporaryFile createExecutableTestFile(const std::string &dir_path,
+                                       Digest *file_digest)
 {
-    std::ostringstream copyCommand;
-    copyCommand << "cp -r " << source << " " << destination;
-    system(copyCommand.str().c_str());
+    TemporaryFile file(dir_path.c_str(), "test-file");
+    std::ofstream ofstream(file.name(), std::ios::binary);
+
+    ofstream << "Test contents...";
+    ofstream.flush();
+
+    file_digest->CopyFrom(CASHash::hashFile(file.name()));
+
+    FileUtils::make_executable(file.name());
+
+    return file;
+}
+
+TEST_F(CaptureTestFixtureParameter, CaptureFileTest)
+{
+    // FallBackStagedDirectory will first download the contents using the CAS
+    // client:
+    EXPECT_CALL(*bytestreamClient, ReadRaw(_, _))
+        .WillRepeatedly(Return(reader));
+
+    EXPECT_CALL(*reader, Read(_))
+        .WillOnce(Return(true))
+        .WillOnce(Return(false));
+
+    EXPECT_CALL(*reader, Finish()).WillRepeatedly(Return(grpc::Status::OK));
+
+    // Get the stage location:
+    TemporaryDirectory stage_directory;
+    const std::string stage_location = stage_directory.name();
+    FallbackStagedDirectory fs(digest, stage_location, client);
+
+    const std::string staged_path = fs.getPath();
+    EXPECT_EQ(staged_path.find(stage_location), 0);
+
+    // Creating a file inside the staged directory that we'll capture:
+    Digest staged_file_digest;
+    TemporaryFile staged_file =
+        createExecutableTestFile(staged_path, &staged_file_digest);
+
+    const std::string staged_file_path = std::string(staged_file.name());
+    const std::string staged_file_name =
+        staged_file_path.substr(staged_file_path.rfind('/') + 1);
+
+    Digest captured_digest;
+    const auto dummy_upload_function =
+        [&captured_digest](const int, const Digest &digest) {
+            captured_digest = digest;
+            return;
+        };
+    const OutputFile output_file =
+        fs.captureFile(staged_file_name.c_str(), dummy_upload_function);
+
+    ASSERT_EQ(captured_digest, staged_file_digest);
+
+    ASSERT_EQ(output_file.path(), staged_file_name);
+    ASSERT_EQ(output_file.digest(), staged_file_digest);
+    ASSERT_TRUE(output_file.is_executable());
 }
 
 /*
@@ -140,123 +222,6 @@ std::string get_current_working_directory()
             throw std::runtime_error("current working directory not found");
         }
     }
-}
-
-std::set<std::string>
-getHashesFromRequest(const std::vector<WriteRequest> &requests,
-                     const std::string &resource_name_prefix)
-{
-    std::set<std::string> requested_hashes;
-
-    for (const auto &entry : requests) {
-        const std::string resource_name = entry.resource_name();
-        // Resource names should have the form {prefix/hash/size_bytes},
-        // e.g.: "uploads//blobs/fb7adfd80c02df9fa12fb82aabe167fe577a79b5/64"
-
-        const auto hash_start = resource_name_prefix.size();
-        const std::string resource_digest_string =
-            resource_name.substr(hash_start);
-
-        // Getting only the hash portion, dropping the size:
-        const std::string resource_hash = resource_digest_string.substr(
-            0, resource_digest_string.rfind('/'));
-
-        requested_hashes.insert(resource_hash);
-    }
-
-    return requested_hashes;
-}
-
-TEST_P(CaptureTestFixtureParameter, CaptureDirectoryTest)
-{
-    std::vector<WriteRequest> requests(4);
-    auto iter = requests.begin();
-
-    EXPECT_CALL(*bytestreamClient, ReadRaw(_, _))
-        .WillRepeatedly(Return(reader));
-
-    EXPECT_CALL(*reader, Read(_))
-        .WillOnce(Return(true))
-        .WillOnce(Return(false));
-
-    EXPECT_CALL(*reader, Finish()).WillRepeatedly(Return(grpc::Status::OK));
-
-    // Using WillRepeatedly will break the test
-    EXPECT_CALL(*bytestreamClient, WriteRaw(_, _))
-        .WillOnce(Return(getWriter(iter)))
-        .WillOnce(Return(getWriter(iter)))
-        .WillOnce(Return(getWriter(iter)))
-        .WillOnce(Return(getWriter(iter)));
-
-    // Get the stage location.
-    const std::string stage_location = GetParam();
-    FallbackStagedDirectory fs(digest, stage_location, client);
-
-    // Make sure fs staged the directory in correct location
-    const std::string staged_path = fs.getPath();
-    EXPECT_EQ(staged_path.find(stage_location), 0);
-
-    EXPECT_EQ(requests.size(), 4);
-
-    /*
-     * upload_test
-     * ├── test.txt
-     * └── child
-     * 	   └── child_test.txt
-     */
-    copyDirectory("upload_test", fs.getPath() + std::string("/upload_testx"));
-    OutputDirectory output_dir = fs.captureDirectory("upload_testx");
-
-    const std::string prefix = "uploads//blobs/";
-    const Digest tree_digest = output_dir.tree_digest();
-
-    // Expected hashes of the files and root directory tree digest:
-    std::vector<Digest> expected_digests = {
-        CASHash::hashFile(fs.getPath() +
-                          std::string("/upload_testx/test.txt")),
-        CASHash::hashFile(fs.getPath() +
-                          std::string("/upload_testx/child/child_test.txt")),
-        tree_digest};
-
-    // Taking the hashes from the request and checking that the files to be
-    // captured are there:
-    const std::set<std::string> requested_hashes =
-        getHashesFromRequest(requests, prefix);
-    for (const Digest &digest : expected_digests) {
-        ASSERT_EQ(requested_hashes.count(digest.hash()), 1);
-    }
-
-    // The directory is staged. Let's now simulate capturing outputs:
-    Command command;
-    *command.add_output_files() = "a.out";
-    *command.add_output_files() = "lib.so";
-
-    *command.add_output_directories() = "include";
-
-    std::multiset<std::string> captured_files, captured_directories;
-
-    StagedDirectory::CaptureFileCallback capture_file_function =
-        [&](const char *relative_path) {
-            captured_files.insert(relative_path);
-            return OutputFile();
-        };
-
-    StagedDirectory::CaptureDirectoryCallback capture_directory_function =
-        [&](const char *relative_path) {
-            captured_directories.insert(relative_path);
-            return OutputDirectory();
-        };
-
-    ActionResult action_result;
-    fs.captureAllOutputs(command, &action_result, capture_file_function,
-                         capture_directory_function);
-
-    ASSERT_EQ(captured_files.size(), 2);
-    ASSERT_EQ(captured_files.count("a.out"), 1);
-    ASSERT_EQ(captured_files.count("lib.so"), 1);
-
-    ASSERT_EQ(captured_directories.size(), 1);
-    ASSERT_EQ(captured_directories.count("include"), 1);
 }
 
 /*

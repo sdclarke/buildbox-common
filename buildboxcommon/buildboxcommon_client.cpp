@@ -880,7 +880,8 @@ Client::findMissingBlobs(const std::vector<Digest> &digests)
 }
 
 std::vector<Client::UploadResult>
-Client::uploadDirectory(const std::string &path, Digest *root_directory_digest)
+Client::uploadDirectory(const std::string &path, Digest *root_directory_digest,
+                        Tree *tree)
 {
     // Recursing through the directory and building a map:
     digest_string_map directory_map;
@@ -910,6 +911,10 @@ Client::uploadDirectory(const std::string &path, Digest *root_directory_digest)
                 FileUtils::get_file_contents(entry.second.c_str());
             upload_requests.emplace_back(UploadRequest(digest, file_contents));
         }
+    }
+
+    if (tree != nullptr) {
+        tree->CopyFrom(nested_dir.to_tree());
     }
 
     return uploadBlobs(upload_requests);

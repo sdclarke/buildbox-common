@@ -1022,6 +1022,44 @@ TEST_F(TransferDirectoryFixture, UploadDirectoryNoMissingBlobs)
     ASSERT_EQ(returned_directory_digest, directory_digest);
 }
 
+TEST_F(TransferDirectoryFixture, UploadDirectoryWritesTree)
+{
+    /* directory/
+     *   |-- file_a
+     *   |-- subdirectory/
+     *       |-- file_b
+     */
+
+    FindMissingBlobsResponse missing_blobs_response;
+    // The remote reports that no blobs are missing, so no upload
+    // needs to take place.
+    EXPECT_CALL(*casClient.get(), FindMissingBlobs(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(missing_blobs_response),
+                        Return(grpc::Status::OK)));
+
+    Digest returned_directory_digest;
+    Tree tree;
+    this->uploadDirectory(std::string(directory.name()),
+                          &returned_directory_digest, &tree);
+
+    // `uploadDirectory()` wrote the `Tree` object that it generated before the
+    // transfer, it should match the data:
+
+    // directory/:
+    ASSERT_EQ(tree.root().directories_size(), 1); // subdirectory/
+    ASSERT_EQ(tree.children_size(), 1);
+
+    ASSERT_EQ(tree.root().files_size(), 1); // fila_a
+    ASSERT_EQ(tree.root().symlinks_size(), 0);
+
+    // subdirectory/
+    ASSERT_EQ(tree.children(0).files_size(), 1); // file_b
+    ASSERT_EQ(tree.children(0).directories_size(), 0);
+    ASSERT_EQ(tree.children(0).symlinks_size(), 0);
+
+    ASSERT_EQ(returned_directory_digest, directory_digest);
+}
+
 TEST_F(TransferDirectoryFixture, DownloadDirectoryMissingDigestThrows)
 {
     Digest digest;

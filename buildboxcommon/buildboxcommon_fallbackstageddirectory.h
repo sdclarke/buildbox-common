@@ -22,6 +22,7 @@
 #include <buildboxcommon_temporarydirectory.h>
 
 #include <dirent.h>
+#include <functional>
 #include <memory>
 
 namespace buildboxcommon {
@@ -43,27 +44,35 @@ class FallbackStagedDirectory : public StagedDirectory {
     OutputFile captureFile(const char *relative_path) const override;
     OutputDirectory captureDirectory(const char *relative_path) const override;
 
-  private:
-    void downloadDirectory(const Digest &digest, const char *path) const;
-    void downloadFile(const Digest &digest, bool executable,
-                      const char *path) const;
+    /* Helpers marked as protected to unit test */
 
-    /**
-     * will close the file descriptor that is passed in
-     */
-    Directory uploadDirectoryRecursively(Tree *tree, const int dirFD) const;
+    // Given a relative path, uses `openAt()` to get a file descriptor to it,
+    // resolving the path from the stage directory FD.
+    // On errors throws an `std::system_error` exception.
+    int openFile(const char *relative_path) const;
 
-    /**
-     * Helper function to capture directory using file descriptor.
-     * Will not close file descriptor that is passed in.
-     */
-    OutputFile captureFileWithFD(const int dirFD,
-                                 const char *relative_path) const;
+    OutputFile
+    captureFile(const char *relative_path,
+                const std::function<void(const int fd, const Digest &digest)>
+                    &upload_file_function) const;
+
+    OutputDirectory
+    captureDirectory(const char *relative_path,
+                     const std::function<Digest(const std::string &path)>
+                         &upload_directory_function) const;
+
+  protected:
+    FallbackStagedDirectory();
+
     std::shared_ptr<Client> d_casClient;
     TemporaryDirectory d_stage_directory;
 
+    int d_stage_directory_fd;
+
     OutputFile captureFile(const char *relative_path,
                            const char *workingDirectory) const;
+
+    Digest uploadDirectory(const std::string &path) const;
 };
 } // namespace buildboxcommon
 
