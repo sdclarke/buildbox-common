@@ -43,9 +43,32 @@ void StagedDirectory::captureAllOutputs(
     StagedDirectory::CaptureFileCallback capture_file_function,
     StagedDirectory::CaptureDirectoryCallback capture_directory_function) const
 {
+
+    // According to the REAPI, `Command.working_directory()` can be empty.
+    // In that case, we want to avoid adding leading slashes to paths, which
+    // would make them absolute.
+    const std::string base_path = command.working_directory().empty()
+                                      ? ""
+                                      : command.working_directory() + "/";
+
+    // Also:
+    //  "The paths are relative to the working directory of the action
+    //   execution. [...] The path MUST NOT include a trailing slash,
+    //   nor a leading slash, being a relative path."
+    auto assert_no_invalid_slashes = [](const std::string &path) {
+        if (path.front() == '/' || path.back() == '/') {
+            const auto error_message = "Output path in `Command` has "
+                                       "leading or trailing slashes: \"" +
+                                       path + "\"";
+            BUILDBOX_LOG_ERROR(error_message);
+            throw std::invalid_argument(error_message);
+        }
+    };
+
     for (const auto &outputFilename : command.output_files()) {
-        const std::string path =
-            command.working_directory() + "/" + outputFilename;
+        assert_no_invalid_slashes(outputFilename);
+
+        const std::string path = base_path + outputFilename;
 
         OutputFile outputFile = capture_file_function(path.c_str());
         if (!outputFile.path().empty()) {
@@ -56,8 +79,9 @@ void StagedDirectory::captureAllOutputs(
     }
 
     for (const auto &outputDirName : command.output_directories()) {
-        const std::string path =
-            command.working_directory() + "/" + outputDirName;
+        assert_no_invalid_slashes(outputDirName);
+
+        const std::string path = base_path + outputDirName;
 
         OutputDirectory outputDirectory =
             capture_directory_function(path.c_str());
