@@ -79,9 +79,8 @@ std::string printableCommandLine(const std::vector<std::string> &commandLine)
     // -1, to avoid putting space at end of string
     copy(commandLine.begin(), commandLine.end() - 1,
          std::ostream_iterator<std::string>(commandLineStream, " "));
-    std::string commandLineString =
-        commandLineStream.str() + commandLine.back();
-    return commandLineString;
+    commandLineStream << commandLine.back();
+    return commandLineStream.str();
 }
 
 } // namespace logging

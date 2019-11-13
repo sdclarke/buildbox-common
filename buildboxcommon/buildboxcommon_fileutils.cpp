@@ -94,22 +94,22 @@ void FileUtils::create_directory(const char *path)
 {
     // Normalize path first as the parent directory creation logic below
     // can't handle paths with '..' components.
-    std::string normalized_path = normalize_path(path);
-    path = normalized_path.c_str();
-
-    if (mkdir(path, 0777) != 0) {
+    const std::string normalizedStr = normalize_path(path);
+    const char *normalizeStrPtr = normalizedStr.c_str();
+    if (mkdir(normalizeStrPtr, 0777) != 0) {
         if (errno == EEXIST) {
             // The directory already exists, so return.
             return;
         }
         else if (errno == ENOENT) {
-            auto lastSlash = strrchr(path, '/');
+            auto lastSlash = strrchr(normalizeStrPtr, '/');
             if (lastSlash == nullptr) {
                 throw std::system_error(errno, std::system_category());
             }
-            std::string parent(path, lastSlash - path);
+            const std::string parent(
+                normalizeStrPtr, std::distance(normalizeStrPtr, lastSlash));
             create_directory(parent.c_str());
-            if (mkdir(path, 0777) != 0) {
+            if (mkdir(normalizeStrPtr, 0777) != 0) {
                 throw std::system_error(errno, std::system_category());
             }
         }
@@ -286,7 +286,11 @@ std::string FileUtils::make_path_absolute(const std::string &path,
                                           const std::string &cwd)
 {
     if (cwd.empty() || cwd.front() != '/') {
-        throw std::runtime_error("`cwd must be an absolute path");
+        std::ostringstream os;
+        os << "cwd must be an absolute path: [" << cwd << "]";
+        const std::string err = os.str();
+        BUILDBOX_LOG_ERROR(err);
+        throw std::runtime_error(err);
     }
 
     const std::string full_path = cwd + '/' + path;
