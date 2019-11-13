@@ -131,6 +131,10 @@ class Runner {
     static void writeStandardStreamsToResult(const int stdout_read_fd,
                                              const int stderr_read_fd,
                                              ActionResult *result);
+
+    // Fetch a `Command` message from the remote CAS. If that fails, log the
+    // error and `exit(1)`.
+    Command fetchCommand(const Digest &command_digest) const;
 };
 
 #define BUILDBOX_RUNNER_MAIN(x)                                               \

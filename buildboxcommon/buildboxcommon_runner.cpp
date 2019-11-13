@@ -132,7 +132,8 @@ Action Runner::readAction(const std::string &path) const
 
 void Runner::initializeCasClient() const
 {
-    BUILDBOX_LOG_DEBUG("Initializing CAS " << this->d_casRemote.d_url);
+    BUILDBOX_LOG_DEBUG("Initializing CAS client to connect to: \""
+                       << this->d_casRemote.d_url << "\"");
     try {
         this->d_casClient->init(this->d_casRemote);
     }
@@ -157,8 +158,20 @@ void Runner::writeActionResult(const ActionResult &action_result,
     close(fd);
 
     if (!successful_write) {
-        BUILDBOX_LOG_ERROR(
-            "Failed to serialize ActionResult before writing to " << path);
+        BUILDBOX_LOG_ERROR("Failed to write ActionResult to " << path);
+        exit(1);
+    }
+}
+
+Command Runner::fetchCommand(const Digest &command_digest) const
+{
+    try {
+        return this->d_casClient->fetchMessage<Command>(command_digest);
+    }
+    catch (const std::runtime_error &e) {
+        BUILDBOX_LOG_ERROR("Error fetching Command with digest \""
+                           << command_digest << "\" from \""
+                           << d_casRemote.d_url << "\": " << e.what());
         exit(1);
     }
 }
@@ -171,16 +184,15 @@ int Runner::main(int argc, char *argv[])
         return 1;
     }
 
-    Action input = readAction(this->d_inputPath);
+    const Action input = readAction(this->d_inputPath);
     registerSignals();
     initializeCasClient();
 
+    BUILDBOX_LOG_DEBUG("Fetching Command " << input.command_digest());
+    const Command command = fetchCommand(input.command_digest());
+
     ActionResult result;
     try {
-        BUILDBOX_LOG_DEBUG("Fetching " << input.command_digest().hash());
-        const Command command =
-            this->d_casClient->fetchMessage<Command>(input.command_digest());
-
         const auto signal_status = getSignalStatus();
         if (signal_status) {
             // If signal is set here, then no clean up necessary, return.
@@ -279,7 +291,9 @@ std::array<int, 2> Runner::createPipe() const
     std::array<int, 2> pipe_fds = {0, 0};
 
     if (pipe(pipe_fds.data()) == -1) {
-        throw std::system_error(errno, std::system_category());
+        const auto pipe_error = errno;
+        BUILDBOX_LOG_ERROR("Error calling pipe():" << strerror(pipe_error));
+        throw std::system_error(pipe_error, std::system_category());
     }
 
     markNonBlocking(pipe_fds[0]);
@@ -481,7 +495,8 @@ bool Runner::parseArguments(int argc, char *argv[])
 void Runner::uploadIfNeeded(std::string *str, Digest *digest) const
 {
     if (str->length() > BUILDBOXCOMMON_RUNNER_MAX_INLINED_OUTPUT) {
-        BUILDBOX_LOG_DEBUG("Uploading " << digest->hash());
+        BUILDBOX_LOG_DEBUG(
+            "Uploading contents of standard output: " << digest->hash());
         *digest = CASHash::hash(*str);
 
         try {
@@ -489,9 +504,9 @@ void Runner::uploadIfNeeded(std::string *str, Digest *digest) const
             BUILDBOX_LOG_DEBUG("Done uploading " << digest->hash());
         }
         catch (const std::runtime_error &e) {
-            BUILDBOX_LOG_ERROR(
-                "Could not upload stdout/stderr contents, output lost: "
-                << e.what());
+            BUILDBOX_LOG_ERROR("Could not upload stdout/stderr contents to \""
+                               << d_casRemote.d_url
+                               << "\", output lost: " << e.what());
         }
 
         str->clear();
