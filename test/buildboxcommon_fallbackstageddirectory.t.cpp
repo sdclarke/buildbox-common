@@ -129,6 +129,8 @@ TEST_P(CaptureTestFixtureParameter, CaptureDirectoryTest)
     const std::string subdirectory_to_capture = "upload_testx";
     const std::string absolute_path_to_capture =
         staged_path + "/" + subdirectory_to_capture;
+    buildboxcommon::FileUtils::create_directory(
+        absolute_path_to_capture.c_str());
 
     const OutputDirectory output_dir = fs.captureDirectory(
         subdirectory_to_capture.c_str(), upload_directory_function);
@@ -200,6 +202,47 @@ TEST_F(CaptureTestFixtureParameter, CaptureFileTest)
     ASSERT_EQ(output_file.path(), staged_file_name);
     ASSERT_EQ(output_file.digest(), staged_file_digest);
     ASSERT_TRUE(output_file.is_executable());
+}
+
+TEST_F(CaptureTestFixtureParameter, CaptureNonExistentFileDoesNotCallUpload)
+{
+    // FallBackStagedDirectory will first download the contents using the CAS
+    // client:
+    EXPECT_CALL(*bytestreamClient, ReadRaw(_, _))
+        .WillRepeatedly(Return(reader));
+
+    EXPECT_CALL(*reader, Read(_))
+        .WillOnce(Return(true))
+        .WillOnce(Return(false));
+
+    EXPECT_CALL(*reader, Finish()).WillRepeatedly(Return(grpc::Status::OK));
+
+    // Get the stage location:
+    TemporaryDirectory stage_directory;
+    const std::string stage_location = stage_directory.name();
+    FallbackStagedDirectory fs(digest, stage_location, client);
+
+    const std::string staged_path = fs.getPath();
+
+    // We will try and capture a file that does not exist in the staged
+    // directory.
+    // The upload function will never be invoked and the returned
+    // `OutputFile` will be empty.
+    const std::string staged_file_path =
+        staged_path + "/non-existent-file.txt";
+
+    bool upload_called = false;
+    const auto dummy_upload_function = [&upload_called](const int,
+                                                        const Digest &) {
+        upload_called = true;
+        return;
+    };
+    const OutputFile output_file =
+        fs.captureFile(staged_file_path.c_str(), dummy_upload_function);
+
+    ASSERT_FALSE(upload_called);
+
+    ASSERT_TRUE(output_file.path().empty());
 }
 
 /*
