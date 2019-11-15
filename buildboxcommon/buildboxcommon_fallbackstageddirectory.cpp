@@ -91,6 +91,10 @@ OutputDirectory FallbackStagedDirectory::captureDirectory(
     const std::string absolute_path =
         FileUtils::make_path_absolute(relative_path, this->d_path);
 
+    if (!buildboxcommon::FileUtils::is_directory(absolute_path.c_str())) {
+        return OutputDirectory();
+    }
+
     const Digest tree_digest = upload_directory_function(absolute_path);
 
     OutputDirectory output_directory;
@@ -116,7 +120,18 @@ OutputFile FallbackStagedDirectory::captureFile(
     const std::function<void(const int fd, const Digest &digest)>
         &upload_file_function) const
 {
-    const int fd = this->openFile(relative_path);
+    int fd;
+    try {
+        fd = this->openFile(relative_path);
+    }
+    catch (const std::system_error &e) {
+        if (e.code().value() == ENOENT) {
+            return OutputFile();
+        }
+
+        throw;
+    }
+
     const Digest digest = CASHash::hash(fd);
 
     try {
