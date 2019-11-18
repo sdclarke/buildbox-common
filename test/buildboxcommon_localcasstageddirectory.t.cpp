@@ -145,3 +145,27 @@ TEST_F(LocalCasStagedDirectoryFixture, CaptureCommandOutputs)
     ASSERT_EQ(captured_directories.size(), 1);
     ASSERT_EQ(captured_directories.count("include"), 1);
 }
+
+TEST_F(LocalCasStagedDirectoryFixture, CaptureNonExistentDirectory)
+{
+    auto fs = stageDirectory("");
+
+    const auto non_existent_path = "/dir/that/does/not/exist";
+    ASSERT_FALSE(FileUtils::is_directory(non_existent_path));
+
+    const auto captured_directory = fs->captureDirectory(non_existent_path);
+
+    ASSERT_TRUE(captured_directory.path().empty());
+}
+
+TEST_F(LocalCasStagedDirectoryFixture, CaptureNonExistentFile)
+{
+    auto fs = stageDirectory("");
+
+    const auto non_existent_path = "/file/that/does/not/exist";
+    ASSERT_FALSE(FileUtils::is_regular_file(non_existent_path));
+
+    const auto captured_file = fs->captureFile(non_existent_path);
+
+    ASSERT_TRUE(captured_file.path().empty());
+}

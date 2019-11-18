@@ -38,6 +38,10 @@ LocalCasStagedDirectory::captureFile(const char *relative_path) const
     const std::string absolute_path =
         FileUtils::make_path_absolute(relative_path, this->d_path);
 
+    if (!FileUtils::is_regular_file(absolute_path.c_str())) {
+        return OutputFile();
+    }
+
     const CaptureFilesResponse response =
         this->d_cas_client->captureFiles({absolute_path}, false);
 
@@ -72,6 +76,11 @@ LocalCasStagedDirectory::captureDirectory(const char *relative_path) const
 
     const std::string absolute_path =
         FileUtils::make_path_absolute(relative_path, this->d_path);
+
+    // If the directory does not exist, we just ignore it:
+    if (!FileUtils::is_directory(absolute_path.c_str())) {
+        return OutputDirectory();
+    }
 
     const CaptureTreeResponse capture_response =
         this->d_cas_client->captureTree({absolute_path}, false);
