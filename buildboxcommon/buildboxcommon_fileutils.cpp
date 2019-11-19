@@ -102,7 +102,7 @@ void FileUtils::create_directory(const char *path)
             return;
         }
         else if (errno == ENOENT) {
-            auto lastSlash = strrchr(normalizeStrPtr, '/');
+            const char *lastSlash = strrchr(normalizeStrPtr, '/');
             if (lastSlash == nullptr) {
                 throw std::system_error(errno, std::system_category());
             }
