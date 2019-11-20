@@ -264,12 +264,7 @@ void buildDigestDirectoryMap(
     for (const auto &directory : tree) {
         const auto serialized = directory.SerializeAsString();
         const auto digest = buildboxcommon::make_digest(serialized);
-        if (!dsMap->emplace(digest, serialized).second) {
-            BUILDBOX_LOG_DEBUG("digest ["
-                               << digest
-                               << "] already exists(which is "
-                                  "allowable due to having the same digest)");
-        }
+        dsMap->emplace(digest, serialized);
     }
 }
 
