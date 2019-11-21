@@ -119,11 +119,13 @@ void Runner::registerSignals() const
     sa.sa_flags = SA_SIGINFO;
 
     if (sigaction(SIGINT, &sa, nullptr) == -1) {
-        BUILDBOX_LOG_ERROR("Unable to register signal handler for SIGINT");
+        BUILDBOX_RUNNER_LOG(ERROR,
+                            "Unable to register signal handler for SIGINT");
         exit(1);
     }
     if (sigaction(SIGTERM, &sa, nullptr) == -1) {
-        BUILDBOX_LOG_ERROR("Unable to register signal handler for SIGTERM");
+        BUILDBOX_RUNNER_LOG(ERROR,
+                            "Unable to register signal handler for SIGTERM");
         exit(1);
     }
 }
@@ -132,8 +134,8 @@ Action Runner::readAction(const std::string &path) const
 {
     const int fd = open(path.c_str(), O_RDONLY);
     if (fd == -1) {
-        BUILDBOX_LOG_ERROR("Could not open Action file " << path << ": "
-                                                         << strerror(errno));
+        BUILDBOX_RUNNER_LOG(ERROR, "Could not open Action file "
+                                       << path << ": " << strerror(errno));
         perror("buildbox-run input");
         exit(1);
     }
@@ -146,19 +148,20 @@ Action Runner::readAction(const std::string &path) const
         return input;
     }
 
-    BUILDBOX_LOG_ERROR("Failed to parse Action from " << path);
+    BUILDBOX_RUNNER_LOG(ERROR, "Failed to parse Action from " << path);
     exit(1);
 }
 
 void Runner::initializeCasClient() const
 {
-    BUILDBOX_LOG_DEBUG("Initializing CAS client to connect to: \""
-                       << this->d_casRemote.d_url << "\"");
+    BUILDBOX_RUNNER_LOG(DEBUG, "Initializing CAS client to connect to: \""
+                                   << this->d_casRemote.d_url << "\"");
     try {
         this->d_casClient->init(this->d_casRemote);
     }
     catch (const std::runtime_error &e) {
-        BUILDBOX_LOG_ERROR("Error initializing CAS client: " << e.what());
+        BUILDBOX_RUNNER_LOG(ERROR,
+                            "Error initializing CAS client: " << e.what());
         exit(1);
     }
 }
@@ -168,8 +171,8 @@ void Runner::writeActionResult(const ActionResult &action_result,
 {
     const int fd = open(path.c_str(), O_WRONLY);
     if (fd == -1) {
-        BUILDBOX_LOG_ERROR("Could not save ActionResult to "
-                           << path << ": " << strerror(errno));
+        BUILDBOX_RUNNER_LOG(ERROR, "Could not save ActionResult to "
+                                       << path << ": " << strerror(errno));
         perror("buildbox-run output");
         exit(1);
     }
@@ -178,7 +181,7 @@ void Runner::writeActionResult(const ActionResult &action_result,
     close(fd);
 
     if (!successful_write) {
-        BUILDBOX_LOG_ERROR("Failed to write ActionResult to " << path);
+        BUILDBOX_RUNNER_LOG(ERROR, "Failed to write ActionResult to " << path);
         exit(1);
     }
 }
@@ -189,9 +192,10 @@ Command Runner::fetchCommand(const Digest &command_digest) const
         return this->d_casClient->fetchMessage<Command>(command_digest);
     }
     catch (const std::runtime_error &e) {
-        BUILDBOX_LOG_ERROR("Error fetching Command with digest \""
-                           << command_digest << "\" from \""
-                           << d_casRemote.d_url << "\": " << e.what());
+        BUILDBOX_RUNNER_LOG(ERROR, "Error fetching Command with digest \""
+                                       << command_digest << "\" from \""
+                                       << d_casRemote.d_url
+                                       << "\": " << e.what());
         exit(1);
     }
 }
@@ -205,10 +209,12 @@ int Runner::main(int argc, char *argv[])
     }
 
     const Action input = readAction(this->d_inputPath);
+    this->d_action_digest = CASHash::hash(input.SerializeAsString());
+
     registerSignals();
     initializeCasClient();
 
-    BUILDBOX_LOG_DEBUG("Fetching Command " << input.command_digest());
+    BUILDBOX_RUNNER_LOG(DEBUG, "Fetching Command " << input.command_digest());
     const Command command = fetchCommand(input.command_digest());
 
     ActionResult result;
@@ -219,11 +225,11 @@ int Runner::main(int argc, char *argv[])
             return signal_status;
         }
 
-        BUILDBOX_LOG_DEBUG("Executing command");
+        BUILDBOX_RUNNER_LOG(DEBUG, "Executing command");
         result = this->execute(command, input.input_root_digest());
     }
     catch (const std::exception &e) {
-        BUILDBOX_LOG_ERROR("Error executing command: " << e.what());
+        BUILDBOX_RUNNER_LOG(ERROR, "Error executing command: " << e.what());
 
         result.set_exit_code(255);
         const std::string error_message =
@@ -266,9 +272,10 @@ std::unique_ptr<StagedDirectory> Runner::stage(const Digest &digest,
         const auto staging_mechanism = use_localcas_protocol
                                            ? "LocalCasStagedDirectory"
                                            : "FallbackStagedDirectory";
-        BUILDBOX_LOG_DEBUG("Could not stage directory with digest \""
-                           << digest << "\" using `" << staging_mechanism
-                           << "`: " << e.what());
+        BUILDBOX_RUNNER_LOG(DEBUG, "Could not stage directory with digest \""
+                                       << digest << "\" using `"
+                                       << staging_mechanism
+                                       << "`: " << e.what());
         throw;
     }
 }
@@ -290,12 +297,13 @@ void Runner::createOutputDirectories(const Command &command,
                 FileUtils::create_directory(directory_location.c_str());
             }
             catch (const std::system_error &e) {
-                BUILDBOX_LOG_ERROR("Error while creating directory "
-                                   << directory_location << " : " << e.what());
+                BUILDBOX_RUNNER_LOG(ERROR, "Error while creating directory "
+                                               << directory_location << " : "
+                                               << e.what());
                 throw;
             }
-            BUILDBOX_LOG_DEBUG(
-                "Created parent output directory: " << directory_location);
+            BUILDBOX_RUNNER_LOG(DEBUG, "Created parent output directory: "
+                                           << directory_location);
         }
     };
 
@@ -315,7 +323,8 @@ std::array<int, 2> Runner::createPipe() const
 
     if (pipe(pipe_fds.data()) == -1) {
         const auto pipe_error = errno;
-        BUILDBOX_LOG_ERROR("Error calling pipe():" << strerror(pipe_error));
+        BUILDBOX_RUNNER_LOG(ERROR,
+                            "Error calling pipe():" << strerror(pipe_error));
         throw std::system_error(pipe_error, std::system_category());
     }
 
@@ -379,7 +388,7 @@ void Runner::executeAndStore(const std::vector<std::string> &command,
         logline << token << " ";
     }
 
-    BUILDBOX_LOG_DEBUG("Executing command: " << logline.str());
+    BUILDBOX_RUNNER_LOG(DEBUG, "Executing command: " << logline.str());
 
     // Create pipes for stdout and stderr
     auto stdout_pipe = createPipe();
@@ -415,7 +424,7 @@ void Runner::executeAndStore(const std::vector<std::string> &command,
 
     // Read `stdout` and `stderr` and add the contents to the `ActionResult`:
     writeStandardStreamsToResult(stdout_pipe[0], stderr_pipe[0], result);
-    BUILDBOX_LOG_DEBUG("Finished reading commands's stdout/err");
+    BUILDBOX_RUNNER_LOG(DEBUG, "Finished reading commands's stdout/err");
 
     close(stdout_pipe[0]);
     close(stderr_pipe[0]);
@@ -518,18 +527,19 @@ bool Runner::parseArguments(int argc, char *argv[])
 void Runner::uploadIfNeeded(std::string *str, Digest *digest) const
 {
     if (str->length() > BUILDBOXCOMMON_RUNNER_MAX_INLINED_OUTPUT) {
-        BUILDBOX_LOG_DEBUG(
-            "Uploading contents of standard output: " << digest->hash());
+        BUILDBOX_RUNNER_LOG(DEBUG, "Uploading contents of standard output: "
+                                       << digest->hash());
         *digest = CASHash::hash(*str);
 
         try {
             this->d_casClient->upload(*str, *digest);
-            BUILDBOX_LOG_DEBUG("Done uploading " << digest->hash());
+            BUILDBOX_RUNNER_LOG(DEBUG, "Done uploading " << digest->hash());
         }
         catch (const std::runtime_error &e) {
-            BUILDBOX_LOG_ERROR("Could not upload stdout/stderr contents to \""
-                               << d_casRemote.d_url
-                               << "\", output lost: " << e.what());
+            BUILDBOX_RUNNER_LOG(ERROR,
+                                "Could not upload stdout/stderr contents to \""
+                                    << d_casRemote.d_url
+                                    << "\", output lost: " << e.what());
         }
 
         str->clear();
