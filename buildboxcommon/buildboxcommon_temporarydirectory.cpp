@@ -59,6 +59,9 @@ std::string TemporaryDirectory::create(const char *path, const char *prefix)
     std::string name =
         std::string(path) + "/" + std::string(prefix) + "XXXXXX";
 
+    // Normalize the path.
+    name = FileUtils::normalize_path(name.c_str());
+
     if (mkdtemp(&name[0]) == nullptr) {
         throw std::system_error(errno, std::system_category());
     }
