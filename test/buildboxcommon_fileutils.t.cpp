@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 
+#include "buildboxcommontest_utils.h"
 #include <buildboxcommon_fileutils.h>
 #include <buildboxcommon_temporarydirectory.h>
 #include <buildboxcommon_temporaryfile.h>
+
 #include <gtest/gtest.h>
 
 // To create tempfiles
@@ -31,38 +33,25 @@
 
 using namespace buildboxcommon;
 
-bool path_exists(const char *path)
-{
-    struct stat statResult;
-    return stat(path, &statResult) == 0;
-}
-
-void touch_file(const char *path)
-{
-    std::fstream fs;
-    fs.open(path, std::ios::out);
-    fs.close();
-}
-
 TEST(FileUtilsTests, DirectoryTests)
 {
     TemporaryDirectory tmpdir;
     std::string pathStr = std::string(tmpdir.name()) + "/foodir/";
     const char *path = pathStr.c_str();
 
-    ASSERT_FALSE(path_exists(path));
+    ASSERT_FALSE(buildboxcommontest::TestUtils::pathExists(path));
     ASSERT_FALSE(FileUtils::is_directory(path));
     ASSERT_FALSE(FileUtils::is_regular_file(path));
 
     FileUtils::create_directory(path);
 
-    ASSERT_TRUE(path_exists(path));
+    ASSERT_TRUE(buildboxcommontest::TestUtils::pathExists(path));
     ASSERT_TRUE(FileUtils::is_directory(path));
     ASSERT_FALSE(FileUtils::is_regular_file(path));
 
     FileUtils::delete_directory(path);
 
-    ASSERT_FALSE(path_exists(path));
+    ASSERT_FALSE(buildboxcommontest::TestUtils::pathExists(path));
     ASSERT_FALSE(FileUtils::is_directory(path));
     ASSERT_FALSE(FileUtils::is_regular_file(path));
 }
@@ -73,9 +62,9 @@ TEST(FileUtilsTests, IsFile)
     std::string pathStr = std::string(tmpdir.name()) + "/foo.txt";
     const char *path = pathStr.c_str();
 
-    touch_file(path);
+    buildboxcommontest::TestUtils::touchFile(path);
 
-    ASSERT_TRUE(path_exists(path));
+    ASSERT_TRUE(buildboxcommontest::TestUtils::pathExists(path));
 
     ASSERT_TRUE(FileUtils::is_regular_file(path));
     ASSERT_FALSE(FileUtils::is_directory(path));
@@ -111,18 +100,18 @@ TEST(FileUtilsTests, ExecutableTests)
     std::string pathStr = std::string(tmpdir.name()) + "/foo.sh";
     const char *path = pathStr.c_str();
 
-    ASSERT_FALSE(path_exists(path));
+    ASSERT_FALSE(buildboxcommontest::TestUtils::pathExists(path));
     ASSERT_FALSE(FileUtils::is_executable(path));
 
-    touch_file(path);
+    buildboxcommontest::TestUtils::touchFile(path);
 
-    ASSERT_TRUE(path_exists(path));
+    ASSERT_TRUE(buildboxcommontest::TestUtils::pathExists(path));
     ASSERT_TRUE(FileUtils::is_regular_file(path));
     ASSERT_FALSE(FileUtils::is_executable(path));
 
     FileUtils::make_executable(path);
 
-    ASSERT_TRUE(path_exists(path));
+    ASSERT_TRUE(buildboxcommontest::TestUtils::pathExists(path));
     ASSERT_TRUE(FileUtils::is_regular_file(path));
     ASSERT_TRUE(FileUtils::is_executable(path));
 }
@@ -146,6 +135,37 @@ TEST(FileUtilsTest, DirectoryIsNotEmptyTest)
     ASSERT_FALSE(FileUtils::directory_is_empty(dir.name()));
 }
 
+TEST(FileUtilsTest, RemoveSymlinkToDirectory)
+{
+    TemporaryDirectory dir;
+    TemporaryDirectory dir2;
+    ASSERT_TRUE(FileUtils::is_directory(dir.name()));
+    ASSERT_TRUE(FileUtils::is_directory(dir2.name()));
+
+    // Create a symlink to dir from a subdirectory in dir2
+    const auto symlink_to_dir =
+        std::string(dir2.name()) + "/" + "symlink_to_dir";
+    ASSERT_EQ(symlink(dir.name(), symlink_to_dir.c_str()), 0);
+
+    const auto file_in_dir = std::string(dir.name()) + "/" + "file_in_dir.txt";
+    buildboxcommontest::TestUtils::touchFile(file_in_dir.c_str());
+    ASSERT_TRUE(FileUtils::is_regular_file(file_in_dir.c_str()));
+
+    // Follow the path make sure target is directory.
+    ASSERT_TRUE(FileUtils::is_directory(symlink_to_dir.c_str()));
+    ASSERT_FALSE(FileUtils::directory_is_empty(dir.name()));
+
+    // Clear dir2
+    FileUtils::clear_directory(dir2.name());
+    ASSERT_TRUE(FileUtils::directory_is_empty(dir2.name()));
+
+    // Check that dir still exists
+    ASSERT_TRUE(FileUtils::is_directory(dir.name()));
+    // Assert file exists in dir
+    ASSERT_TRUE(FileUtils::is_regular_file(file_in_dir.c_str()));
+    ASSERT_FALSE(FileUtils::directory_is_empty(dir.name()));
+}
+
 TEST(FileUtilsTests, ClearDirectoryTest)
 {
     TemporaryDirectory directory;
@@ -159,14 +179,20 @@ TEST(FileUtilsTests, ClearDirectoryTest)
 
     const std::string file_in_subdirectory_path =
         subdirectory_path + "/file1.txt";
-    std::ofstream file(file_in_subdirectory_path);
-    file.close();
+    buildboxcommontest::TestUtils::touchFile(
+        file_in_subdirectory_path.c_str());
+
+    // Create a symlink in the subdir directory to the test file
+    const auto symlink_in_subdir = subdirectory_path + "/file2.txt";
+    ASSERT_EQ(0, symlink(file_in_subdirectory_path.c_str(),
+                         symlink_in_subdir.c_str()));
+    // stat on a symlink will follow the target.
+    ASSERT_TRUE(FileUtils::is_regular_file(symlink_in_subdir.c_str()));
 
     ASSERT_FALSE(FileUtils::directory_is_empty(directory.name()));
-
     FileUtils::clear_directory(directory.name());
 
-    ASSERT_TRUE(path_exists(directory.name()));
+    ASSERT_TRUE(buildboxcommontest::TestUtils::pathExists(directory.name()));
     ASSERT_TRUE(FileUtils::directory_is_empty(directory.name()));
 }
 
@@ -354,4 +380,15 @@ TEST(FileUtilsTests, WriteFileAtomicallyIntermediateFileIsDeleted)
 
     // The intermediate file was deleted:
     ASSERT_TRUE(FileUtils::directory_is_empty(intermediate_directory.c_str()));
+}
+
+TEST(FileUtilsTests, PathBasenameTests)
+{
+    EXPECT_EQ("hello", FileUtils::path_basename("a/b/hello"));
+    EXPECT_EQ("hello.txt", FileUtils::path_basename("a/b/hello.txt"));
+    EXPECT_EQ("hello", FileUtils::path_basename("//hello/a/b/hello"));
+    EXPECT_EQ("hello", FileUtils::path_basename("a/b/../../hello"));
+    EXPECT_EQ("hello", FileUtils::path_basename("a/b/hello/"));
+    EXPECT_EQ("hello", FileUtils::path_basename("/a/hello/"));
+    EXPECT_EQ("", FileUtils::path_basename("/"));
 }

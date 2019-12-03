@@ -90,6 +90,26 @@ volatile sig_atomic_t Runner::d_signal_status = 0;
 void Runner::handleSignal(int signal) { d_signal_status = signal; }
 sig_atomic_t Runner::getSignalStatus() { return d_signal_status; }
 
+void Runner::recursively_chmod_directories(const char *path, mode_t mode)
+{
+    {
+        DirentWrapper root(path);
+
+        FileUtils::DirectoryTraversalFnPtr chmod_func =
+            [&mode](const char *dir_path = nullptr, int fd = 0) {
+                if (fchmod(fd, mode) == -1) {
+                    int errsv = errno;
+                    BUILDBOX_LOG_WARNING("Unable to chmod dir: "
+                                         << dir_path
+                                         << " errno: " << strerror(errsv));
+                };
+            };
+
+        FileUtils::FileDescriptorTraverseAndApply(&root, chmod_func, nullptr,
+                                                  true);
+    }
+}
+
 void Runner::registerSignals() const
 {
     // Handle SIGINT, SIGTERM
@@ -230,14 +250,17 @@ std::unique_ptr<StagedDirectory> Runner::stage(const Digest &digest,
                                                bool use_localcas_protocol)
 {
     try {
+        auto stagedDirectory = std::unique_ptr<StagedDirectory>();
         if (use_localcas_protocol) {
-            return std::make_unique<LocalCasStagedDirectory>(
+            stagedDirectory = std::make_unique<LocalCasStagedDirectory>(
                 digest, stage_path, this->d_casClient);
         }
         else {
-            return std::make_unique<FallbackStagedDirectory>(
+            stagedDirectory = std::make_unique<FallbackStagedDirectory>(
                 digest, stage_path, this->d_casClient);
         }
+        this->d_stage_path = stagedDirectory->getPath();
+        return stagedDirectory;
     }
     catch (const std::exception &e) {
         const auto staging_mechanism = use_localcas_protocol

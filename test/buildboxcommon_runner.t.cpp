@@ -18,6 +18,7 @@
 
 #include <buildboxcommon_fileutils.h>
 #include <buildboxcommon_systemutils.h>
+#include <buildboxcommon_temporarydirectory.h>
 #include <buildboxcommon_temporaryfile.h>
 
 #include <fcntl.h>
@@ -137,4 +138,30 @@ TEST(RunnerTest, CreateOutputDirectoriesTest)
         // clean up directory now
         FileUtils::delete_directory(full_path.c_str());
     }
+}
+
+TEST(RunnerTest, ChmodDirectory)
+{
+    TemporaryDirectory dir;
+    const std::string subdirectory_path = std::string(dir.name()) + "/subdir";
+
+    mode_t perm = 0555;
+    // create subdirectory with restrictive permissions.
+    FileUtils::create_directory(subdirectory_path.c_str(), perm);
+
+    // check permissions of subdirectory
+    struct stat sb;
+    stat(subdirectory_path.c_str(), &sb);
+    ASSERT_EQ((unsigned long)sb.st_mode & 0777, perm);
+
+    // change permissions of directory
+    perm = 0777;
+    Runner::recursively_chmod_directories(dir.name(), perm);
+
+    // check permissions of top level, and sub directories.
+    stat(dir.name(), &sb);
+    ASSERT_EQ((unsigned long)sb.st_mode & 0777, perm);
+
+    stat(subdirectory_path.c_str(), &sb);
+    ASSERT_EQ((unsigned long)sb.st_mode & 0777, perm);
 }

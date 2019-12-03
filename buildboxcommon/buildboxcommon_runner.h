@@ -49,6 +49,10 @@ class Runner {
     virtual void printSpecialUsage() {}
     static void handleSignal(int signal);
     static sig_atomic_t getSignalStatus();
+    /**
+     * Chmod a directory and all subdirectories recursively.
+     */
+    static void recursively_chmod_directories(const char *path, mode_t mode);
 
     int main(int argc, char *argv[]);
     virtual ~Runner(){};

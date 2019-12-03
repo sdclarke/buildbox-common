@@ -109,3 +109,9 @@ add_executable(mergeutil_tests
   buildboxcommon_tests.m.cpp)
 target_link_libraries(mergeutil_tests buildboxcommon ${GTEST_TARGET})
 add_test(NAME mergeutil_tests COMMAND mergeutil_tests)
+
+add_executable(direntwrapper_tests
+  buildboxcommon_direntwrapper.t.cpp
+  buildboxcommon_tests.m.cpp)
+target_link_libraries(direntwrapper_tests buildboxcommon ${GTEST_TARGET})
+add_test(NAME direntwrapper_tests COMMAND direntwrapper_tests)

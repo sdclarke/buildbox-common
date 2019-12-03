@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <buildboxcommon_direntwrapper.h>
 #include <buildboxcommon_fileutils.h>
-
 #include <buildboxcommon_logging.h>
 #include <buildboxcommon_temporaryfile.h>
 
@@ -22,8 +22,10 @@
 #include <cstdio>
 #include <cstring>
 #include <dirent.h>
+#include <fcntl.h>
 #include <fstream>
 #include <libgen.h>
+#include <memory>
 #include <sstream>
 #include <stdexcept>
 #include <sys/stat.h>
@@ -31,7 +33,6 @@
 #include <system_error>
 #include <unistd.h>
 #include <vector>
-
 namespace buildboxcommon {
 
 bool FileUtils::is_regular_file(const char *path)
@@ -52,7 +53,7 @@ bool FileUtils::is_directory(const char *path)
     return false;
 }
 
-bool FileUtils::is_directory(const int fd)
+bool FileUtils::is_directory(int fd)
 {
     struct stat statResult;
     if (fstat(fd, &statResult) == 0) {
@@ -63,40 +64,21 @@ bool FileUtils::is_directory(const int fd)
 
 bool FileUtils::directory_is_empty(const char *path)
 {
-    DIR *dir_stream = opendir(path);
-    if (dir_stream == nullptr) {
-        throw std::system_error(errno, std::system_category());
-    }
+    DirentWrapper root(path);
 
-    struct dirent *dir_entry;
-    errno = 0;
-    while ((dir_entry = readdir(dir_stream)) != nullptr) {
-        const std::string entry_name = dir_entry->d_name;
-        if (entry_name != "." && entry_name != "..") {
-            return false;
-        }
-    }
-    const auto readdir_status = errno; // (`nullptr` can be returned on errors)
-
-    if (closedir(dir_stream) != 0) {
-        BUILDBOX_LOG_ERROR("Could not closedir() " << path << ": "
-                                                   << std::strerror(errno));
-    }
-
-    if (readdir_status != 0) {
-        throw std::system_error(errno, std::system_category());
-    }
-
-    return true;
+    // DirentWrapper's entry will point to an entry in the directory (not
+    // including "." and ".."). If the entry isn't nullptr, then the directory
+    // can't be empty, therefore return false.
+    return (root.entry() == nullptr);
 }
 
-void FileUtils::create_directory(const char *path)
+void FileUtils::create_directory(const char *path, mode_t mode)
 {
     // Normalize path first as the parent directory creation logic below
     // can't handle paths with '..' components.
     const std::string normalizedStr = normalize_path(path);
     const char *normalizeStrPtr = normalizedStr.c_str();
-    if (mkdir(normalizeStrPtr, 0777) != 0) {
+    if (mkdir(normalizeStrPtr, mode) != 0) {
         if (errno == EEXIST) {
             // The directory already exists, so return.
             return;
@@ -106,10 +88,11 @@ void FileUtils::create_directory(const char *path)
             if (lastSlash == nullptr) {
                 throw std::system_error(errno, std::system_category());
             }
-            const std::string parent(
-                normalizeStrPtr, std::distance(normalizeStrPtr, lastSlash));
+            const std::string parent(normalizeStrPtr,
+                                     static_cast<unsigned long>(std::distance(
+                                         normalizeStrPtr, lastSlash)));
             create_directory(parent.c_str());
-            if (mkdir(normalizeStrPtr, 0777) != 0) {
+            if (mkdir(normalizeStrPtr, mode) != 0) {
                 throw std::system_error(errno, std::system_category());
             }
         }
@@ -138,7 +121,7 @@ bool FileUtils::is_executable(const char *path)
     return false;
 }
 
-bool FileUtils::is_executable(const int fd)
+bool FileUtils::is_executable(int fd)
 {
     struct stat statResult;
     if (fstat(fd, &statResult) == 0) {
@@ -219,8 +202,8 @@ int FileUtils::write_file_atomically(const std::string &path,
         throw e;
     }
 
-    // `temp_file`'s destructor will `unlink()` the created file, removing it
-    // from the temporary directory.
+    // `temp_file`'s destructor will `unlink()` the created file, removing
+    // it from the temporary directory.
 
     const std::string temp_filename = temp_file->name();
 
@@ -248,38 +231,71 @@ int FileUtils::write_file_atomically(const std::string &path,
 void FileUtils::delete_recursively(const char *path,
                                    const bool delete_root_directory)
 {
-    DIR *dirStream = opendir(path);
-    if (dirStream == nullptr) {
-        throw std::system_error(errno, std::system_category());
-    }
+    DirentWrapper root(path);
 
-    for (auto entry = readdir(dirStream); entry != nullptr;
-         entry = readdir(dirStream)) {
-        if (strcmp(entry->d_name, ".") == 0 ||
-            strcmp(entry->d_name, "..") == 0) {
-            // Skip "." and ".."
-            continue;
+    DirectoryTraversalFnPtr rmdir_func = [](const char *dir_path, int fd) {
+        std::string dir_basename(dir_path);
+        if (fd != -1) {
+            dir_basename = FileUtils::path_basename(dir_path);
+            if (dir_basename.empty()) {
+                return;
+            }
         }
+        // unlinkat will disregard the file descriptor and call
+        // rmdir/unlink on the path depending on the entity
+        // type(file/directory).
+        //
+        // For deletion using the file descriptor, the path must be
+        // relative to the directory the file descriptor points to.
+        if (unlinkat(fd, dir_basename.c_str(), AT_REMOVEDIR) == -1) {
+            int errsv = errno;
+            BUILDBOX_LOG_ERROR("Error removing directory: "
+                               << "[" << dir_path << "]"
+                               << " with error: " << strerror(errsv));
+            throw std::system_error(errno, std::system_category());
+        }
+    };
 
-        std::string entryPath =
-            std::string(path) + std::string("/") + entry->d_name;
+    DirectoryTraversalFnPtr unlink_func = [](const char *file_path = nullptr,
+                                             int fd = 0) {
+        if (unlinkat(fd, file_path, 0) == -1) {
+            int errsv = errno;
+            BUILDBOX_LOG_ERROR("Error removing file: "
+                               << "[" << file_path << "]"
+                               << " with error: " << strerror(errsv));
+            throw std::system_error(errsv, std::system_category());
+        }
+    };
 
-        if (is_directory(entryPath.c_str())) {
-            delete_recursively(entryPath.c_str(), true);
+    FileDescriptorTraverseAndApply(&root, rmdir_func, unlink_func,
+                                   delete_root_directory, true);
+}
+
+void FileUtils::FileDescriptorTraverseAndApply(
+    DirentWrapper *dir, DirectoryTraversalFnPtr dir_func,
+    DirectoryTraversalFnPtr file_func, bool apply_to_root, bool pass_parent_fd)
+{
+    while (dir->entry() != nullptr) {
+        if (dir->currentEntryIsDirectory()) {
+            auto nextDir = dir->nextDir();
+            FileDescriptorTraverseAndApply(&nextDir, dir_func, file_func, true,
+                                           pass_parent_fd);
         }
         else {
-            unlink(entryPath.c_str());
+            if (file_func != nullptr) {
+                file_func(dir->entry()->d_name, dir->fd());
+            }
+        }
+        dir->next();
+    }
+    if (apply_to_root && dir_func != nullptr) {
+        if (pass_parent_fd) {
+            dir_func(dir->path().c_str(), dir->pfd());
+        }
+        else {
+            dir_func(dir->path().c_str(), dir->fd());
         }
     }
-
-    closedir(dirStream);
-
-    if (delete_root_directory && rmdir(path) == -1) {
-        throw std::system_error(errno, std::system_category());
-    }
-    // (The value of `delete_root_directory` is only considered for the first
-    // call of this function, the recursive calls will all invoked with it set
-    // to true.)
 }
 
 std::string FileUtils::make_path_absolute(const std::string &path,
@@ -296,7 +312,7 @@ std::string FileUtils::make_path_absolute(const std::string &path,
     const std::string full_path = cwd + '/' + path;
     std::string normalized_path = FileUtils::normalize_path(full_path.c_str());
 
-    /* normalize_path removes trailing slashes, so let's preserve them here */
+    // normalize_path removes trailing slashes, so let's preserve them here
     if (path.back() == '/' && normalized_path.back() != '/') {
         normalized_path.push_back('/');
     }
@@ -339,6 +355,30 @@ std::string FileUtils::normalize_path(const char *path)
         result.pop_back();
     }
     return result;
+}
+
+std::string FileUtils::path_basename(const char *path)
+{
+    std::string basename(path);
+
+    // Check for root or empty
+    if (basename.empty() || basename.size() == 1) {
+        return "";
+    }
+
+    // Remove trailing slash.
+    if (basename[basename.size() - 1] == '/') {
+        basename = basename.substr(0, basename.rfind('/'));
+    }
+
+    auto pos = basename.rfind('/');
+
+    if (pos == std::string::npos) {
+        return "";
+    }
+    else {
+        return basename.substr(pos + 1);
+    }
 }
 
 } // namespace buildboxcommon

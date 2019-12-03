@@ -49,7 +49,8 @@ void NestedDirectory::add(const File &file, const char *relativePath)
 {
     const char *slash = strchr(relativePath, '/');
     if (slash) {
-        const std::string subdirKey(relativePath, slash - relativePath);
+        const std::string subdirKey(relativePath,
+                                    static_cast<size_t>(slash - relativePath));
         if (subdirKey.empty()) {
             this->add(file, slash + 1);
         }
@@ -67,7 +68,8 @@ void NestedDirectory::addSymlink(const std::string &target,
 {
     const char *slash = strchr(relativePath, '/');
     if (slash) {
-        const std::string subdirKey(relativePath, slash - relativePath);
+        const std::string subdirKey(relativePath,
+                                    static_cast<size_t>(slash - relativePath));
         if (subdirKey.empty()) {
             this->addSymlink(target, slash + 1);
         }
@@ -88,7 +90,8 @@ void NestedDirectory::addDirectory(const char *directory)
     }
     const char *slash = strchr(directory, '/');
     if (slash) {
-        const std::string subdirKey(directory, slash - directory);
+        const std::string subdirKey(directory,
+                                    static_cast<size_t>(slash - directory));
         if (subdirKey.empty()) {
             this->addDirectory(slash + 1);
         }
