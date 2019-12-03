@@ -1304,7 +1304,9 @@ TEST_P(DownloadBlobsFixture, DownloadBlobs)
     };
 
     const bool throw_on_error = GetParam();
-    ASSERT_NO_THROW(this->downloadBlobs(requests, write_blob, throw_on_error));
+    Client::DownloadResults download_results;
+    ASSERT_NO_THROW(download_results = this->downloadBlobs(
+                        requests, write_blob, throw_on_error));
 
     // Client sends the correct instance name:
     EXPECT_EQ(request.instance_name(), client_instance_name);
@@ -1315,6 +1317,18 @@ TEST_P(DownloadBlobsFixture, DownloadBlobs)
     ASSERT_EQ(downloads.at(hashes[1]), payload[1]);
     ASSERT_EQ(downloads.at(hashes[2]), payload[2]);
     ASSERT_EQ(downloads.at(hashes[3]), payload[3]);
+
+    // The returned dictionary has whether or not each digest was sucessfully
+    // fetched:
+    ASSERT_EQ(download_results.size(), 4);
+    for (const auto &digest : requests) {
+        const auto result = std::find_if(
+            download_results.cbegin(), download_results.cend(),
+            [&digest](const DownloadResult &r) { return r.first == digest; });
+
+        ASSERT_NE(result, download_results.cend());
+        ASSERT_TRUE(result->second);
+    }
 }
 
 TEST_P(DownloadBlobsFixture, DownloadBlobsFails)
@@ -1369,8 +1383,15 @@ TEST_P(DownloadBlobsFixture, DownloadBlobsFails)
             .WillOnce(Return(false));
         EXPECT_CALL(*reader, Finish()).WillOnce(Return(grpc::Status::OK));
 
-        ASSERT_NO_THROW(
-            this->downloadBlobs(requests, write_blob, throw_on_error));
+        Client::DownloadResults download_results;
+        ASSERT_NO_THROW(download_results = this->downloadBlobs(
+                            requests, write_blob, throw_on_error));
         ASSERT_EQ(written_blobs, 0);
+
+        // The returned vector contains that the requested digests failed
+        // to be downloaded:
+        ASSERT_EQ(download_results.size(), 2);
+        ASSERT_FALSE(download_results.at(0).second);
+        ASSERT_FALSE(download_results.at(1).second);
     }
 }

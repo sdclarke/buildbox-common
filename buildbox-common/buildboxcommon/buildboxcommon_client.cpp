@@ -621,10 +621,13 @@ void Client::downloadBlobs(const std::vector<Digest> &digests,
     // exception.
 }
 
-void Client::downloadBlobs(const std::vector<Digest> &digests,
-                           const write_blob_callback_t &write_blob,
-                           bool throw_on_error)
+Client::DownloadResults
+Client::downloadBlobs(const std::vector<Digest> &digests,
+                      const WriteBlobCallback &write_blob, bool throw_on_error)
 {
+    DownloadResults download_results;
+    download_results.reserve(digests.size());
+
     // We first sort the digests by their sizes in ascending order, so that
     // we can then iterate through that result greedily trying to add as
     // many digests as possible to each request.
@@ -639,23 +642,28 @@ void Client::downloadBlobs(const std::vector<Digest> &digests,
         const size_t batch_start = batch_range.first;
         const size_t batch_end = batch_range.second;
 
-        // For each batch, we make the request and then store the
-        // successfully read data in the result:
+        // For each batch, we make the request and then store whether it was
+        // successful in the result:
         try {
-            const auto download_results =
-                batchDownload(request_list, batch_start, batch_end);
-
-            for (const auto &download_result : download_results) {
-                const std::string digest_hash = download_result.first;
-                const std::string data = download_result.second;
-                write_blob(digest_hash, data);
-            }
+            const auto batch_results = batchDownload(request_list, batch_start,
+                                                     batch_end, write_blob);
+            std::move(batch_results.cbegin(), batch_results.cend(),
+                      std::back_inserter(download_results));
         }
         catch (const std::runtime_error &e) {
             BUILDBOX_LOG_ERROR("Batch download failed: " +
                                std::string(e.what()));
+
+            // The whole batch request failed.
             if (throw_on_error) {
                 throw e;
+            }
+
+            // If we don't throw, we need to report in the result that the
+            // requested digests failed:
+            for (auto d = batch_start; d < batch_end; d++) {
+                const Digest digest = request_list.at(d);
+                download_results.emplace_back(digest, false);
             }
         }
     }
@@ -673,9 +681,12 @@ void Client::downloadBlobs(const std::vector<Digest> &digests,
 
     for (auto d = batch_end; d < request_list.size(); d++) {
         const Digest digest = request_list[d];
+
+        bool download_succeeded = false;
         try {
             const auto data = fetchString(digest);
             write_blob(digest.hash(), data);
+            download_succeeded = true;
         }
         catch (const std::runtime_error &e) {
             BUILDBOX_LOG_ERROR("Error: fetchString(): " +
@@ -684,7 +695,11 @@ void Client::downloadBlobs(const std::vector<Digest> &digests,
                 throw e;
             }
         }
+
+        download_results.emplace_back(digest, download_succeeded);
     }
+
+    return download_results;
 }
 
 std::unique_ptr<Client::StagedDirectory>
@@ -858,9 +873,10 @@ Client::batchUpload(const std::vector<UploadRequest> &requests,
     return results;
 }
 
-Client::DownloadedData Client::batchDownload(const std::vector<Digest> digests,
-                                             const size_t start_index,
-                                             const size_t end_index)
+Client::DownloadResults
+Client::batchDownload(const std::vector<Digest> &digests,
+                      const size_t start_index, const size_t end_index,
+                      const WriteBlobCallback &write_blob_function)
 {
     assert(start_index <= end_index);
     assert(end_index <= digests.size());
@@ -883,14 +899,22 @@ Client::DownloadedData Client::batchDownload(const std::vector<Digest> digests,
     GrpcRetry::retry(batchDownloadLamda, this->d_grpcRetryLimit,
                      this->d_grpcRetryDelay, this->d_metadata_attach_function);
 
-    DownloadedData data;
+    DownloadResults download_results;
+    download_results.reserve(static_cast<size_t>(response.responses_size()));
+
     for (const auto &downloadResponse : response.responses()) {
+        bool download_succeeded = false;
         if (downloadResponse.status().code() == GRPC_STATUS_OK) {
-            data[downloadResponse.digest().hash()] = downloadResponse.data();
+            write_blob_function(downloadResponse.digest().hash(),
+                                downloadResponse.data());
+            download_succeeded = true;
         }
+
+        download_results.emplace_back(downloadResponse.digest(),
+                                      download_succeeded);
     }
 
-    return data;
+    return download_results;
 }
 
 std::vector<std::pair<size_t, size_t>>

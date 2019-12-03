@@ -143,6 +143,7 @@ class Client {
 
     std::vector<UploadResult>
     uploadBlobs(const std::vector<UploadRequest> &requests);
+
     typedef std::unordered_map<std::string, std::string> DownloadedData;
 
     /* Given a list of digests, download the data and return it in a map
@@ -304,13 +305,10 @@ class Client {
   protected:
     typedef std::function<void(const std::string &hash,
                                const std::string &data)>
-        write_blob_callback_t;
+        WriteBlobCallback;
 
-    typedef std::function<void(const std::vector<Digest> &digest,
-                               const OutputMap &outputs)>
-        download_callback_t;
-    typedef std::function<Directory(const Digest &digest)>
-        return_directory_callback_t;
+    typedef std::pair<Digest, bool> DownloadResult;
+    typedef std::vector<DownloadResult> DownloadResults;
 
     /* Download the digests in the specified list and invoke the
      * `write_blob_callback` function after each blob is downloaded.
@@ -321,9 +319,15 @@ class Client {
      *
      * Note: marked as `protected` to unit-test.
      */
-    void downloadBlobs(const std::vector<Digest> &digests,
-                       const write_blob_callback_t &write_blob_callback,
-                       bool throw_on_error);
+    DownloadResults downloadBlobs(const std::vector<Digest> &digests,
+                                  const WriteBlobCallback &write_blob_callback,
+                                  bool throw_on_error);
+
+    typedef std::function<void(const std::vector<Digest> &digest,
+                               const OutputMap &outputs)>
+        download_callback_t;
+    typedef std::function<Directory(const Digest &digest)>
+        return_directory_callback_t;
 
     void downloadDirectory(
         const Digest &digest, const std::string &path,
@@ -374,10 +378,16 @@ class Client {
      *
      * The sum of sizes inside the range MUST NOT exceed the maximum batch
      * size request allowed.
+     *
+     * The `write_blob_function` callback will be invoked for each blob that is
+     * successfully fetched.
+     *
+     * Returns a map with the status code received for each Digest.
      */
-    DownloadedData batchDownload(const std::vector<Digest> digests,
-                                 const size_t start_index,
-                                 const size_t end_index);
+    DownloadResults
+    batchDownload(const std::vector<Digest> &digests, const size_t start_index,
+                  const size_t end_index,
+                  const WriteBlobCallback &write_blob_function);
 
     /* Given a list of digests sorted by increasing size, forms batches
      * according to the value of `d_maxBatchTotalSizeBytes`.
