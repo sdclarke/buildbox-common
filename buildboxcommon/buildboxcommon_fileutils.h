@@ -17,9 +17,14 @@
 #ifndef INCLUDED_BUILDBOXCOMMON_FILEUTILS
 #define INCLUDED_BUILDBOXCOMMON_FILEUTILS
 
+#include <buildboxcommon_direntwrapper.h>
 #include <buildboxcommon_tempconstants.h>
 
+#include <dirent.h>
+#include <functional>
+#include <memory>
 #include <string>
+#include <sys/stat.h>
 
 namespace buildboxcommon {
 
@@ -45,8 +50,9 @@ struct FileUtils {
 
     /**
      * Create a directory if it doesn't already exist, including parents.
+     * Create the directory with specified mode, by default 0777 -rwxrwxrwx.
      */
-    static void create_directory(const char *path);
+    static void create_directory(const char *path, mode_t mode = 0777);
 
     /**
      * Delete an existing directory.
@@ -87,6 +93,14 @@ struct FileUtils {
     static std::string normalize_path(const char *path);
 
     /**
+     * Return the basename of the given path.
+     *
+     * The returned entity will be last segment of the path.
+     * If no segments found, will an empty string.
+     */
+    static std::string path_basename(const char *path);
+
+    /**
      * Make the given path absolute, using the current working directory.
      *
      * `cwd` must be an absolute path, otherwise it throws an
@@ -119,6 +133,23 @@ struct FileUtils {
         const std::string &path, const std::string &data, mode_t mode = 0600,
         const std::string &intermediate_directory = "",
         const std::string &prefix = TempDefaults::DEFAULT_TMP_PREFIX);
+
+    /**
+     * Traverse and apply functions on files and directories recursively.
+     *
+     * If apply_to_root is true, dir_func is applied to the directory stream
+     * the function is initally called with.
+     *
+     * If pass_parent_fd is true, the parent directory of dir will be passed
+     * into dir_func instead of dir. This is useful in the case of deletion.
+     */
+    typedef std::function<void(const char *path, int fd)>
+        DirectoryTraversalFnPtr;
+
+    static void FileDescriptorTraverseAndApply(
+        DirentWrapper *dir, DirectoryTraversalFnPtr dir_func = nullptr,
+        DirectoryTraversalFnPtr file_func = nullptr,
+        bool apply_to_root = false, bool pass_parent_fd = false);
 
   private:
     /**
