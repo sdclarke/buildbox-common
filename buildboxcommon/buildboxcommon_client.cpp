@@ -546,8 +546,6 @@ void Client::downloadBlobs(const std::vector<Digest> &digests,
                            const write_blob_callback_t &write_blob,
                            bool throw_on_error)
 {
-    DownloadedData downloaded_data;
-
     // We first sort the digests by their sizes in ascending order, so that
     // we can then iterate through that result greedily trying to add as
     // many digests as possible to each request.
