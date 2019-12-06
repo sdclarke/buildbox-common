@@ -1327,71 +1327,98 @@ TEST_P(DownloadBlobsFixture, DownloadBlobs)
             [&digest](const DownloadResult &r) { return r.first == digest; });
 
         ASSERT_NE(result, download_results.cend());
-        ASSERT_TRUE(result->second);
+        ASSERT_EQ(result->second.code(), grpc::StatusCode::OK);
+    }
+}
+
+TEST_P(DownloadBlobsFixture, DownloadBlobsBatchWithMissingBlob)
+{
+    const Digest existing_digest = CASHash::hash("existing-blob");
+    const Digest non_existing_digest = CASHash::hash("missing-blob");
+
+    BatchReadBlobsResponse response;
+    auto entry1 = response.add_responses();
+    entry1->mutable_digest()->CopyFrom(non_existing_digest);
+    entry1->mutable_status()->set_code(grpc::StatusCode::NOT_FOUND);
+    entry1->mutable_status()->set_message("Digest not found in CAS.");
+
+    auto entry2 = response.add_responses();
+    entry2->mutable_digest()->CopyFrom(existing_digest);
+    entry2->mutable_status()->set_code(grpc::StatusCode::OK);
+
+    EXPECT_CALL(*casClient.get(), BatchReadBlobs(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(response), Return(grpc::Status::OK)));
+
+    unsigned int written_blobs = 0;
+    const auto write_blob = [&](const std::string &hash, const std::string &) {
+        ASSERT_EQ(hash, existing_digest.hash());
+        written_blobs++;
+    };
+
+    const bool throw_on_error = GetParam();
+
+    std::vector<Digest> requests = {existing_digest, non_existing_digest};
+    Client::DownloadResults download_results;
+    ASSERT_NO_THROW(download_results = this->downloadBlobs(
+                        requests, write_blob, throw_on_error));
+    ASSERT_EQ(written_blobs, 1);
+
+    ASSERT_EQ(download_results.size(), 2);
+
+    for (const auto &entry : download_results) {
+        const Digest digest = entry.first;
+        const google::rpc::Status status = entry.second;
+
+        if (digest == existing_digest) {
+            ASSERT_EQ(status.code(), grpc::StatusCode::OK);
+        }
+        else if (digest == non_existing_digest) {
+            ASSERT_EQ(status.code(), grpc::StatusCode::NOT_FOUND);
+        }
+        else {
+            FAIL() << "Unexpected digest in response: [" << digest
+                   << "] was not requested.";
+        }
     }
 }
 
 TEST_P(DownloadBlobsFixture, DownloadBlobsFails)
 {
-    const std::vector<std::string> payload = {
-        "a", std::string(3 * MAX_BATCH_SIZE_BYTES, 'x')};
-
-    const std::vector<std::string> hashes = {"hash0", "hash1"};
-
-    // Creating list of requests...
-    std::vector<Digest> requests;
-    for (unsigned i = 0; i < payload.size(); i++) {
-        Digest digest;
-        digest.set_hash(hashes[i]);
-        digest.set_size_bytes(payload[i].size());
-        requests.push_back(digest);
-    }
-    ASSERT_EQ(requests.size(), payload.size());
-
-    // Both requests will fail with:
-    const auto errorStatus =
-        grpc::Status(grpc::StatusCode::NOT_FOUND, "Digest not found in CAS.");
-
-    BatchReadBlobsResponse response;
-    auto entry = response.add_responses();
-    entry->mutable_digest()->CopyFrom(requests[0]);
-    entry->mutable_status()->set_code(errorStatus.error_code());
-    entry->mutable_status()->set_message(errorStatus.error_message());
-
-    EXPECT_CALL(*casClient.get(), BatchReadBlobs(_, _, _))
-        .WillOnce(DoAll(SetArgPointee<2>(response), Return(errorStatus)));
+    Digest digest;
+    digest.set_hash("hash0");
+    digest.set_size_bytes(3 * MAX_BATCH_SIZE_BYTES);
 
     unsigned int written_blobs = 0;
     const auto write_blob = [&](const std::string &, const std::string &) {
         written_blobs++;
     };
 
+    const auto errorStatus =
+        grpc::Status(grpc::StatusCode::NOT_FOUND, "Digest not found in CAS.");
+    EXPECT_CALL(*bytestreamClient, ReadRaw(_, _)).WillOnce(Return(reader));
+    EXPECT_CALL(*reader, Read(_)).WillOnce(Return(false));
+    EXPECT_CALL(*reader, Finish()).WillOnce(Return(errorStatus));
+
     const bool throw_on_error = GetParam();
     if (throw_on_error) {
-        ASSERT_THROW(this->downloadBlobs(requests, write_blob, throw_on_error),
+        ASSERT_THROW(this->downloadBlobs({digest}, write_blob, throw_on_error),
                      std::runtime_error);
         // With the current implementation there are no guarantees about
         // the data written before an error is encountered and the method
         // aborts.
     }
     else {
-        // First blob will fail to be fetched in a batch, but the function
-        // should carry on and try to fetch the other one:
-        EXPECT_CALL(*bytestreamClient, ReadRaw(_, _)).WillOnce(Return(reader));
-        EXPECT_CALL(*reader, Read(_))
-            .WillOnce(DoAll(SetArgPointee<0>(readResponse), Return(true)))
-            .WillOnce(Return(false));
-        EXPECT_CALL(*reader, Finish()).WillOnce(Return(grpc::Status::OK));
-
         Client::DownloadResults download_results;
         ASSERT_NO_THROW(download_results = this->downloadBlobs(
-                            requests, write_blob, throw_on_error));
+                            {digest}, write_blob, throw_on_error));
+
         ASSERT_EQ(written_blobs, 0);
 
-        // The returned vector contains that the requested digests failed
+        // The returned vector contains that the requested digest failed
         // to be downloaded:
-        ASSERT_EQ(download_results.size(), 2);
-        ASSERT_FALSE(download_results.at(0).second);
-        ASSERT_FALSE(download_results.at(1).second);
+        ASSERT_EQ(download_results.size(), 1);
+        ASSERT_EQ(download_results.front().first, digest);
+        ASSERT_EQ(download_results.front().second.code(),
+                  errorStatus.error_code());
     }
 }

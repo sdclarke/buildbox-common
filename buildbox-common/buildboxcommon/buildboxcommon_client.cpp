@@ -192,12 +192,18 @@ std::string Client::fetchString(const Digest &digest)
             downloaded_data += response.data();
         }
 
-        const auto read_status = reader->Finish();
+        const grpc::Status read_status = reader->Finish();
         if (!read_status.ok()) {
-            BUILDBOXCOMMON_THROW_EXCEPTION(
-                std::runtime_error, "Error fetching digest "
-                                        << digest << ": error = \""
-                                        << read_status.error_message() << "\"")
+            if (read_status.error_code() == grpc::StatusCode::NOT_FOUND) {
+                // If the blob is not found, we don't want `grpcRetry` to
+                // re-issue this call. Also, the error code should reach the
+                // caller, so we throw it.
+                throw GrpcError("Blob not found: " +
+                                    read_status.error_message(),
+                                read_status);
+            }
+
+            return read_status;
         }
 
         const auto bytes_downloaded =
@@ -661,9 +667,12 @@ Client::downloadBlobs(const std::vector<Digest> &digests,
 
             // If we don't throw, we need to report in the result that the
             // requested digests failed:
+            google::rpc::Status failed_status;
+            failed_status.set_code(grpc::StatusCode::INTERNAL);
+
             for (auto d = batch_start; d < batch_end; d++) {
                 const Digest digest = request_list.at(d);
-                download_results.emplace_back(digest, false);
+                download_results.emplace_back(digest, failed_status);
             }
         }
     }
@@ -682,11 +691,21 @@ Client::downloadBlobs(const std::vector<Digest> &digests,
     for (auto d = batch_end; d < request_list.size(); d++) {
         const Digest digest = request_list[d];
 
-        bool download_succeeded = false;
+        google::rpc::Status download_status;
         try {
             const auto data = fetchString(digest);
             write_blob(digest.hash(), data);
-            download_succeeded = true;
+            download_status.set_code(grpc::StatusCode::OK);
+        }
+        catch (const GrpcError &e) {
+            if (throw_on_error) {
+                BUILDBOXCOMMON_THROW_EXCEPTION(std::runtime_error,
+                                               "Failed to download string: " +
+                                                   e.status.error_message());
+            }
+
+            download_status.set_code(e.status.error_code());
+            download_status.set_message(e.status.error_message());
         }
         catch (const std::runtime_error &e) {
             BUILDBOX_LOG_ERROR("Error: fetchString(): " +
@@ -694,9 +713,11 @@ Client::downloadBlobs(const std::vector<Digest> &digests,
             if (throw_on_error) {
                 throw e;
             }
+
+            download_status.set_code(grpc::StatusCode::INTERNAL);
         }
 
-        download_results.emplace_back(digest, download_succeeded);
+        download_results.emplace_back(digest, download_status);
     }
 
     return download_results;
@@ -903,15 +924,13 @@ Client::batchDownload(const std::vector<Digest> &digests,
     download_results.reserve(static_cast<size_t>(response.responses_size()));
 
     for (const auto &downloadResponse : response.responses()) {
-        bool download_succeeded = false;
         if (downloadResponse.status().code() == GRPC_STATUS_OK) {
             write_blob_function(downloadResponse.digest().hash(),
                                 downloadResponse.data());
-            download_succeeded = true;
         }
 
         download_results.emplace_back(downloadResponse.digest(),
-                                      download_succeeded);
+                                      downloadResponse.status());
     }
 
     return download_results;

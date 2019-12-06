@@ -307,7 +307,7 @@ class Client {
                                const std::string &data)>
         WriteBlobCallback;
 
-    typedef std::pair<Digest, bool> DownloadResult;
+    typedef std::pair<Digest, google::rpc::Status> DownloadResult;
     typedef std::vector<DownloadResult> DownloadResults;
 
     /* Download the digests in the specified list and invoke the
