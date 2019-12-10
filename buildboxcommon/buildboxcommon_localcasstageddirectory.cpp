@@ -20,6 +20,7 @@
 #include <buildboxcommon_fileutils.h>
 #include <buildboxcommon_logging.h>
 #include <buildboxcommon_protos.h>
+#include <buildboxcommon_timeutils.h>
 
 using namespace buildboxcommon;
 
@@ -43,7 +44,7 @@ LocalCasStagedDirectory::captureFile(const char *relative_path) const
     }
 
     const CaptureFilesResponse response =
-        this->d_cas_client->captureFiles({absolute_path}, false);
+        this->d_cas_client->captureFiles({absolute_path}, {"MTime"}, false);
 
     if (response.responses().empty()) {
         const auto error_message = "Error capturing \"" + absolute_path +
@@ -67,6 +68,11 @@ LocalCasStagedDirectory::captureFile(const char *relative_path) const
     output_file.mutable_digest()->CopyFrom(captured_file.digest());
     output_file.set_is_executable(
         FileUtils::is_executable(absolute_path.c_str()));
+    NodeProperty *property = output_file.add_node_properties();
+    property->set_name("MTime");
+    std::chrono::system_clock::time_point timepoint =
+        FileUtils::get_file_mtime(absolute_path.c_str());
+    property->set_value(TimeUtils::make_timestamp(timepoint));
     return output_file;
 }
 
@@ -83,7 +89,7 @@ LocalCasStagedDirectory::captureDirectory(const char *relative_path) const
     }
 
     const CaptureTreeResponse capture_response =
-        this->d_cas_client->captureTree({absolute_path}, false);
+        this->d_cas_client->captureTree({absolute_path}, {"MTime"}, false);
 
     OutputDirectory captured_directory;
     captured_directory.set_path(relative_path);

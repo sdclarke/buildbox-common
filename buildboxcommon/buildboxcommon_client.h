@@ -218,23 +218,26 @@ class Client {
 
     /*
      * Send a LocalCas protocol `CaptureTree()` request containing the given
-     * paths. If successful, returns a `CaptureTreeResponse` object (it
-     * contains a Status for each path).
+     * paths and the given property names. If successful, returns a
+     * `CaptureTreeResponse` object (it contains a Status for each path).
      *
      * If the request fails, throws an `std::runtime_exception`.
      */
     CaptureTreeResponse captureTree(const std::vector<std::string> &paths,
+                                    const std::vector<std::string> &properties,
                                     bool bypass_local_cache) const;
 
     /*
      * Send a LocalCas protocol `CaptureFiles()` request containing the given
-     * paths. If successful, returns a `CaptureFilesResponse` object (it
-     * contains a Status for each path).
+     * paths and the given property names. If successful, returns a
+     * `CaptureFilesResponse` object (it contains a Status for each path).
      *
      * If the request fails, throws an `std::runtime_exception`.
      */
-    CaptureFilesResponse captureFiles(const std::vector<std::string> &paths,
-                                      bool bypass_local_cache) const;
+    CaptureFilesResponse
+    captureFiles(const std::vector<std::string> &paths,
+                 const std::vector<std::string> &properties,
+                 bool bypass_local_cache) const;
 
     class StagedDirectory {
         /*

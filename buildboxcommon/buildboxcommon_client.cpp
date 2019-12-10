@@ -675,8 +675,10 @@ std::vector<Directory> Client::getTree(const Digest &root_digest)
     return tree;
 }
 
-CaptureTreeResponse Client::captureTree(const std::vector<std::string> &paths,
-                                        bool bypass_local_cache) const
+CaptureTreeResponse
+Client::captureTree(const std::vector<std::string> &paths,
+                    const std::vector<std::string> &properties,
+                    bool bypass_local_cache) const
 {
     CaptureTreeRequest request;
     request.set_instance_name(d_instanceName);
@@ -684,6 +686,10 @@ CaptureTreeResponse Client::captureTree(const std::vector<std::string> &paths,
 
     for (const std::string &path : paths) {
         request.add_path(path);
+    }
+
+    for (const std::string &property : properties) {
+        request.add_node_properties(property);
     }
 
     CaptureTreeResponse response;
@@ -698,6 +704,7 @@ CaptureTreeResponse Client::captureTree(const std::vector<std::string> &paths,
 
 CaptureFilesResponse
 Client::captureFiles(const std::vector<std::string> &paths,
+                     const std::vector<std::string> &properties,
                      bool bypass_local_cache) const
 {
     CaptureFilesRequest request;
@@ -706,6 +713,10 @@ Client::captureFiles(const std::vector<std::string> &paths,
 
     for (const std::string &path : paths) {
         request.add_path(path);
+    }
+
+    for (const std::string &property : properties) {
+        request.add_node_properties(property);
     }
 
     CaptureFilesResponse response;

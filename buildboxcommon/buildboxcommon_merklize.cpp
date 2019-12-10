@@ -17,6 +17,7 @@
 #include <buildboxcommon_cashash.h>
 #include <buildboxcommon_fileutils.h>
 #include <buildboxcommon_logging.h>
+#include <buildboxcommon_timeutils.h>
 
 #include <cerrno>
 #include <cstring>
@@ -29,10 +30,19 @@
 
 namespace buildboxcommon {
 
-File::File(const char *path)
+File::File(const char *path,
+           const std::vector<std::string> &capture_properties)
 {
     d_executable = FileUtils::is_executable(path);
     d_digest = CASHash::hashFile(path);
+    d_mtime = "";
+    for (const std::string &property : capture_properties) {
+        if (property == "MTime") {
+            d_mtime =
+                TimeUtils::make_timestamp(FileUtils::get_file_mtime(path));
+            break;
+        }
+    }
     return;
 }
 
@@ -42,6 +52,11 @@ FileNode File::to_filenode(const std::string &name) const
     result.set_name(name);
     *result.mutable_digest() = d_digest;
     result.set_is_executable(d_executable);
+    if (!d_mtime.empty()) {
+        NodeProperty *property = result.add_node_properties();
+        property->set_name("MTime");
+        property->set_value(d_mtime);
+    }
     return result;
 }
 
@@ -162,8 +177,9 @@ Tree NestedDirectory::to_tree() const
 
 Digest make_digest(const std::string &blob) { return CASHash::hash(blob); }
 
-NestedDirectory make_nesteddirectory(const char *path,
-                                     digest_string_map *fileMap)
+NestedDirectory
+make_nesteddirectory(const char *path, digest_string_map *fileMap,
+                     const std::vector<std::string> &capture_properties)
 {
     NestedDirectory result;
     const auto dir = opendir(path);
@@ -191,11 +207,11 @@ NestedDirectory make_nesteddirectory(const char *path,
         }
 
         if (S_ISDIR(statResult.st_mode)) {
-            (*result.d_subdirs)[entityName] =
-                make_nesteddirectory(entityPath.c_str(), fileMap);
+            (*result.d_subdirs)[entityName] = make_nesteddirectory(
+                entityPath.c_str(), fileMap, capture_properties);
         }
         else if (S_ISREG(statResult.st_mode)) {
-            const File file(entityPath.c_str());
+            const File file(entityPath.c_str(), capture_properties);
             result.d_files[entityName] = file;
 
             if (fileMap != nullptr) {

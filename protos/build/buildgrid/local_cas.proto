@@ -281,6 +281,9 @@ message CaptureTreeRequest {
   // This is a hint whether the blobs shall be uploaded to the remote CAS
   // without first storing them in the local cache.
   bool bypass_local_cache = 3;
+
+  // The properties of path(s) in the local filesystem to capture.
+  repeated string node_properties = 4;
 }
 
 // A response message for
@@ -320,6 +323,9 @@ message CaptureFilesRequest {
   // This is a hint whether the blobs shall be uploaded to the remote CAS
   // without first storing them in the local cache.
   bool bypass_local_cache = 3;
+
+  // The properties of path(s) in the local filesystem to capture.
+  repeated string node_properties = 4;
 }
 
 // A response message for
