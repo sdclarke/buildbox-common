@@ -20,8 +20,10 @@
 #include <buildboxcommon_direntwrapper.h>
 #include <buildboxcommon_tempconstants.h>
 
+#include <chrono>
 #include <dirent.h>
 #include <functional>
+#include <google/protobuf/util/time_util.h>
 #include <memory>
 #include <string>
 #include <sys/stat.h>
@@ -75,6 +77,36 @@ struct FileUtils {
     static bool is_executable(const int fd);
 
     /**
+     * Return a time point in seconds representing the mtime of the file
+     * specified by the given path.
+     */
+    static std::chrono::system_clock::time_point
+    get_file_mtime(const char *path);
+
+    /**
+     * Return a time point in seconds representing the mtime of the file
+     * specified by the given file descriptor.
+     */
+    static std::chrono::system_clock::time_point get_file_mtime(const int fd);
+
+    /**
+     * Modify the mtime of an existing file to the time represented by the
+     * given time_point. The file is described by the given file
+     * descriptor.
+     */
+    static void
+    set_file_mtime(const int fd,
+                   std::chrono::system_clock::time_point timepoint);
+
+    /**
+     * Modify the mtime of an existing file to the time represented by the
+     * given time_point. The file is described by the given path.
+     */
+    static void
+    set_file_mtime(const char *path,
+                   std::chrono::system_clock::time_point timepoint);
+
+    /**
      * Make the given file executable.
      */
     static void make_executable(const char *path);
@@ -108,6 +140,14 @@ struct FileUtils {
      */
     static std::string make_path_absolute(const std::string &path,
                                           const std::string &cwd);
+
+    /**
+     * Copy file contents (non-atomically) from the given source path
+     * to the given destination path. Additionally attempt to
+     * duplicate the file mode.
+     */
+    static void copy_file(const char *src_path, const char *dest_path);
+
     /**
      * Write a file atomically. Note that this only guarantees thread safety
      * if the actual contents to be written to `path` are the same across
@@ -152,6 +192,22 @@ struct FileUtils {
         bool apply_to_root = false, bool pass_parent_fd = false);
 
   private:
+    /**
+     * Return the stat of the file at the given open file descriptor.
+     */
+    static struct stat get_file_stat(const int fd);
+
+    /**
+     * Return the stat of the file at the given path.
+     */
+    static struct stat get_file_stat(const char *path);
+
+    /**
+     * Return a time point in seconds representing the st_mtim of the filestat.
+     */
+    static std::chrono::system_clock::time_point
+    get_mtime_timepoint(struct stat &result);
+
     /**
      * Deletes the contents of an existing directory.
      * `delete_parent_directory` allows specifying whether the top-level

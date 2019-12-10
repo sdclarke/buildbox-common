@@ -18,6 +18,7 @@
 #include <buildboxcommon_fileutils.h>
 #include <buildboxcommon_temporarydirectory.h>
 #include <buildboxcommon_temporaryfile.h>
+#include <buildboxcommon_timeutils.h>
 
 #include <gtest/gtest.h>
 
@@ -391,4 +392,105 @@ TEST(FileUtilsTests, PathBasenameTests)
     EXPECT_EQ("hello", FileUtils::path_basename("a/b/hello/"));
     EXPECT_EQ("hello", FileUtils::path_basename("/a/hello/"));
     EXPECT_EQ("", FileUtils::path_basename("/"));
+}
+
+TEST(FileUtilsTests, GetFileMtime)
+{
+    TemporaryDirectory tmpdir;
+    std::string pathStr = std::string(tmpdir.name()) + "/foo.sh";
+    const char *path = pathStr.c_str();
+
+    // this should be fast enough
+    ASSERT_FALSE(buildboxcommontest::TestUtils::pathExists(path));
+    buildboxcommontest::TestUtils::touchFile(path);
+    std::chrono::system_clock::time_point now =
+        std::chrono::system_clock::now();
+    ASSERT_TRUE(buildboxcommontest::TestUtils::pathExists(path));
+
+    std::chrono::system_clock::time_point mtime =
+        FileUtils::get_file_mtime(path);
+    std::chrono::seconds timediff =
+        std::chrono::duration_cast<std::chrono::seconds>(now - mtime);
+    ASSERT_EQ(timediff.count(), 0);
+
+    const int fd = open(path, O_RDONLY);
+    mtime = FileUtils::get_file_mtime(fd);
+    timediff = std::chrono::duration_cast<std::chrono::seconds>(now - mtime);
+    ASSERT_EQ(timediff.count(), 0);
+}
+
+TEST(FileUtilsTests, ModifyFileTimestamp)
+{
+    // Depends upon ParseTimePoint, ParseTimeStamp and GetFileMtime
+    TemporaryDirectory tmpdir;
+    std::string pathStr = std::string(tmpdir.name()) + "/foo.sh";
+    const char *path = pathStr.c_str();
+
+    ASSERT_FALSE(buildboxcommontest::TestUtils::pathExists(path));
+    buildboxcommontest::TestUtils::touchFile(path);
+    ASSERT_TRUE(buildboxcommontest::TestUtils::pathExists(path));
+
+    // try e2e test of file timestamps
+    // get a new time to set and sanity check
+    std::string new_stamp = "1970-01-01T00:00:00Z";
+    auto new_time = TimeUtils::parse_timestamp(new_stamp);
+    auto orig_time = FileUtils::get_file_mtime(path);
+    auto orig_count = orig_time.time_since_epoch().count();
+    auto new_count = new_time.time_since_epoch().count();
+    ASSERT_FALSE(orig_count == new_count);
+
+    // try to set file mtime
+    FileUtils::set_file_mtime(path, new_time);
+    // check the file mtime
+    auto mtime = FileUtils::get_file_mtime(path);
+    auto count = mtime.time_since_epoch().count();
+    ASSERT_EQ(count, new_count);
+
+    // and change it back
+    const int fd = open(path, O_RDWR);
+    FileUtils::set_file_mtime(fd, orig_time);
+    mtime = FileUtils::get_file_mtime(fd);
+    count = mtime.time_since_epoch().count();
+    ASSERT_EQ(orig_count, count);
+}
+
+TEST(FileUtilsTests, CopyFile)
+{
+    TemporaryDirectory output_directory;
+
+    const std::string output_path =
+        std::string(output_directory.name()) + "/executable.sh";
+
+    ASSERT_FALSE(FileUtils::is_regular_file(output_path.c_str()));
+
+    const std::string data = "#!/bin/bash";
+    ASSERT_EQ(FileUtils::write_file_atomically(output_path, data, 0744,
+                                               output_directory.name()),
+              0);
+    ASSERT_TRUE(
+        buildboxcommontest::TestUtils::pathExists(output_path.c_str()));
+
+    // Try to copy this
+    const std::string copy_path =
+        std::string(output_directory.name()) + "/copy.sh";
+    ASSERT_FALSE(buildboxcommontest::TestUtils::pathExists(copy_path.c_str()));
+    FileUtils::copy_file(output_path.c_str(), copy_path.c_str());
+
+    // Data is correct:
+    std::ifstream file(copy_path, std::ifstream::binary);
+    std::stringstream read_data;
+    read_data << file.rdbuf();
+
+    ASSERT_EQ(read_data.str(), data);
+
+    // It is a regular file
+    struct stat stat_buf;
+    const int stat_status = stat(copy_path.c_str(), &stat_buf);
+    ASSERT_EQ(stat_status, 0);
+
+    ASSERT_TRUE(S_ISREG(stat_buf.st_mode));
+
+    // It have the correct permissions:
+    const auto file_permissions = stat_buf.st_mode & 0777;
+    ASSERT_EQ(file_permissions, 0744);
 }

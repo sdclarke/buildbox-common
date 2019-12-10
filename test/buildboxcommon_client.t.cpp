@@ -511,6 +511,8 @@ TEST_F(ClientTestFixture, CaptureDirectory)
 {
     const std::string path_to_capture = "/path/to/stage";
     std::vector<std::string> paths = {path_to_capture};
+    const std::string property = "MTime";
+    std::vector<std::string> properties = {property};
 
     CaptureTreeResponse response;
     auto entry = response.add_responses();
@@ -525,7 +527,7 @@ TEST_F(ClientTestFixture, CaptureDirectory)
                         Return(grpc::Status::OK)));
 
     const CaptureTreeResponse returned_response =
-        this->captureTree(paths, false);
+        this->captureTree(paths, properties, false);
 
     // Checking that the request has the data we expect:
     ASSERT_EQ(request.path_size(), 1);
@@ -542,6 +544,7 @@ TEST_F(ClientTestFixture, CaptureDirectory)
 TEST_F(ClientTestFixture, CaptureDirectoryErrorThrows)
 {
     std::vector<std::string> paths = {std::string("/path/to/stage")};
+    std::vector<std::string> properties = {std::string("MTime")};
 
     CaptureTreeResponse response;
     auto entry = response.add_responses();
@@ -557,7 +560,8 @@ TEST_F(ClientTestFixture, CaptureDirectoryErrorThrows)
                               Return(grpc::Status(grpc::StatusCode::UNKNOWN,
                                                   "Something went wrong."))));
 
-    ASSERT_THROW(this->captureTree(paths, false), std::runtime_error);
+    ASSERT_THROW(this->captureTree(paths, properties, false),
+                 std::runtime_error);
 }
 
 TEST_F(ClientTestFixture, CaptureFiles)
@@ -585,7 +589,7 @@ TEST_F(ClientTestFixture, CaptureFiles)
                         Return(grpc::Status::OK)));
 
     const CaptureFilesResponse returned_response =
-        this->captureFiles(files_to_capture, false);
+        this->captureFiles(files_to_capture, {"MTime"}, false);
 
     // Checking that the request issued contains the data we expect:
     const std::set<std::string> files_to_capture_set(files_to_capture.cbegin(),
@@ -624,8 +628,9 @@ TEST_F(ClientTestFixture, CaptureFilesErrorThrows)
         .WillOnce(Return(
             grpc::Status(grpc::StatusCode::UNKNOWN, "Something went wrong.")));
 
-    ASSERT_THROW(this->captureFiles({"/path/to/stage/file.txt"}, false),
-                 std::runtime_error);
+    ASSERT_THROW(
+        this->captureFiles({"/path/to/stage/file.txt"}, {"MTime"}, false),
+        std::runtime_error);
 }
 
 class GetTreeFixture : public ClientTestFixture {

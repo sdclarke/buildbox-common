@@ -16,6 +16,7 @@
 #include <buildboxcommon_fileutils.h>
 #include <buildboxcommon_logging.h>
 #include <buildboxcommon_temporaryfile.h>
+#include <buildboxcommon_timeutils.h>
 
 #include <algorithm>
 #include <cerrno>
@@ -33,6 +34,12 @@
 #include <system_error>
 #include <unistd.h>
 #include <vector>
+
+#if __APPLE__
+#define st_mtim st_mtimespec
+#define st_atim st_atimespec
+#endif
+
 namespace buildboxcommon {
 
 bool FileUtils::is_regular_file(const char *path)
@@ -130,6 +137,83 @@ bool FileUtils::is_executable(int fd)
     return false;
 }
 
+struct stat FileUtils::get_file_stat(const char *path)
+{
+    struct stat statResult;
+    if (stat(path, &statResult) != 0) {
+        BUILDBOX_LOG_ERROR("Failed to get file stats at " << path << ".");
+        throw std::system_error(errno, std::system_category());
+    }
+    return statResult;
+}
+
+struct stat FileUtils::get_file_stat(const int fd)
+{
+    struct stat statResult;
+    if (fstat(fd, &statResult) != 0) {
+        BUILDBOX_LOG_ERROR("Failed to get file stats.");
+        throw std::system_error(errno, std::system_category());
+    }
+    return statResult;
+}
+
+std::chrono::system_clock::time_point
+FileUtils::get_file_mtime(const char *path)
+{
+    struct stat statResult = get_file_stat(path);
+    return FileUtils::get_mtime_timepoint(statResult);
+}
+
+std::chrono::system_clock::time_point FileUtils::get_file_mtime(const int fd)
+{
+    struct stat statResult = get_file_stat(fd);
+    return FileUtils::get_mtime_timepoint(statResult);
+}
+
+std::chrono::system_clock::time_point
+FileUtils::get_mtime_timepoint(struct stat &result)
+{
+    const std::chrono::system_clock::time_point timepoint =
+        std::chrono::system_clock::from_time_t(result.st_mtim.tv_sec) +
+        std::chrono::microseconds{result.st_mtim.tv_nsec / 1000};
+    return timepoint;
+}
+
+void FileUtils::set_file_mtime(
+    const int fd, const std::chrono::system_clock::time_point timepoint)
+{
+    const struct timespec new_mtime = TimeUtils::make_timespec(timepoint);
+    const struct stat stat_result = FileUtils::get_file_stat(fd);
+    // AIX stat.h defines st_timespec_t as the return of stat().st_atim
+    const struct timespec atime = {
+        stat_result.st_atim.tv_sec,
+        static_cast<long>(stat_result.st_atim.tv_nsec)};
+    const struct timespec times[2] = {atime, new_mtime};
+    if (futimens(fd, times) == 0) {
+        return;
+    }
+    BUILDBOX_LOG_ERROR("Failed to set file mtime: " << std::strerror(errno));
+    throw std::system_error(errno, std::system_category());
+}
+
+void FileUtils::set_file_mtime(
+    const char *path, const std::chrono::system_clock::time_point timepoint)
+{
+    const struct timespec new_mtime = TimeUtils::make_timespec(timepoint);
+    const struct stat stat_result = FileUtils::get_file_stat(path);
+    // AIX stat.h defines st_timespec_t as the return of stat().st_atim
+    const struct timespec atime = {
+        stat_result.st_atim.tv_sec,
+        static_cast<long>(stat_result.st_atim.tv_nsec)};
+    const struct timespec times[2] = {atime, new_mtime};
+    if (utimensat(AT_FDCWD, path, times, 0) == 0) {
+        return;
+    }
+    BUILDBOX_LOG_ERROR("Failed to set file "
+                       << path << " mtime: " << std::strerror(errno));
+    throw std::system_error(errno, std::system_category());
+}
+
 void FileUtils::make_executable(const char *path)
 {
     struct stat statResult;
@@ -160,6 +244,67 @@ std::string FileUtils::get_file_contents(const char *path)
     // That is not an error: we can read empty files.)
 
     return file_stringstream.str();
+}
+
+void FileUtils::copy_file(const char *src_path, const char *dest_path)
+{
+    ssize_t rdsize, wrsize;
+    int err = 0;
+    const mode_t mode = FileUtils::get_file_stat(src_path).st_mode;
+
+    int src = open(src_path, O_RDONLY, mode);
+    if (src == -1) {
+        err = errno;
+        BUILDBOX_LOG_ERROR("Failed to open file at " << src_path);
+    }
+
+    int dest = open(dest_path, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (dest == -1) {
+        err = errno;
+        BUILDBOX_LOG_ERROR("Failed to open file at " << dest_path);
+    }
+
+    if (err == 0) {
+        const size_t bufsize = 65536;
+        char *buf = new char[bufsize];
+        while ((rdsize = read(src, buf, bufsize)) > 0) {
+            wrsize = write(dest, buf, rdsize);
+            if (wrsize != rdsize) {
+                err = EIO;
+                BUILDBOX_LOG_ERROR("Failed to write to file at " << dest_path);
+                break;
+            }
+        }
+        delete[] buf;
+
+        if (rdsize == -1) {
+            err = errno;
+            BUILDBOX_LOG_ERROR("Failed to read file at " << src_path);
+        }
+
+        if (fchmod(dest, mode) != 0) {
+            err = errno;
+            BUILDBOX_LOG_ERROR("Failed to set mode of file at " << dest_path);
+        }
+    }
+
+    if (close(src) != 0) {
+        err = errno;
+        BUILDBOX_LOG_ERROR("Failed to close file at " << src_path);
+    }
+
+    if (close(dest) != 0) {
+        err = errno;
+        BUILDBOX_LOG_ERROR("Failed to close file at " << dest_path);
+    }
+
+    if (err != 0) {
+        if (unlink(dest_path) != 0) {
+            err = errno;
+            BUILDBOX_LOG_ERROR("Failed to remove file at " << dest_path);
+        }
+        throw std::system_error(err, std::system_category());
+    }
 }
 
 int FileUtils::write_file_atomically(const std::string &path,

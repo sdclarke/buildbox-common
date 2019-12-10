@@ -37,6 +37,7 @@ typedef std::unordered_map<buildboxcommon::Digest, std::string>::iterator
 struct File {
     Digest d_digest;
     bool d_executable;
+    std::string d_mtime;
 
     File(){};
 
@@ -46,7 +47,7 @@ struct File {
     /**
      * Constructs a File given the path to a file on disk.
      */
-    File(const char *path);
+    File(const char *path, const std::vector<std::string> &capture_properties);
 
     /**
      * Converts a File to a FileNode with the given name.
@@ -125,8 +126,10 @@ inline Digest make_digest(const google::protobuf::MessageLite &message)
  * If a fileMap is passed, paths to all files referenced by the NestedDirectory
  * will be stored in it using their Digest messages as the keys.
  */
-NestedDirectory make_nesteddirectory(const char *path,
-                                     digest_string_map *fileMap = nullptr);
+NestedDirectory
+make_nesteddirectory(const char *path, digest_string_map *fileMap = nullptr,
+                     const std::vector<std::string> &capture_properties =
+                         std::vector<std::string>());
 
 } // namespace buildboxcommon
 

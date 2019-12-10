@@ -52,6 +52,12 @@ add_executable(fileutils_tests
 target_link_libraries(fileutils_tests buildboxcommon ${GTEST_TARGET})
 add_test(NAME fileutils_tests COMMAND fileutils_tests)
 
+add_executable(timeutils_tests
+  buildboxcommon_timeutils.t.cpp
+  buildboxcommon_tests.m.cpp)
+target_link_libraries(timeutils_tests buildboxcommon ${GTEST_TARGET})
+add_test(NAME timeutils_tests COMMAND timeutils_tests)
+
 add_executable(systemutils_tests
   buildboxcommon_systemutils.t.cpp
   buildboxcommon_tests.m.cpp)
