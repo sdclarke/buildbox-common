@@ -57,6 +57,34 @@ TEST(FileUtilsTests, DirectoryTests)
     ASSERT_FALSE(FileUtils::is_regular_file(path));
 }
 
+TEST(FileUtilsTest, CreateDirectorySingleLevel)
+{
+    TemporaryDirectory dir;
+
+    const std::string path = std::string(dir.name()) + "/subdir";
+
+    ASSERT_FALSE(FileUtils::is_directory(path.c_str()));
+    FileUtils::create_directory(path.c_str());
+    ASSERT_TRUE(FileUtils::is_directory(path.c_str()));
+}
+
+TEST(FileUtilsTest, CreateDirectoryPlusItsParents)
+{
+    TemporaryDirectory dir;
+
+    const std::string path = std::string(dir.name()) + "/dir1/dir2/dir3/";
+
+    ASSERT_FALSE(FileUtils::is_directory(path.c_str()));
+    FileUtils::create_directory(path.c_str());
+    ASSERT_TRUE(FileUtils::is_directory(path.c_str()));
+}
+
+TEST(FileUtilsTest, CreateExistingDirectory)
+{
+    TemporaryDirectory dir;
+    ASSERT_NO_THROW(FileUtils::create_directory(dir.name()));
+}
+
 TEST(FileUtilsTests, IsFile)
 {
     TemporaryDirectory tmpdir;

@@ -83,29 +83,34 @@ void FileUtils::create_directory(const char *path, mode_t mode)
 {
     // Normalize path first as the parent directory creation logic below
     // can't handle paths with '..' components.
-    const std::string normalizedStr = normalize_path(path);
-    const char *normalizeStrPtr = normalizedStr.c_str();
-    if (mkdir(normalizeStrPtr, mode) != 0) {
-        if (errno == EEXIST) {
-            // The directory already exists, so return.
-            return;
-        }
-        else if (errno == ENOENT) {
-            const char *lastSlash = strrchr(normalizeStrPtr, '/');
-            if (lastSlash == nullptr) {
-                throw std::system_error(errno, std::system_category());
-            }
-            const std::string parent(normalizeStrPtr,
-                                     static_cast<unsigned long>(std::distance(
-                                         normalizeStrPtr, lastSlash)));
-            create_directory(parent.c_str());
-            if (mkdir(normalizeStrPtr, mode) != 0) {
-                throw std::system_error(errno, std::system_category());
-            }
-        }
-        else {
-            throw std::system_error(errno, std::system_category());
-        }
+    const std::string normalized_path = normalize_path(path);
+
+    // Attempt to create the directory:
+    const auto mkdir_status = mkdir(normalized_path.c_str(), mode);
+    const auto mkdir_error = errno;
+
+    const auto log_and_throw = [&normalized_path](const int errno_value) {
+        BUILDBOX_LOG_ERROR("Could not create directory [" + normalized_path +
+                           "]: " + strerror(errno_value))
+        throw std::system_error(errno_value, std::system_category());
+    };
+
+    if (mkdir_status == 0 || mkdir_error == EEXIST) {
+        return; // Directory was succesfully created or already exists, done.
+    }
+    if (mkdir_error != ENOENT) { // Something went wrong, aborting.
+        log_and_throw(mkdir_error);
+    }
+
+    // `mkdir_error == ENOENT` => Some portion of the path does not exist yet.
+    // We'll recursively create the parent directory and try again:
+    const std::string parent_path =
+        normalized_path.substr(0, normalized_path.rfind('/'));
+    create_directory(parent_path.c_str());
+
+    // Now that all the parent directories exist, we create the last directory:
+    if (mkdir(normalized_path.c_str(), mode) != 0) {
+        log_and_throw(errno);
     }
 }
 
