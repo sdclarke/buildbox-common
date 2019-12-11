@@ -27,7 +27,7 @@ tests:
   script:
     - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
     - docker pull $CONTAINER_TEST_IMAGE
-    - docker run -w /buildbox-common/build $CONTAINER_TEST_IMAGE sh -c 'cmake -DBUILD_TESTING=ON .. && make && make test'
+    - docker run -w /buildbox-common/build $CONTAINER_TEST_IMAGE sh -c 'cmake -DBUILD_TESTING=ON .. && make && ctest --verbose'
 
 test-compile-sample-project:
   stage: test
