@@ -341,6 +341,12 @@ message CaptureFilesResponse {
 
     // The result of attempting to capture and upload the file.
     google.rpc.Status status = 3;
+
+    // True if the captured file was executable, false otherwise.
+    bool is_executable = 4;
+
+    // The node properties of the captured file.
+    repeated build.bazel.remote.execution.v2.NodeProperty node_properties = 5;
   }
 
   // The responses to the requests.
