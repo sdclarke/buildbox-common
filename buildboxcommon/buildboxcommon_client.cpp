@@ -284,6 +284,11 @@ void Client::downloadDirectory(
     for (const DirectoryNode &directory_node : directory.directories()) {
         const std::string directory_path = path + "/" + directory_node.name();
         if (mkdir(directory_path.c_str(), 0777) == -1) {
+            std::ostringstream oss;
+            oss << "Error in mkdir for directory \"" << directory_path
+                << "\", errno = [" << errno << ":" << std::strerror(errno)
+                << "]";
+            BUILDBOX_LOG_ERROR(oss.str());
             throw std::system_error(errno, std::system_category());
         }
 
@@ -682,9 +687,11 @@ Client::stage(const Digest &root_digest, const std::string &path) const
     const bool succesful_write = reader_writer->Write(request);
     if (!succesful_write) {
         const grpc::Status write_error_status = reader_writer->Finish();
-        throw std::runtime_error("Error staging \"" + toString(root_digest) +
-                                 "\" into \"" + path + "\": \"" +
-                                 write_error_status.error_message() + "\"");
+        std::ostringstream oss;
+        oss << "Error staging \"" << toString(root_digest) << "\" into \""
+            << path << "\": \"" << write_error_status.error_message() << "\"";
+        BUILDBOX_LOG_ERROR(oss.str());
+        throw std::runtime_error(oss.str());
     }
 
     StageTreeResponse response;
@@ -692,9 +699,11 @@ Client::stage(const Digest &root_digest, const std::string &path) const
     if (!succesful_read) {
         reader_writer->WritesDone();
         const grpc::Status read_error_status = reader_writer->Finish();
-        throw std::runtime_error("Error staging \"" + toString(root_digest) +
-                                 "\" into \"" + path + "\": \"" +
-                                 read_error_status.error_message() + "\"");
+        std::ostringstream oss;
+        oss << "Error staging \"" << toString(root_digest) << "\" into \""
+            << path << "\": \"" << read_error_status.error_message() << "\"";
+        BUILDBOX_LOG_ERROR(oss.str());
+        throw std::runtime_error(oss.str());
     }
 
     return std::make_unique<StagedDirectory>(context, reader_writer,
