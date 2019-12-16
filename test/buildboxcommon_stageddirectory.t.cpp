@@ -25,7 +25,16 @@ using namespace buildboxcommon;
 // for handling the paths in a `Command` and verifying that they are valid.
 class MockStagedDirectory : public StagedDirectory, public testing::Test {
   protected:
-    MockStagedDirectory() : StagedDirectory() {}
+    MockStagedDirectory() : StagedDirectory()
+    {
+        d_dummy_capture_file_callback = [&](const char *) {
+            return OutputFile();
+        };
+        d_dummy_capture_directory_callback = [&](const char *) {
+            return OutputDirectory();
+        };
+    }
+
     ~MockStagedDirectory() override {}
 
     OutputFile captureFile(const char *) const override
@@ -37,16 +46,25 @@ class MockStagedDirectory : public StagedDirectory, public testing::Test {
     {
         return OutputDirectory();
     }
+
+    StagedDirectory::CaptureFileCallback d_dummy_capture_file_callback;
+
+    StagedDirectory::CaptureDirectoryCallback
+        d_dummy_capture_directory_callback;
+
+    void assert_capturing_throws(const Command &command) const
+    {
+        ActionResult action_result;
+        ASSERT_THROW(
+            this->captureAllOutputs(command, &action_result,
+                                    d_dummy_capture_file_callback,
+                                    d_dummy_capture_directory_callback),
+            std::invalid_argument);
+    }
 };
 
 TEST_F(MockStagedDirectory, DirectoryPathsWithLeadingOrTrailingSlashesThrow)
 {
-    StagedDirectory::CaptureFileCallback capture_file_function =
-        [&](const char *) { return OutputFile(); };
-
-    StagedDirectory::CaptureDirectoryCallback capture_directory_function =
-        [&](const char *) { return OutputDirectory(); };
-
     // According to the REAPI: "The path MUST NOT include a trailing slash, nor
     // a leading slash, being a relative path."
     const auto illegal_paths = {"subdir/", "/subdir", "/subdir/"};
@@ -56,10 +74,11 @@ TEST_F(MockStagedDirectory, DirectoryPathsWithLeadingOrTrailingSlashesThrow)
         *command.add_output_directories() = path;
 
         ActionResult action_result;
-        ASSERT_THROW(this->captureAllOutputs(command, &action_result,
-                                             capture_file_function,
-                                             capture_directory_function),
-                     std::invalid_argument);
+        ASSERT_THROW(
+            this->captureAllOutputs(command, &action_result,
+                                    d_dummy_capture_file_callback,
+                                    d_dummy_capture_directory_callback),
+            std::invalid_argument);
     }
 }
 
@@ -67,9 +86,6 @@ TEST_F(MockStagedDirectory, EmptyDirectoryPathIsAllowed)
 {
     Command command;
     *command.add_output_directories() = "";
-
-    StagedDirectory::CaptureFileCallback capture_file_function =
-        [&](const char *) { return OutputFile(); };
 
     bool captured_empty_path = false;
     StagedDirectory::CaptureDirectoryCallback capture_directory_function =
@@ -80,8 +96,17 @@ TEST_F(MockStagedDirectory, EmptyDirectoryPathIsAllowed)
 
     ActionResult action_result;
     ASSERT_NO_THROW(this->captureAllOutputs(command, &action_result,
-                                            capture_file_function,
+                                            d_dummy_capture_file_callback,
                                             capture_directory_function));
+}
+
+TEST_F(MockStagedDirectory, WorkingDirectoryOutsideInputRootThrows)
+{
+    Command command;
+    command.set_working_directory("../out-of-input-root");
+    *command.add_output_files() = "a.out";
+
+    assert_capturing_throws(command);
 }
 
 TEST_F(MockStagedDirectory, FilePathWithLeadingSlashThrows)
@@ -89,17 +114,30 @@ TEST_F(MockStagedDirectory, FilePathWithLeadingSlashThrows)
     Command command;
     *command.add_output_files() = "/a.out";
 
-    StagedDirectory::CaptureFileCallback capture_file_function =
-        [&](const char *) { return OutputFile(); };
+    assert_capturing_throws(command);
+}
 
-    StagedDirectory::CaptureDirectoryCallback capture_directory_function =
-        [&](const char *) { return OutputDirectory(); };
+TEST_F(MockStagedDirectory, PathsOutsideInputRootThrow)
+{
+    Command command;
+    *command.add_output_files() = "../a.out";
 
     ActionResult action_result;
-    ASSERT_THROW(this->captureAllOutputs(command, &action_result,
-                                         capture_file_function,
-                                         capture_directory_function),
-                 std::invalid_argument);
+    assert_capturing_throws(command);
+}
+
+TEST_F(MockStagedDirectory, PathsOutsideInputRootWithWorkingDirThrows)
+{
+    Command command;
+    // a.out
+    // input_root/
+    //          | src/  <-- working dir (1 level down)
+
+    command.set_working_directory("src");
+    *command.add_output_files() = "../../a.out";
+    // ^ path above input root: this is not allowed.
+
+    assert_capturing_throws(command);
 }
 
 TEST_F(MockStagedDirectory, CommandWorkingDirectory)
