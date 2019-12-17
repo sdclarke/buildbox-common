@@ -22,16 +22,28 @@
 
 #include <buildboxcommon_client.h>
 #include <buildboxcommon_connectionoptions.h>
+#include <buildboxcommon_logging.h>
 #include <buildboxcommon_stageddirectory.h>
 
 namespace buildboxcommon {
+
+// To avoid repetition, we define these macros that will augment the messages
+// that are logged with the action digest that a `Runner` instance is
+// processing.
+#define BUILDBOX_RUNNER_LOG_MESSAGE_FORMAT(message)                           \
+    "[actionDigest=" << this->d_action_digest << "] " << message
+
+#define BUILDBOX_RUNNER_LOG(level, message)                                   \
+    {                                                                         \
+        BUILDBOX_LOG_##level(BUILDBOX_RUNNER_LOG_MESSAGE_FORMAT(message));    \
+    }
 
 class Runner {
   public:
     /**
      * Execute the given Command in the given input root and return an
-     * ActionResult. Subclasses should override this to implement sandboxing
-     * behaviors.
+     * ActionResult. Subclasses should override this to implement
+     * sandboxing behaviors.
      */
     virtual ActionResult execute(const Command &command,
                                  const Digest &inputRootDigest) = 0;
@@ -80,13 +92,14 @@ class Runner {
                                            bool use_localcas_protocol = false);
 
     /**
-     * Create parent output directories, in staged directory, as specified by
-     * command
+     * Create parent output directories, in staged directory, as specified
+     * by command
      *
-     * Given an output file or directory, creates all the parent directories
-     * leading up to the directory or file. But not including it. The output
-     * files and directories should be relative to workingDir. They should also
-     * not contain any trailing or leading slashes.
+     * Given an output file or directory, creates all the parent
+     * directories leading up to the directory or file. But not including
+     * it. The output files and directories should be relative to
+     * workingDir. They should also not contain any trailing or leading
+     * slashes.
      */
     void createOutputDirectories(const Command &command,
                                  const std::string &workingDir) const;
@@ -98,17 +111,19 @@ class Runner {
     bool d_use_localcas_protocol = false;
     std::string d_stage_path = "";
 
+    Digest d_action_digest;
+
   private:
     /**
-     * Attempt to parse all of the given arguments and update this object to
-     * reflect them. If an argument is invalid or missing, return false.
+     * Attempt to parse all of the given arguments and update this object
+     * to reflect them. If an argument is invalid or missing, return false.
      * Otherwise, return true.
      */
     bool parseArguments(int argc, char *argv[]);
 
     /**
-     * If the given string is larger than the maximum size, upload it to CAS,
-     * store its digest in the given digest pointer, and clear it.
+     * If the given string is larger than the maximum size, upload it to
+     * CAS, store its digest in the given digest pointer, and clear it.
      */
     void uploadIfNeeded(std::string *str, Digest *digest) const;
 
@@ -130,14 +145,14 @@ class Runner {
     void writeActionResult(const ActionResult &action_result,
                            const std::string &path) const;
 
-    // Given file descriptors to `stdout` and `stderr` pipes' reading ends, get
-    // their contents and add them to the `ActionResult`.
+    // Given file descriptors to `stdout` and `stderr` pipes' reading ends,
+    // get their contents and add them to the `ActionResult`.
     static void writeStandardStreamsToResult(const int stdout_read_fd,
                                              const int stderr_read_fd,
                                              ActionResult *result);
 
-    // Fetch a `Command` message from the remote CAS. If that fails, log the
-    // error and `exit(1)`.
+    // Fetch a `Command` message from the remote CAS. If that fails, log
+    // the error and `exit(1)`.
     Command fetchCommand(const Digest &command_digest) const;
 };
 
