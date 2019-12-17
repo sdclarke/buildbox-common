@@ -49,6 +49,7 @@ class TemporaryFile {
     ~TemporaryFile();
 
     const char *name() const { return d_name.c_str(); };
+    const std::string &strname() const { return d_name; };
 
     int fd() const { return d_fd; };
 

@@ -52,6 +52,7 @@ class TemporaryDirectory {
     ~TemporaryDirectory();
 
     const char *name() const { return d_name.c_str(); };
+    const std::string &strname() const { return d_name; };
 
   private:
     std::string d_name;

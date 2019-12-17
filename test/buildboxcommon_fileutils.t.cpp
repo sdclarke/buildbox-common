@@ -145,6 +145,18 @@ TEST(FileUtilsTests, ExecutableTests)
     ASSERT_TRUE(FileUtils::is_executable(path));
 }
 
+TEST(FileUtilsTests, IsSymlink)
+{
+    TemporaryDirectory dir;
+    const auto file_in_dir =
+        buildboxcommontest::TestUtils::createFileInDirectory("file1",
+                                                             dir.name());
+    ASSERT_FALSE(FileUtils::is_symlink(file_in_dir.c_str()));
+    const auto symlink_path = dir.strname() + "/symlink";
+    symlink(file_in_dir.c_str(), symlink_path.c_str());
+    ASSERT_TRUE(FileUtils::is_symlink(symlink_path.c_str()));
+}
+
 TEST(FileUtilsTest, DirectoryIsEmptyTest)
 {
     TemporaryDirectory dir;

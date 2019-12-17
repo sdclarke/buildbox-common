@@ -72,6 +72,7 @@ void TemporaryFile::create(const char *directory, const char *prefix,
         fchmod(this->d_fd, mode);
     }
 
+    name = FileUtils::normalize_path(name.c_str());
     this->d_name = std::move(name);
 }
 
