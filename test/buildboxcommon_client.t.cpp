@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
+#include "buildboxcommontest_utils.h"
 #include <buildboxcommon_client.h>
+#include <buildboxcommon_fileutils.h>
 #include <buildboxcommon_merklize.h>
 #include <buildboxcommon_temporarydirectory.h>
 #include <buildboxcommon_temporaryfile.h>
-
 #include <gtest/gtest.h>
 
 #include <build/bazel/remote/execution/v2/remote_execution_mock.grpc.pb.h>
@@ -100,18 +101,22 @@ class ClientTestFixture : public StubsFixture, public Client {
     Digest digest;
     TemporaryFile tmpfile;
     google::bytestream::ReadResponse readResponse;
+
     grpc::testing::MockClientReader<google::bytestream::ReadResponse> *reader =
         new grpc::testing::MockClientReader<
             google::bytestream::ReadResponse>();
+
     grpc::testing::MockClientWriter<google::bytestream::WriteRequest> *writer =
         new grpc::testing::MockClientWriter<
             google::bytestream::WriteRequest>();
+
     grpc::testing::MockClientReaderWriter<
         typename build::buildgrid::StageTreeRequest,
         typename build::buildgrid::StageTreeResponse> *reader_writer =
         new grpc::testing::MockClientReaderWriter<
             typename build::buildgrid::StageTreeRequest,
             typename build::buildgrid::StageTreeResponse>();
+
     grpc::testing::MockClientReader<
         typename build::bazel::remote::execution::v2::GetTreeResponse>
         *gettreereader = new grpc::testing::MockClientReader<
@@ -1063,6 +1068,56 @@ TEST_F(TransferDirectoryFixture, UploadDirectoryWritesTree)
     ASSERT_EQ(tree.children(0).symlinks_size(), 0);
 
     ASSERT_EQ(returned_directory_digest, directory_digest);
+}
+
+TEST_F(ClientTestFixture, DownloadDirectoryTestActualDownload)
+{
+    TemporaryDirectory capture_dir;
+    TemporaryDirectory write_dir;
+    digest_string_map directory_file_map;
+
+    auto file_in_capture_dir = std::string(capture_dir.name()) + "/file1";
+    auto symlink_in_capture_dir =
+        std::string(capture_dir.name()) + "/" + "symlink1";
+    auto symlink_in_write_dir =
+        std::string(write_dir.name()) + "/" + "symlink1";
+    auto file_in_write_dir = std::string(write_dir.name()) + "/file1";
+
+    // create the file in the tempdir: capture_dir
+    buildboxcommontest::TestUtils::touchFile(file_in_capture_dir.c_str());
+    // make a symlink to the file
+    EXPECT_TRUE(symlink(file_in_capture_dir.c_str(),
+                        symlink_in_capture_dir.c_str()) == 0);
+
+    NestedDirectory nested_directory =
+        make_nesteddirectory(capture_dir.name(), &directory_file_map);
+    Digest directory_digest = nested_directory.to_digest(&directory_file_map);
+
+    // this callback, if called, will create the file in the write directory.
+    download_callback_t download_blobs =
+        [&](const std::vector<Digest> &file_digests,
+            const OutputMap &outputs) {
+            buildboxcommontest::TestUtils::touchFile(
+                file_in_write_dir.c_str());
+        };
+
+    // return the Directory Node from the map created in make_nesteddirectory
+    return_directory_callback_t download_directory =
+        [&](const Digest &digest) {
+            Directory dir;
+            const auto dir_string = directory_file_map.at(directory_digest);
+            dir.ParseFromString(dir_string);
+            return dir;
+        };
+
+    this->downloadDirectory(directory_digest, write_dir.name(), download_blobs,
+                            download_directory);
+
+    // verify that write_dir has the same contents as capture_dir
+    ASSERT_FALSE(FileUtils::directory_is_empty(write_dir.name()));
+    ASSERT_TRUE(FileUtils::is_directory(write_dir.name()));
+    ASSERT_TRUE(FileUtils::is_regular_file(file_in_write_dir.c_str()));
+    ASSERT_TRUE(FileUtils::is_symlink(symlink_in_write_dir.c_str()));
 }
 
 TEST_F(TransferDirectoryFixture, DownloadDirectoryMissingDigestThrows)

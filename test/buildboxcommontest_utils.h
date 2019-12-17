@@ -51,6 +51,15 @@ struct TestUtils {
         FileUtils::create_directory(subdir.c_str());
         return subdir;
     }
+
+    static std::string createFileInDirectory(const std::string &file_name,
+                                             const std::string &dir_name)
+    {
+        const auto file_in_dir = dir_name + "/" + file_name;
+        touchFile(file_in_dir.c_str());
+        assert(pathExists(file_in_dir.c_str()));
+        return file_in_dir;
+    }
 };
 
 } // namespace buildboxcommontest

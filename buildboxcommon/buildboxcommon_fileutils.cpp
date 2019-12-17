@@ -69,6 +69,15 @@ bool FileUtils::is_directory(int fd)
     return false;
 }
 
+bool FileUtils::is_symlink(const char *path)
+{
+    struct stat statResult;
+    if (lstat(path, &statResult) == 0) {
+        return S_ISLNK(statResult.st_mode);
+    }
+    return false;
+}
+
 bool FileUtils::directory_is_empty(const char *path)
 {
     DirentWrapper root(path);
@@ -273,7 +282,7 @@ void FileUtils::copy_file(const char *src_path, const char *dest_path)
         const size_t bufsize = 65536;
         char *buf = new char[bufsize];
         while ((rdsize = read(src, buf, bufsize)) > 0) {
-            wrsize = write(dest, buf, rdsize);
+            wrsize = write(dest, buf, static_cast<unsigned long>(rdsize));
             if (wrsize != rdsize) {
                 err = EIO;
                 BUILDBOX_LOG_ERROR("Failed to write to file at " << dest_path);

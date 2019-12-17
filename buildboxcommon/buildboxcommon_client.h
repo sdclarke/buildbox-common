@@ -34,33 +34,6 @@ namespace buildboxcommon {
  * request.
  */
 class Client {
-  private:
-    std::shared_ptr<grpc::Channel> d_channel;
-    std::shared_ptr<ByteStream::StubInterface> d_bytestreamClient;
-    std::shared_ptr<ContentAddressableStorage::StubInterface> d_casClient;
-    std::shared_ptr<LocalContentAddressableStorage::StubInterface>
-        d_localCasClient;
-    std::shared_ptr<Capabilities::StubInterface> d_capabilitiesClient;
-
-    // initialized here to prevent errors, in case options are not passed into
-    // init
-    int d_grpcRetryLimit = 0;
-    int d_grpcRetryDelay = 100;
-
-    int64_t d_maxBatchTotalSizeBytes;
-
-    std::string d_uuid;
-    std::string d_instanceName;
-
-    RequestMetadataGenerator d_metadata_generator;
-    const std::function<void(grpc::ClientContext *)>
-        d_metadata_attach_function = [&](grpc::ClientContext *context) {
-            d_metadata_generator.attach_request_metadata(context);
-        };
-
-    // Maximum number of bytes that can be sent in a single gRPC message.
-    static const size_t s_bytestreamChunkSizeBytes;
-
   public:
     Client(){};
 
@@ -167,9 +140,9 @@ class Client {
      * errors they received. (An empty result indicates that all digests were
      * uploaded.)
      */
+
     std::vector<UploadResult>
     uploadBlobs(const std::vector<UploadRequest> &requests);
-
     typedef std::unordered_map<std::string, std::string> DownloadedData;
 
     /* Given a list of digests, download the data and return it in a map
@@ -180,8 +153,6 @@ class Client {
      */
     DownloadedData downloadBlobs(const std::vector<Digest> &digests);
 
-    typedef std::unordered_multimap<std::string, std::pair<std::string, bool>>
-        OutputMap;
     /* Given a list of digests, download the data and store each blob in the
      * path specified by the entry's first member in the `outputs` map. If the
      * second member of the tuple is true, mark the file as executable.
@@ -190,6 +161,8 @@ class Client {
      * aborts and throws an `std::runtime_error` exception. (It might leave
      * directories in an inconsistent state, i.e. with missing files.)
      */
+    typedef std::unordered_multimap<std::string, std::pair<std::string, bool>>
+        OutputMap;
     void downloadBlobs(const std::vector<Digest> &digests,
                        const OutputMap &outputs);
 
@@ -328,7 +301,62 @@ class Client {
 
     static size_t bytestreamChunkSizeBytes();
 
+  protected:
+    typedef std::function<void(const std::string &hash,
+                               const std::string &data)>
+        write_blob_callback_t;
+
+    typedef std::function<void(const std::vector<Digest> &digest,
+                               const OutputMap &outputs)>
+        download_callback_t;
+    typedef std::function<Directory(const Digest &digest)>
+        return_directory_callback_t;
+
+    /* Download the digests in the specified list and invoke the
+     * `write_blob_callback` function after each blob is downloaded.
+     *
+     * `throw_on_error` determines whether an `std::runtime_error`
+     * exception is to be raised on encountering an error during a
+     * download.
+     *
+     * Note: marked as `protected` to unit-test.
+     */
+    void downloadBlobs(const std::vector<Digest> &digests,
+                       const write_blob_callback_t &write_blob_callback,
+                       bool throw_on_error);
+
+    void downloadDirectory(
+        const Digest &digest, const std::string &path,
+        const download_callback_t &download_callback,
+        const return_directory_callback_t &return_directory_callback);
+
   private:
+    std::shared_ptr<grpc::Channel> d_channel;
+    std::shared_ptr<ByteStream::StubInterface> d_bytestreamClient;
+    std::shared_ptr<ContentAddressableStorage::StubInterface> d_casClient;
+    std::shared_ptr<LocalContentAddressableStorage::StubInterface>
+        d_localCasClient;
+    std::shared_ptr<Capabilities::StubInterface> d_capabilitiesClient;
+
+    // initialized here to prevent errors, in case options are not passed into
+    // init
+    int d_grpcRetryLimit = 0;
+    int d_grpcRetryDelay = 100;
+
+    int64_t d_maxBatchTotalSizeBytes;
+
+    std::string d_uuid;
+    std::string d_instanceName;
+
+    RequestMetadataGenerator d_metadata_generator;
+    const std::function<void(grpc::ClientContext *)>
+        d_metadata_attach_function = [&](grpc::ClientContext *context) {
+            d_metadata_generator.attach_request_metadata(context);
+        };
+
+    // Maximum number of bytes that can be sent in a single gRPC message.
+    static const size_t s_bytestreamChunkSizeBytes;
+
     std::string makeResourceName(const Digest &digest, bool is_upload);
 
     /* Uploads the requests contained in the range [start_index,
@@ -373,24 +401,6 @@ class Client {
     std::string d_action_id;
     std::string d_tool_invocation_id;
     std::string d_correlated_invocations_id;
-
-  protected:
-    typedef std::function<void(const std::string &hash,
-                               const std::string &data)>
-        write_blob_callback_t;
-
-    /* Download the digests in the specified list and invoke the
-     * `write_blob_callback` function after each blob is downloaded.
-     *
-     * `throw_on_error` determines whether an `std::runtime_error`
-     * exception is to be raised on encountering an error during a
-     * download.
-     *
-     * Note: marked as `protected` to unit-test.
-     */
-    void downloadBlobs(const std::vector<Digest> &digests,
-                       const write_blob_callback_t &write_blob_callback,
-                       bool throw_on_error);
 };
 
 } // namespace buildboxcommon

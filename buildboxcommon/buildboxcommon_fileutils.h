@@ -34,16 +34,21 @@ struct FileUtils {
     // Provide a namespace for file utilities.
 
     /**
-     * Return true if the given file path is a directory.
+     * Return true if the given path represents a directory.
      */
     static bool is_directory(const char *path);
 
     static bool is_directory(const int fd);
 
     /**
-     * Return true if the given file path is a regular file.
+     * Return true if the given path represents a regular file.
      */
     static bool is_regular_file(const char *path);
+
+    /**
+     * Return true if the given path represents a symlink.
+     */
+    static bool is_symlink(const char *path);
 
     /**
      * Return true if the directory is empty.

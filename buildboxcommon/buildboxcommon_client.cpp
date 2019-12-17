@@ -26,6 +26,7 @@
 #include <fstream>
 #include <grpc/grpc.h>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -256,9 +257,12 @@ void Client::download(int fd, const Digest &digest)
               this->d_metadata_attach_function);
 }
 
-void Client::downloadDirectory(const Digest &digest, const std::string &path)
+void Client::downloadDirectory(
+    const Digest &digest, const std::string &path,
+    const download_callback_t &download_callback,
+    const return_directory_callback_t &return_directory_callback)
 {
-    const Directory directory = fetchMessage<Directory>(digest);
+    const Directory directory = return_directory_callback(digest);
 
     // Downloading the files in this directory:
     OutputMap outputs;
@@ -273,7 +277,7 @@ void Client::downloadDirectory(const Digest &digest, const std::string &path)
             file.digest().hash(),
             std::pair<std::string, bool>(file_path, file.is_executable()));
     }
-    downloadBlobs(file_digests, outputs);
+    download_callback(file_digests, outputs);
 
     // Creating the subdirectories in this level and recursively fetching
     // their contents:
@@ -283,8 +287,61 @@ void Client::downloadDirectory(const Digest &digest, const std::string &path)
             throw std::system_error(errno, std::system_category());
         }
 
-        downloadDirectory(directory_node.digest(), directory_path);
+        downloadDirectory(directory_node.digest(), directory_path,
+                          download_callback, return_directory_callback);
     }
+
+    // Create symlinks, note: we just create the symlink. It's not the
+    // responsibility of the worker/casd, to ensure the target is valid and
+    // has contents.
+    for (const SymlinkNode &symlink_node : directory.symlinks()) {
+        if (symlink_node.target().empty() || symlink_node.name().empty()) {
+            BUILDBOX_LOG_WARNING(
+                "Symlink Node name or target empty skipping.");
+            continue;
+        }
+        // Prepend the path to the symlink_node name.
+        const std::string symlink_path = path + "/" + symlink_node.name();
+
+        // As stated in the API:
+        // The canonical form forbids the substrings `/./`
+        // and `//` in the target path.
+        if (symlink_node.target().find("/./") != std::string::npos ||
+            symlink_node.target().find("//") != std::string::npos) {
+            const auto error_message =
+                "Cannot create symlink. The target path: [" +
+                symlink_node.target() +
+                "] contains substrings not allowed by the API: [/./] or [//].";
+            BUILDBOX_LOG_ERROR(error_message);
+            throw std::invalid_argument(error_message);
+        }
+        if (symlink(symlink_node.target().c_str(), symlink_path.c_str()) !=
+            0) {
+            const int errsv = errno;
+            const auto error_message = "Unable to create symlink: [" +
+                                       symlink_path + "]" + " to target: [" +
+                                       symlink_node.target() +
+                                       "] with error: " + strerror(errsv);
+            BUILDBOX_LOG_ERROR(error_message);
+            throw std::runtime_error(error_message);
+        }
+    }
+}
+
+void Client::downloadDirectory(const Digest &digest, const std::string &path)
+{
+    download_callback_t download_blobs =
+        [this](const std::vector<Digest> &file_digests,
+               const OutputMap &outputs) {
+            this->downloadBlobs(file_digests, outputs);
+        };
+
+    return_directory_callback_t download_directory =
+        [this](const Digest &message_digest) {
+            return this->fetchMessage<Directory>(message_digest);
+        };
+
+    this->downloadDirectory(digest, path, download_blobs, download_directory);
 }
 
 void Client::upload(const std::string &data, const Digest &digest)
