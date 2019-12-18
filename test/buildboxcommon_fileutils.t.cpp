@@ -256,6 +256,9 @@ TEST(NormalizePathTest, RemoveUnneededDotDot)
               FileUtils::normalize_path("subdir/subsubdir/../hello"));
     EXPECT_EQ("/usr/bin/gcc",
               FileUtils::normalize_path("/usr/local/lib/../../bin/.//gcc"));
+    EXPECT_EQ("/usr/bin/gcc", FileUtils::normalize_path("/../usr/bin/gcc"));
+    EXPECT_EQ("/usr/bin/gcc",
+              FileUtils::normalize_path("/usr/../../usr/bin/gcc"));
 }
 
 TEST(NormalizePathTest, KeepNeededDotDot)
