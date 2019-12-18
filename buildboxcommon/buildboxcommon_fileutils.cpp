@@ -495,6 +495,10 @@ std::string FileUtils::normalize_path(const char *path)
         if (segment == ".." && !segments.empty() && segments.back() != "..") {
             segments.pop_back();
         }
+        else if (global && segment == ".." && segments.empty()) {
+            // dot-dot in the root directory refers to the root directory
+            // itself and can thus be dropped.
+        }
         else if (segment != "." && segment != "") {
             segments.push_back(segment);
         }
