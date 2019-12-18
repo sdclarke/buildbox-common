@@ -47,7 +47,8 @@ struct File {
     /**
      * Constructs a File given the path to a file on disk.
      */
-    File(const char *path, const std::vector<std::string> &capture_properties);
+    File(const char *path,
+         const std::vector<std::string> &capture_properties = {});
 
     /**
      * Converts a File to a FileNode with the given name.
