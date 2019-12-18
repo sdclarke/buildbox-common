@@ -95,18 +95,35 @@ void Runner::recursively_chmod_directories(const char *path, mode_t mode)
     {
         DirentWrapper root(path);
 
+        bool encountered_permission_errors = false;
+
         FileUtils::DirectoryTraversalFnPtr chmod_func =
-            [&mode](const char *dir_path = nullptr, int fd = 0) {
+            [&mode, &encountered_permission_errors](
+                const char *dir_path = nullptr, int fd = 0) {
                 if (fchmod(fd, mode) == -1) {
-                    int errsv = errno;
-                    BUILDBOX_LOG_WARNING("Unable to chmod dir: "
-                                         << dir_path
-                                         << " errno: " << strerror(errsv));
+                    const int chmod_error = errno;
+                    if (chmod_error == EPERM) {
+                        // Logging every instance of this error might prove too
+                        // noisy when staging using chroots. We aggregate them
+                        // into a single warning message.
+                        encountered_permission_errors = true;
+                    }
+                    else {
+                        BUILDBOX_LOG_WARNING("Unable to chmod dir: "
+                                             << dir_path << " errno: "
+                                             << strerror(chmod_error));
+                    }
                 };
             };
 
         FileUtils::FileDescriptorTraverseAndApply(&root, chmod_func, nullptr,
                                                   true);
+
+        if (encountered_permission_errors) {
+            BUILDBOX_LOG_WARNING("Failed to `chmod()` some directories in \""
+                                 << path
+                                 << "\" due to permission issues (`EPERM`).");
+        }
     }
 }
 
