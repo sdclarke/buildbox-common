@@ -106,7 +106,6 @@ install(
     INCLUDES DESTINATION include/buildbox
 )
 
-
 # Hash function used to calculate Digests.
 # Integer value as defined in `enum DigestFunction.Value` in the REAPI proto
 # (`protos/build/bazel/remote/execution/v2/remote_execution.proto`).
@@ -120,7 +119,6 @@ else()
 endif()
 
 target_compile_definitions(buildboxcommon PUBLIC BUILDBOXCOMMON_DIGEST_FUNCTION_VALUE=${BUILDBOXCOMMON_DIGEST_FUNCTION_VALUE})
-
 
 file(GLOB BUILDBOXCOMMON_H "buildboxcommon/*.h")
 
@@ -163,3 +161,5 @@ if(BUILD_TESTING)
     include_directories(third_party/grpc/include)
     add_subdirectory(test)
 endif()
+
+add_subdirectory(tools)
