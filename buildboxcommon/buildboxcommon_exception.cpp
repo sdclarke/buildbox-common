@@ -19,6 +19,7 @@
 #include <sstream>
 
 namespace buildboxcommon {
+namespace {
 
 std::string makeMessage(const std::string &msg, const CodePosition &cp)
 {
@@ -27,11 +28,8 @@ std::string makeMessage(const std::string &msg, const CodePosition &cp)
     return oss.str();
 }
 
-// ---------------
-// class Exception
-// ---------------
+} // namespace
 
-// CREATORS
 Exception::Exception(const std::string &msg, const CodePosition &cp)
     : std::runtime_error(makeMessage(msg, cp))
 {
