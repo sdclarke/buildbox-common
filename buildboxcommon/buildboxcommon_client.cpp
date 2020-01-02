@@ -15,6 +15,7 @@
  */
 
 #include <buildboxcommon_client.h>
+#include <buildboxcommon_exception.h>
 #include <buildboxcommon_fileutils.h>
 #include <buildboxcommon_grpcretry.h>
 #include <buildboxcommon_logging.h>
@@ -284,7 +285,10 @@ void Client::downloadDirectory(
     for (const DirectoryNode &directory_node : directory.directories()) {
         const std::string directory_path = path + "/" + directory_node.name();
         if (mkdir(directory_path.c_str(), 0777) == -1) {
-            throw std::system_error(errno, std::system_category());
+            BUILDBOXCOMMON_THROW_EXCEPTION("Error in mkdir for directory \""
+                                           << directory_path << "\", errno = ["
+                                           << errno << ":"
+                                           << std::strerror(errno) << "]");
         }
 
         downloadDirectory(directory_node.digest(), directory_path,
@@ -682,9 +686,9 @@ Client::stage(const Digest &root_digest, const std::string &path) const
     const bool succesful_write = reader_writer->Write(request);
     if (!succesful_write) {
         const grpc::Status write_error_status = reader_writer->Finish();
-        throw std::runtime_error("Error staging \"" + toString(root_digest) +
-                                 "\" into \"" + path + "\": \"" +
-                                 write_error_status.error_message() + "\"");
+        BUILDBOXCOMMON_THROW_EXCEPTION(
+            "Error staging \"" + toString(root_digest) + "\" into \"" + path +
+            "\": \"" + write_error_status.error_message() + "\"");
     }
 
     StageTreeResponse response;
@@ -692,9 +696,9 @@ Client::stage(const Digest &root_digest, const std::string &path) const
     if (!succesful_read) {
         reader_writer->WritesDone();
         const grpc::Status read_error_status = reader_writer->Finish();
-        throw std::runtime_error("Error staging \"" + toString(root_digest) +
-                                 "\" into \"" + path + "\": \"" +
-                                 read_error_status.error_message() + "\"");
+        BUILDBOXCOMMON_THROW_EXCEPTION(
+            "Error staging \"" + toString(root_digest) + "\" into \"" + path +
+            "\": \"" + read_error_status.error_message() + "\"");
     }
 
     return std::make_unique<StagedDirectory>(context, reader_writer,
