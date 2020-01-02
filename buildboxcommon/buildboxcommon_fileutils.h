@@ -38,7 +38,7 @@ struct FileUtils {
      */
     static bool is_directory(const char *path);
 
-    static bool is_directory(const int fd);
+    static bool is_directory(int fd);
 
     /**
      * Return true if the given path represents a regular file.
@@ -79,7 +79,7 @@ struct FileUtils {
     /**
      * Return true if a given file descriptor is executable.
      */
-    static bool is_executable(const int fd);
+    static bool is_executable(int fd);
 
     /**
      * Return a time point in seconds representing the mtime of the file
