@@ -6,7 +6,7 @@
 #include <functional>
 #include <iostream>
 
-using buildboxcommon::grpcRetry;
+using buildboxcommon::GrpcRetry;
 
 TEST(GrpcRetry, SimpleSucceedTest)
 {
@@ -25,7 +25,7 @@ TEST(GrpcRetry, SimpleSucceedTest)
         }
     };
 
-    EXPECT_NO_THROW(grpcRetry(lambda, retryLimit, retryDelay));
+    EXPECT_NO_THROW(GrpcRetry::retry(lambda, retryLimit, retryDelay));
 }
 
 TEST(GrpcRetry, SimpleRetrySucceedTest)
@@ -45,7 +45,7 @@ TEST(GrpcRetry, SimpleRetrySucceedTest)
         }
     };
 
-    EXPECT_NO_THROW(grpcRetry(lambda, retryLimit, retryDelay));
+    EXPECT_NO_THROW(GrpcRetry::retry(lambda, retryLimit, retryDelay));
 }
 
 TEST(GrpcRetry, SimpleRetryFailTest)
@@ -65,7 +65,7 @@ TEST(GrpcRetry, SimpleRetryFailTest)
         }
     };
 
-    EXPECT_THROW(grpcRetry(lambda, retryLimit, retryDelay),
+    EXPECT_THROW(GrpcRetry::retry(lambda, retryLimit, retryDelay),
                  std::runtime_error);
 }
 
@@ -86,6 +86,7 @@ TEST(GrpcRetry, AttachMetadata)
         attacher_calls++;
     };
 
-    EXPECT_NO_THROW(grpcRetry(grpc_invocation, 0, 0, metadata_attacher));
+    EXPECT_NO_THROW(
+        GrpcRetry::retry(grpc_invocation, 0, 0, metadata_attacher));
     ASSERT_EQ(attacher_calls, 1);
 }
