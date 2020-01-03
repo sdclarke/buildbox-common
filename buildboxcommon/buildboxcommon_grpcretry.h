@@ -47,15 +47,19 @@ class GrpcError : public std::runtime_error {
  * attaching metadata, setting a timeout, etc.
  *
  */
+struct GrpcRetry {
+    static void retry(const std::function<grpc::Status(grpc::ClientContext &)>
+                          &grpcInvocation,
+                      int grpcRetryLimit, int grpcRetryDelay);
 
-void grpcRetry(
-    const std::function<grpc::Status(grpc::ClientContext &)> &grpcInvocation,
-    int grpcRetryLimit, int grpcRetryDelay);
+    static void
+    retry(const std::function<grpc::Status(grpc::ClientContext &)>
+              &grpcInvocation,
+          int grpcRetryLimit, int grpcRetryDelay,
+          const std::function<void(grpc::ClientContext *)> &metadataAttacher);
+};
 
-void grpcRetry(
-    const std::function<grpc::Status(grpc::ClientContext &)> &grpcInvocation,
-    int grpcRetryLimit, int grpcRetryDelay,
-    const std::function<void(grpc::ClientContext *)> &metadataAttacher);
+#define grpcRetry GrpcRetry::retry
 
 } // namespace buildboxcommon
 

@@ -24,16 +24,15 @@
 
 namespace buildboxcommon {
 
-void grpcRetry(
+void GrpcRetry::retry(
     const std::function<grpc::Status(grpc::ClientContext &)> &grpcInvocation,
     int grpcRetryLimit, int grpcRetryDelay)
 {
-
-    grpcRetry(grpcInvocation, grpcRetryLimit, grpcRetryDelay,
-              [](grpc::ClientContext *) { return; });
+    GrpcRetry::retry(grpcInvocation, grpcRetryLimit, grpcRetryDelay,
+                     [](grpc::ClientContext *) { return; });
 }
 
-void grpcRetry(
+void GrpcRetry::retry(
     const std::function<grpc::Status(grpc::ClientContext &)> &grpcInvocation,
     int grpcRetryLimit, int grpcRetryDelay,
     const std::function<void(grpc::ClientContext *)> &metadataAttacher)

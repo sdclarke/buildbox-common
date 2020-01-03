@@ -98,8 +98,9 @@ void Client::init(
     };
 
     try {
-        grpcRetry(getCapabilitiesLambda, this->d_grpcRetryLimit,
-                  this->d_grpcRetryDelay, this->d_metadata_attach_function);
+        GrpcRetry::retry(getCapabilitiesLambda, this->d_grpcRetryLimit,
+                         this->d_grpcRetryDelay,
+                         this->d_metadata_attach_function);
     }
     catch (const GrpcError &e) {
         if (e.status.error_code() == grpc::StatusCode::UNIMPLEMENTED) {
@@ -209,8 +210,8 @@ std::string Client::fetchString(const Digest &digest)
         return read_status;
     };
 
-    grpcRetry(fetchLambda, this->d_grpcRetryLimit, this->d_grpcRetryDelay,
-              this->d_metadata_attach_function);
+    GrpcRetry::retry(fetchLambda, this->d_grpcRetryLimit,
+                     this->d_grpcRetryDelay, this->d_metadata_attach_function);
     return result;
 }
 
@@ -254,8 +255,8 @@ void Client::download(int fd, const Digest &digest)
         return read_status;
     };
 
-    grpcRetry(downloadLambda, this->d_grpcRetryLimit, this->d_grpcRetryDelay,
-              this->d_metadata_attach_function);
+    GrpcRetry::retry(downloadLambda, this->d_grpcRetryLimit,
+                     this->d_grpcRetryDelay, this->d_metadata_attach_function);
 }
 
 void Client::downloadDirectory(
@@ -408,8 +409,8 @@ void Client::upload(const std::string &data, const Digest &digest)
         return status;
     };
 
-    grpcRetry(uploadLambda, this->d_grpcRetryLimit, this->d_grpcRetryDelay,
-              this->d_metadata_attach_function);
+    GrpcRetry::retry(uploadLambda, this->d_grpcRetryLimit,
+                     this->d_grpcRetryDelay, this->d_metadata_attach_function);
 }
 
 void Client::upload(int fd, const Digest &digest)
@@ -470,8 +471,8 @@ void Client::upload(int fd, const Digest &digest)
         return status;
     };
 
-    grpcRetry(uploadLambda, this->d_grpcRetryLimit, this->d_grpcRetryDelay,
-              this->d_metadata_attach_function);
+    GrpcRetry::retry(uploadLambda, this->d_grpcRetryLimit,
+                     this->d_grpcRetryDelay, this->d_metadata_attach_function);
 }
 
 grpc::Status Client::uploadRequest(const UploadRequest &request)
@@ -759,7 +760,7 @@ Client::captureTree(const std::vector<std::string> &paths,
         return d_localCasClient->CaptureTree(&context, request, &response);
     };
 
-    grpcRetry(captureLambda, d_grpcRetryLimit, d_grpcRetryDelay);
+    GrpcRetry::retry(captureLambda, d_grpcRetryLimit, d_grpcRetryDelay);
     return response;
 }
 
@@ -786,7 +787,7 @@ Client::captureFiles(const std::vector<std::string> &paths,
         return d_localCasClient->CaptureFiles(&context, request, &response);
     };
 
-    grpcRetry(captureLambda, d_grpcRetryLimit, d_grpcRetryDelay);
+    GrpcRetry::retry(captureLambda, d_grpcRetryLimit, d_grpcRetryDelay);
     return response;
 }
 
@@ -821,8 +822,8 @@ Client::batchUpload(const std::vector<UploadRequest> &requests,
         return status;
     };
 
-    grpcRetry(batchUploadLamda, this->d_grpcRetryLimit, this->d_grpcRetryDelay,
-              this->d_metadata_attach_function);
+    GrpcRetry::retry(batchUploadLamda, this->d_grpcRetryLimit,
+                     this->d_grpcRetryDelay, this->d_metadata_attach_function);
 
     std::vector<Client::UploadResult> results;
     for (const auto &uploadResponse : response.responses()) {
@@ -858,8 +859,8 @@ Client::DownloadedData Client::batchDownload(const std::vector<Digest> digests,
         return status;
     };
 
-    grpcRetry(batchDownloadLamda, this->d_grpcRetryLimit,
-              this->d_grpcRetryDelay, this->d_metadata_attach_function);
+    GrpcRetry::retry(batchDownloadLamda, this->d_grpcRetryLimit,
+                     this->d_grpcRetryDelay, this->d_metadata_attach_function);
 
     DownloadedData data;
     for (const auto &downloadResponse : response.responses()) {
