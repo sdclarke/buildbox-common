@@ -474,27 +474,39 @@ TEST(FileUtilsTests, ModifyFileTimestamp)
     ASSERT_TRUE(buildboxcommontest::TestUtils::pathExists(path));
 
     // try e2e test of file timestamps
-    // get a new time to set and sanity check
-    std::string new_stamp = "1970-01-01T00:00:00Z";
-    auto new_time = TimeUtils::parse_timestamp(new_stamp);
+    // get the original time
     auto orig_time = FileUtils::get_file_mtime(path);
-    auto orig_count = orig_time.time_since_epoch().count();
-    auto new_count = new_time.time_since_epoch().count();
-    ASSERT_FALSE(orig_count == new_count);
+    auto orig_count = std::chrono::duration_cast<std::chrono::microseconds>(
+                          orig_time.time_since_epoch())
+                          .count();
+    // get a new time to set and sanity check it
+    const long int exp_count = 1325586092000000;
+    ASSERT_NE(exp_count, orig_count);
+
+    const std::string new_stamp = "2012-01-03T10:21:32.000000Z";
+    auto new_time = TimeUtils::parse_timestamp(new_stamp);
+    auto new_count = std::chrono::duration_cast<std::chrono::microseconds>(
+                         new_time.time_since_epoch())
+                         .count();
+    ASSERT_EQ(exp_count, new_count);
 
     // try to set file mtime
     FileUtils::set_file_mtime(path, new_time);
     // check the file mtime
     auto mtime = FileUtils::get_file_mtime(path);
-    auto count = mtime.time_since_epoch().count();
+    auto count = std::chrono::duration_cast<std::chrono::microseconds>(
+                     mtime.time_since_epoch())
+                     .count();
     ASSERT_EQ(count, new_count);
 
     // and change it back
     const int fd = open(path, O_RDWR);
     FileUtils::set_file_mtime(fd, orig_time);
     mtime = FileUtils::get_file_mtime(fd);
-    count = mtime.time_since_epoch().count();
-    ASSERT_EQ(orig_count, count);
+    count = std::chrono::duration_cast<std::chrono::microseconds>(
+                mtime.time_since_epoch())
+                .count();
+    ASSERT_EQ(count, orig_count);
 }
 
 TEST(FileUtilsTests, CopyFile)
