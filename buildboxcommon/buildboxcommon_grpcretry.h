@@ -59,6 +59,8 @@ struct GrpcRetry {
           const std::function<void(grpc::ClientContext *)> &metadataAttacher);
 };
 
+#define grpcRetry GrpcRetry::retry
+
 } // namespace buildboxcommon
 
 #endif
