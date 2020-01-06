@@ -517,7 +517,7 @@ TEST_F(ClientTestFixture, CaptureDirectory)
     const std::string path_to_capture = "/path/to/stage";
     std::vector<std::string> paths = {path_to_capture};
     const std::string property = "MTime";
-    std::vector<std::string> properties = {property};
+    const std::vector<std::string> properties = {property};
 
     CaptureTreeResponse response;
     auto entry = response.add_responses();
@@ -537,6 +537,8 @@ TEST_F(ClientTestFixture, CaptureDirectory)
     // Checking that the request has the data we expect:
     ASSERT_EQ(request.path_size(), 1);
     ASSERT_EQ(request.path(0), path_to_capture);
+    ASSERT_EQ(request.node_properties_size(), 1);
+    ASSERT_EQ(request.node_properties(0), property);
     ASSERT_FALSE(request.bypass_local_cache());
     ASSERT_EQ(request.instance_name(), this->instanceName());
 
@@ -575,17 +577,25 @@ TEST_F(ClientTestFixture, CaptureFiles)
     const std::vector<std::string> files_to_capture = {
         "/path/to/stage/file1.txt", "/path/to/stage/file2.txt"};
 
+    const std::string property = "MTime";
+    const std::string value = "";
     // Response that the server will return to the client:
     CaptureFilesResponse response;
     auto entry1 = response.add_responses();
     entry1->set_path(files_to_capture[0]);
     entry1->mutable_digest()->CopyFrom(make_digest("file1.txt-contents"));
     entry1->mutable_status()->set_code(grpc::StatusCode::OK);
+    auto node_property1 = entry1->add_node_properties();
+    node_property1->set_name(property);
+    node_property1->set_value(value);
 
     auto entry2 = response.add_responses();
     entry2->set_path(files_to_capture[1]);
     entry2->mutable_digest()->CopyFrom(make_digest("file2.txt-contents"));
     entry2->mutable_status()->set_code(grpc::StatusCode::OK);
+    auto node_property2 = entry2->add_node_properties();
+    node_property2->set_name(property);
+    node_property2->set_value(value);
 
     CaptureFilesRequest request;
 
@@ -593,8 +603,10 @@ TEST_F(ClientTestFixture, CaptureFiles)
         .WillOnce(DoAll(SaveArg<1>(&request), SetArgPointee<2>(response),
                         Return(grpc::Status::OK)));
 
+    const std::vector<std::string> properties = {property};
+
     const CaptureFilesResponse returned_response =
-        this->captureFiles(files_to_capture, {"MTime"}, false);
+        this->captureFiles(files_to_capture, properties, false);
 
     // Checking that the request issued contains the data we expect:
     const std::set<std::string> files_to_capture_set(files_to_capture.cbegin(),
@@ -603,6 +615,8 @@ TEST_F(ClientTestFixture, CaptureFiles)
     ASSERT_EQ(request.path_size(), 2);
     ASSERT_EQ(files_to_capture_set.count(request.path(0)), 1);
     ASSERT_EQ(files_to_capture_set.count(request.path(1)), 1);
+    ASSERT_EQ(request.node_properties_size(), 1);
+    ASSERT_EQ(request.node_properties(0), property);
 
     ASSERT_FALSE(request.bypass_local_cache());
 
@@ -624,6 +638,17 @@ TEST_F(ClientTestFixture, CaptureFiles)
               grpc::StatusCode::OK);
     ASSERT_EQ(returned_response.responses(1).status().code(),
               grpc::StatusCode::OK);
+
+    ASSERT_EQ(returned_response.responses(0).node_properties_size(), 1);
+    ASSERT_EQ(returned_response.responses(0).node_properties(0).name(),
+              property);
+    ASSERT_EQ(returned_response.responses(0).node_properties(0).value(),
+              value);
+    ASSERT_EQ(returned_response.responses(1).node_properties_size(), 1);
+    ASSERT_EQ(returned_response.responses(1).node_properties(0).name(),
+              property);
+    ASSERT_EQ(returned_response.responses(1).node_properties(0).value(),
+              value);
 }
 
 TEST_F(ClientTestFixture, CaptureFilesErrorThrows)
