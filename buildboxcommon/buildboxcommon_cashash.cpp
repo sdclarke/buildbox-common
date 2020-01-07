@@ -15,6 +15,8 @@
  */
 
 #include <buildboxcommon_cashash.h>
+
+#include <buildboxcommon_exception.h>
 #include <buildboxcommon_logging.h>
 
 #include <fcntl.h>
@@ -58,8 +60,9 @@ Digest CASHash::hashFile(const std::string &path)
 {
     const int fd = open(path.c_str(), O_RDONLY);
     if (fd == -1) {
-        throw std::system_error(errno, std::system_category(),
-                                "Error opening file");
+        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+            std::system_error(errno, std::system_category()),
+            "Error opening file \"" << path << "\"");
     }
 
     try {

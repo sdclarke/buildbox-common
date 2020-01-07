@@ -16,23 +16,12 @@
 
 #include <buildboxcommon_exception.h>
 
-#include <sstream>
-
 namespace buildboxcommon {
-namespace {
 
-std::string makeMessage(const std::string &msg, const CodePosition &cp)
+std::string ExceptionUtil::basename(const std::string &fileName)
 {
-    std::ostringstream oss;
-    oss << "[" << cp.file() << ":" << cp.line() << "] " << msg;
-    return oss.str();
-}
-
-} // namespace
-
-Exception::Exception(const std::string &msg, const CodePosition &cp)
-    : std::runtime_error(makeMessage(msg, cp))
-{
+    const size_t startAt = std::max<size_t>(fileName.find_last_of("/") + 1, 0);
+    return fileName.substr(startAt);
 }
 
 } // namespace buildboxcommon
