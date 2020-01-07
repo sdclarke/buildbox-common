@@ -16,6 +16,7 @@
 
 #include <buildboxcommon_systemutils.h>
 
+#include <buildboxcommon_exception.h>
 #include <buildboxcommon_logging.h>
 
 #include <cerrno>
@@ -87,7 +88,9 @@ int SystemUtils::waitPid(const pid_t pid)
                 continue;
             }
 
-            throw std::system_error(waitpid_error, std::system_category());
+            BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(std::system_error, errno,
+                                                  std::system_category,
+                                                  "Error in waitpid()");
         }
 
         if (WIFEXITED(status)) {
@@ -111,9 +114,9 @@ int SystemUtils::waitPid(const pid_t pid)
          *
          * (https://pubs.opengroup.org/onlinepubs/009695399/functions/wait.html)
          */
-        throw std::runtime_error(
-            "`waitpid()` returned an unexpected status: " +
-            std::to_string(status));
+        BUILDBOXCOMMON_THROW_EXCEPTION(
+            std::runtime_error,
+            "`waitpid()` returned an unexpected status: " << status);
     }
 }
 
@@ -131,7 +134,8 @@ std::string SystemUtils::get_current_working_directory()
             bufferSize *= 2;
         }
         else {
-            throw std::runtime_error("current working directory not found");
+            BUILDBOXCOMMON_THROW_EXCEPTION(
+                std::runtime_error, "current working directory not found");
         }
     }
 }

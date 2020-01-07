@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <buildboxcommon_logging.h>
 #include <buildboxcommon_timeutils.h>
+
+#include <buildboxcommon_exception.h>
+#include <buildboxcommon_logging.h>
 
 #include <system_error>
 
@@ -47,9 +49,9 @@ TimeUtils::parse_timestamp(const std::string &timestamp)
         return timepoint;
     }
     else {
-        const std::string err_msg = "Failed to parse timestamp: " + timestamp;
-        BUILDBOX_LOG_ERROR(err_msg);
-        throw std::runtime_error(err_msg);
+        BUILDBOXCOMMON_THROW_EXCEPTION(std::runtime_error,
+                                       "Failed to parse timestamp: \""
+                                           << timestamp << "\"");
     }
 }
 

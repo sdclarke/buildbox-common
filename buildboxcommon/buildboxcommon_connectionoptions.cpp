@@ -15,6 +15,7 @@
  */
 
 #include <buildboxcommon_connectionoptions.h>
+#include <buildboxcommon_exception.h>
 #include <buildboxcommon_fileutils.h>
 #include <buildboxcommon_logging.h>
 
@@ -175,7 +176,8 @@ std::shared_ptr<grpc::Channel> ConnectionOptions::createChannel() const
         creds = grpc::InsecureChannelCredentials();
     }
     else {
-        throw std::runtime_error("Unsupported URL scheme");
+        BUILDBOXCOMMON_THROW_EXCEPTION(std::runtime_error,
+                                       "Unsupported URL scheme");
     }
 
     return grpc::CreateChannel(target, creds);

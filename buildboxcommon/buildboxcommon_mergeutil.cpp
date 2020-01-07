@@ -15,6 +15,7 @@
 #include <buildboxcommon_mergeutil.h>
 
 #include <buildboxcommon_cashash.h>
+#include <buildboxcommon_exception.h>
 #include <buildboxcommon_logging.h>
 #include <buildboxcommon_merklize.h>
 
@@ -191,15 +192,14 @@ void buildFlattenedPath(PathNodeMetaDataMap *map,
         // same file name but different digest or 'is_executable' flag
         const auto it = map->find(newFile);
         if (it != map->end() && (*it->second != node)) {
-            std::ostringstream oss;
-            oss << "file collision: existing file [" << it->second->path()
-                << ":" << it->second->digest() << ":" << std::boolalpha
-                << it->second->isExecutable() << "]"
-                << " detected while attempting to add new file [" << newFile
-                << ":" << node.digest() << ":" << std::boolalpha
-                << node.is_executable();
-            BUILDBOX_LOG_ERROR(oss.str());
-            throw std::runtime_error(oss.str());
+            BUILDBOXCOMMON_THROW_EXCEPTION(
+                std::runtime_error,
+                "file collision: existing file ["
+                    << it->second->path() << ":" << it->second->digest() << ":"
+                    << std::boolalpha << it->second->isExecutable() << "]"
+                    << " detected while attempting to add new file ["
+                    << newFile << ":" << node.digest() << ":" << std::boolalpha
+                    << node.is_executable());
         }
         map->emplace(newFile,
                      std::make_shared<FileNodeMetaData>(newFile, node.digest(),
@@ -221,14 +221,13 @@ void buildFlattenedPath(PathNodeMetaDataMap *map,
             const auto *metaNode =
                 dynamic_cast<SymlinkNodeMetaData *>(it->second.get());
             if (metaNode != nullptr && metaNode->target() != node.target()) {
-                std::ostringstream oss;
-                oss << "error processing symlink: existing symlink ["
-                    << it->first << " -> " << metaNode->target()
-                    << "] has the same name but different target than new "
-                       "symlink ["
-                    << newSymlinkName << " -> " << node.target() << "]";
-                BUILDBOX_LOG_ERROR(oss.str());
-                throw std::runtime_error(oss.str());
+                BUILDBOXCOMMON_THROW_EXCEPTION(
+                    std::runtime_error,
+                    "error processing symlink: existing symlink ["
+                        << it->first << " -> " << metaNode->target()
+                        << "] has the same name but different target than new "
+                           "symlink ["
+                        << newSymlinkName << " -> " << node.target() << "]");
             }
         }
         map->emplace(newSymlinkName, std::make_shared<SymlinkNodeMetaData>(

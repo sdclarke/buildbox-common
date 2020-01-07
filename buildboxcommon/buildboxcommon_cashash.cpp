@@ -127,8 +127,9 @@ const EVP_MD *DigestGenerator::getDigestFunctionStruct(
             return EVP_sha512();
 
         default:
-            throw std::runtime_error("Digest function value not supported: " +
-                                     std::to_string(digest_function_value));
+            BUILDBOXCOMMON_THROW_EXCEPTION(
+                std::runtime_error, "Digest function value not supported: "
+                                        << digest_function_value);
     }
 }
 
@@ -183,10 +184,10 @@ DigestGenerator::processFile(int fd,
         update_function(buffer.data(), static_cast<size_t>(bytes_read));
         total_bytes_read += static_cast<size_t>(bytes_read);
     }
-
     if (bytes_read == -1) {
-        throw std::system_error(errno, std::system_category(),
-                                "Error reading file");
+        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+            std::system_error, errno, std::system_category,
+            "Error in read on file descriptor " << fd);
     }
 
     return total_bytes_read;
@@ -212,8 +213,8 @@ DigestGenerator::EVP_MD_CTX_ptr DigestGenerator::createDigestContext() const
     // throw.
 
     if (!digest_context) {
-        throw std::runtime_error(
-            "Error creating `EVP_MD_CTX` context struct.");
+        BUILDBOXCOMMON_THROW_EXCEPTION(
+            std::runtime_error, "Error creating `EVP_MD_CTX` context struct");
     }
 
     throwIfNotSuccessful(EVP_DigestInit_ex(digest_context.get(),

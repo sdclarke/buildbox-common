@@ -191,18 +191,20 @@ std::string Client::fetchString(const Digest &digest)
 
         const auto read_status = reader->Finish();
         if (!read_status.ok()) {
-            throw std::runtime_error("Error fetching string: " +
-                                     read_status.error_message());
+            BUILDBOXCOMMON_THROW_EXCEPTION(
+                std::runtime_error, "Error fetching digest "
+                                        << digest << ": error = \""
+                                        << read_status.error_message() << "\"")
         }
 
         const auto bytes_downloaded =
             static_cast<google::protobuf::int64>(result.size());
         if (bytes_downloaded != digest.size_bytes()) {
-            std::ostringstream errorMsg;
-            errorMsg << "Expected " << digest.size_bytes()
-                     << " bytes, but downloaded blob was " << bytes_downloaded
-                     << " bytes";
-            throw std::runtime_error(errorMsg.str());
+            BUILDBOXCOMMON_THROW_EXCEPTION(
+                std::runtime_error, "Expected "
+                                        << digest.size_bytes()
+                                        << " bytes, but downloaded blob was "
+                                        << bytes_downloaded << " bytes");
         }
 
         BUILDBOX_LOG_TRACE(resourceName << ": " << bytes_downloaded
@@ -231,24 +233,27 @@ void Client::download(int fd, const Digest &digest)
         while (reader->Read(&response)) {
             if (write(fd, response.data().c_str(), response.data().size()) <
                 0) {
-                throw std::system_error(errno, std::generic_category());
+                BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+                    std::system_error, errno, std::generic_category,
+                    "Error in write to descriptor " << fd);
             }
         }
 
         const auto read_status = reader->Finish();
         if (!read_status.ok()) {
-            throw std::runtime_error("Error downloading blob: " +
-                                     read_status.error_message());
+            BUILDBOXCOMMON_THROW_EXCEPTION(std::runtime_error,
+                                           "Error downloading blob: " +
+                                               read_status.error_message());
         }
 
         struct stat st;
         fstat(fd, &st);
         if (st.st_size != digest.size_bytes()) {
-            std::ostringstream errorMsg;
-            errorMsg << "Expected " << digest.size_bytes()
-                     << " bytes, but downloaded blob was " << st.st_size
-                     << " bytes";
-            throw std::runtime_error(errorMsg.str());
+            BUILDBOXCOMMON_THROW_EXCEPTION(
+                std::runtime_error, "Expected "
+                                        << digest.size_bytes()
+                                        << " bytes, but downloaded blob was "
+                                        << st.st_size << " bytes");
         }
         BUILDBOX_LOG_TRACE(resourceName << ": " << st.st_size
                                         << " bytes retrieved");
@@ -387,8 +392,9 @@ void Client::upload(const std::string &data, const Digest &digest)
             }
 
             if (!writer->Write(request)) {
-                throw std::runtime_error("Upload of " + digest.hash() +
-                                         " failed: broken stream");
+                BUILDBOXCOMMON_THROW_EXCEPTION(
+                    std::runtime_error,
+                    "Upload of " << digest.hash() << " failed: broken stream");
             }
         }
 
@@ -396,11 +402,11 @@ void Client::upload(const std::string &data, const Digest &digest)
         auto status = writer->Finish();
         if (static_cast<google::protobuf::int64>(offset) !=
             digest.size_bytes()) {
-            std::ostringstream errorMsg;
-            errorMsg << "Expected to upload " << digest.size_bytes()
-                     << " bytes for " << digest.hash()
-                     << ", but uploaded blob was " << offset << " bytes";
-            throw std::runtime_error(errorMsg.str());
+            BUILDBOXCOMMON_THROW_EXCEPTION(
+                std::runtime_error,
+                "Expected to upload "
+                    << digest.size_bytes() << " bytes for " << digest.hash()
+                    << ", but uploaded blob was " << offset << " bytes");
         }
 
         BUILDBOX_LOG_DEBUG(resourceName << ": " << offset
@@ -443,9 +449,10 @@ void Client::upload(int fd, const Digest &digest)
 
             if (offset + bytesRead < digest.size_bytes()) {
                 if (bytesRead == 0) {
-                    throw std::runtime_error(
-                        "Upload of " + digest.hash() +
-                        " failed: unexpected end of file");
+                    BUILDBOXCOMMON_THROW_EXCEPTION(
+                        std::runtime_error,
+                        "Upload of " << digest.hash()
+                                     << " failed: unexpected end of file");
                 }
             }
             else {
@@ -454,8 +461,9 @@ void Client::upload(int fd, const Digest &digest)
             }
 
             if (!writer->Write(request)) {
-                throw std::runtime_error("Upload of " + digest.hash() +
-                                         " failed: broken stream");
+                BUILDBOXCOMMON_THROW_EXCEPTION(
+                    std::runtime_error,
+                    "Upload of " << digest.hash() << " failed: broken stream");
             }
 
             offset += bytesRead;
@@ -464,7 +472,9 @@ void Client::upload(int fd, const Digest &digest)
         writer->WritesDone();
         auto status = writer->Finish();
         if (offset != digest.size_bytes()) {
-            throw std::runtime_error("Upload of " + digest.hash() + " failed");
+            BUILDBOXCOMMON_THROW_EXCEPTION(std::runtime_error,
+                                           "Upload of " << digest.hash()
+                                                        << " failed");
         }
 
         BUILDBOX_LOG_DEBUG(resourceName << ": " << offset
@@ -483,9 +493,11 @@ grpc::Status Client::uploadRequest(const UploadRequest &request)
             upload(request.data, request.digest);
         }
         else {
-            int fd = open(request.path.c_str(), O_RDONLY);
+            const int fd = open(request.path.c_str(), O_RDONLY);
             if (fd < 0) {
-                throw std::system_error(errno, std::system_category());
+                BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+                    std::system_error, errno, std::system_category,
+                    "Error in open for file \"" << request.path << "\"");
             }
             try {
                 upload(fd, request.digest);
@@ -591,11 +603,11 @@ void Client::downloadBlobs(const std::vector<Digest> &digests,
             if (write_status != 0 && write_status != EEXIST) {
                 // `EEXIST` means someone beat us to writing the file, which is
                 // not an error assuming the contents are the same.
-                BUILDBOX_LOG_ERROR(
+                BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+                    std::system_error, write_status, std::system_category,
                     "Could not atomically write blob with digest \""
-                    << hash << "/" << data.size() << "\" to " << path
-                    << strerror(write_status));
-                throw std::system_error(write_status, std::system_category());
+                        << hash << "/" << data.size() << "\" to \"" << path
+                        << "\"");
             }
         }
     };
@@ -731,12 +743,12 @@ std::vector<Directory> Client::getTree(const Digest &root_digest)
 
     grpc::Status status = reader->Finish();
     if (!status.ok()) {
-        std::ostringstream oss;
-        oss << "Error getting tree for digest \"" + toString(root_digest) +
-                   "\", status = ["
-            << status.error_code() << ": \"" + status.error_message() + "\"]";
-        BUILDBOX_LOG_ERROR(oss.str());
-        throw std::runtime_error(oss.str());
+        BUILDBOXCOMMON_THROW_EXCEPTION(std::runtime_error,
+                                       "Error getting tree for digest \""
+                                           << toString(root_digest)
+                                           << "\", status = ["
+                                           << status.error_code() << ": \""
+                                           << status.error_message() + "\"]");
     }
 
     return tree;
@@ -944,7 +956,8 @@ Client::findMissingBlobs(const std::vector<Digest> &digests)
             &context, request_to_issue, &response);
 
         if (!status.ok()) {
-            throw std::runtime_error("FindMissingBlobs() request failed.");
+            BUILDBOXCOMMON_THROW_EXCEPTION(
+                std::runtime_error, "FindMissingBlobs() request failed");
         }
 
         missing_blobs.insert(missing_blobs.end(),

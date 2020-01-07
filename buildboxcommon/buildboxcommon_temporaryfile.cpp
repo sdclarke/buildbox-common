@@ -13,6 +13,9 @@
 // limitations under the License.
 
 #include <buildboxcommon_temporaryfile.h>
+
+#include <buildboxcommon_exception.h>
+
 #include <dirent.h>
 #include <sys/stat.h>
 #include <system_error>
@@ -65,7 +68,9 @@ void TemporaryFile::create(const char *directory, const char *prefix,
 
     this->d_fd = mkstemp(&name[0]);
     if (this->d_fd == -1) {
-        throw std::system_error(errno, std::system_category());
+        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(std::system_error, errno,
+                                              std::system_category,
+                                              "Error in mkstemp");
     }
     /* mkstemp creates files with mode 0600 */
     if (mode != 0600) {

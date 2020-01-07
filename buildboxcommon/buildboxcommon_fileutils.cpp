@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <buildboxcommon_direntwrapper.h>
 #include <buildboxcommon_fileutils.h>
+
+#include <buildboxcommon_direntwrapper.h>
+#include <buildboxcommon_exception.h>
 #include <buildboxcommon_logging.h>
 #include <buildboxcommon_temporaryfile.h>
 #include <buildboxcommon_timeutils.h>
@@ -155,8 +157,9 @@ struct stat FileUtils::get_file_stat(const char *path)
 {
     struct stat statResult;
     if (stat(path, &statResult) != 0) {
-        BUILDBOX_LOG_ERROR("Failed to get file stats at " << path << ".");
-        throw std::system_error(errno, std::system_category());
+        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+            std::system_error, errno, std::system_category,
+            "Failed to get file stats at \"" << path << "\"");
     }
     return statResult;
 }
@@ -165,8 +168,9 @@ struct stat FileUtils::get_file_stat(const int fd)
 {
     struct stat statResult;
     if (fstat(fd, &statResult) != 0) {
-        BUILDBOX_LOG_ERROR("Failed to get file stats.");
-        throw std::system_error(errno, std::system_category());
+        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+            std::system_error, errno, std::system_category,
+            "Failed to get file stats for file descriptor " << fd);
     }
     return statResult;
 }
@@ -206,8 +210,9 @@ void FileUtils::set_file_mtime(
     if (futimens(fd, times) == 0) {
         return;
     }
-    BUILDBOX_LOG_ERROR("Failed to set file mtime: " << std::strerror(errno));
-    throw std::system_error(errno, std::system_category());
+    BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(std::system_error, errno,
+                                          std::system_category,
+                                          "Failed to set file mtime");
 }
 
 void FileUtils::set_file_mtime(
@@ -223,9 +228,9 @@ void FileUtils::set_file_mtime(
     if (utimensat(AT_FDCWD, path, times, 0) == 0) {
         return;
     }
-    BUILDBOX_LOG_ERROR("Failed to set file "
-                       << path << " mtime: " << std::strerror(errno));
-    throw std::system_error(errno, std::system_category());
+    BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+        std::system_error, errno, std::system_category,
+        "Failed to set file \"" << path << "\" mtime");
 }
 
 void FileUtils::make_executable(const char *path)
@@ -237,22 +242,24 @@ void FileUtils::make_executable(const char *path)
             return;
         }
     }
-    throw std::system_error(errno, std::system_category());
+    BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+        std::system_error, errno, std::system_category,
+        "Error in stat for path \"" << path << "\"");
 }
 
 std::string FileUtils::get_file_contents(const char *path)
 {
     std::ifstream file_stream(path, std::ios::in | std::ios::binary);
     if (file_stream.bad() || file_stream.fail()) {
-        throw std::runtime_error("Failed to open file " + std::string(path) +
-                                 ": " + std::strerror(errno));
+        BUILDBOXCOMMON_THROW_EXCEPTION(
+            std::runtime_error, "Failed to open file \"" << path << "\"");
     }
 
     std::ostringstream file_stringstream;
     file_stringstream << file_stream.rdbuf();
     if (file_stream.bad()) {
-        throw std::runtime_error("Failed to read file " + std::string(path) +
-                                 ": " + std::strerror(errno));
+        BUILDBOXCOMMON_THROW_EXCEPTION(
+            std::runtime_error, "Failed to read file \"" << path << "\"");
     }
     // (`std::stringstream::failbit` is set if the opened file reached EOF.
     // That is not an error: we can read empty files.)
@@ -338,13 +345,13 @@ int FileUtils::write_file_atomically(const std::string &path,
         std::vector<char> output_path(path.cbegin(), path.cend());
         output_path.push_back('\0');
         const char *parent_directory = dirname(&output_path[0]);
-
         if (parent_directory == nullptr) {
-            throw std::system_error(
-                errno, std::system_category(),
+            BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+                std::system_error, errno, std::system_category,
                 "Could not determine intermediate "
-                "directory with `dirname(3)` for atomic write to " +
-                    path);
+                    << "directory with `dirname(3)` for atomic write to path "
+                       "\""
+                    << path << "\"");
         }
         temporary_directory = std::string(parent_directory);
     }
@@ -372,11 +379,9 @@ int FileUtils::write_file_atomically(const std::string &path,
     file.close();
 
     if (!file.good()) {
-        const std::string error_message = "Failed writing to temporary file " +
-                                          temp_filename + ": " +
-                                          strerror(errno);
-        BUILDBOX_LOG_ERROR(error_message);
-        throw std::system_error(errno, std::system_category());
+        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+            std::system_error, errno, std::system_category,
+            "Failed writing to temporary file \"" << temp_filename << "\"");
     }
 
     // Creating a hard link (atomic operation) from the destination to the
@@ -407,22 +412,18 @@ void FileUtils::delete_recursively(const char *path,
         // For deletion using the file descriptor, the path must be
         // relative to the directory the file descriptor points to.
         if (unlinkat(fd, dir_basename.c_str(), AT_REMOVEDIR) == -1) {
-            int errsv = errno;
-            BUILDBOX_LOG_ERROR("Error removing directory: "
-                               << "[" << dir_path << "]"
-                               << " with error: " << strerror(errsv));
-            throw std::system_error(errno, std::system_category());
+            BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+                std::system_error, errno, std::system_category,
+                "Error removing directory \"" << dir_path << "\"");
         }
     };
 
     DirectoryTraversalFnPtr unlink_func = [](const char *file_path = nullptr,
                                              int fd = 0) {
         if (unlinkat(fd, file_path, 0) == -1) {
-            int errsv = errno;
-            BUILDBOX_LOG_ERROR("Error removing file: "
-                               << "[" << file_path << "]"
-                               << " with error: " << strerror(errsv));
-            throw std::system_error(errsv, std::system_category());
+            BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+                std::system_error, errno, std::system_category,
+                "Error removing file \"" << file_path << "\"");
         }
     };
 
@@ -461,11 +462,9 @@ std::string FileUtils::make_path_absolute(const std::string &path,
                                           const std::string &cwd)
 {
     if (cwd.empty() || cwd.front() != '/') {
-        std::ostringstream os;
-        os << "cwd must be an absolute path: [" << cwd << "]";
-        const std::string err = os.str();
-        BUILDBOX_LOG_ERROR(err);
-        throw std::runtime_error(err);
+        BUILDBOXCOMMON_THROW_EXCEPTION(std::runtime_error,
+                                       "cwd must be an absolute path: ["
+                                           << cwd << "]");
     }
 
     const std::string full_path = cwd + '/' + path;
