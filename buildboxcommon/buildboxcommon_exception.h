@@ -82,24 +82,25 @@ namespace buildboxcommon {
 
 #define BUILDBOXCOMMON_THROW_EXCEPTION(exception, what)                       \
     {                                                                         \
-        char tmp[] = {__FILE__};                                              \
-        std::ostringstream oss;                                               \
-        oss << #exception << " exception thrown at "                          \
-            << "[" << ::basename(tmp) << ":" << __LINE__ << "], errMsg = \""  \
-            << what << "\"";                                                  \
-        throw exception(oss.str());                                           \
+        char ___tmp_file_name[] = {__FILE__};                                 \
+        std::ostringstream __what__stream;                                    \
+        __what__stream << #exception << " exception thrown at "               \
+                       << "[" << ::basename(___tmp_file_name) << ":"          \
+                       << __LINE__ << "], errMsg = \"" << what << "\"";       \
+        throw exception(__what__stream.str());                                \
     }
 
 #define BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(exception, what)                \
     {                                                                         \
-        char tmp[] = {__FILE__};                                              \
-        std::ostringstream oss;                                               \
-        oss << "exception thrown at "                                         \
-            << "[" << ::basename(tmp) << ":" << __LINE__ << "] ["             \
-            << exception.code().category().name() << ":"                      \
-            << exception.code().value() << "], errMsg = \"" << what           \
-            << "\", errno ";                                                  \
-        throw std::system_error(exception.code(), oss.str());                 \
+        char ___tmp_file_name[] = {__FILE__};                                 \
+        std::ostringstream __what__stream;                                    \
+        __what__stream << "exception thrown at "                              \
+                       << "[" << ::basename(___tmp_file_name) << ":"          \
+                       << __LINE__ << "] ["                                   \
+                       << exception.code().category().name() << ":"           \
+                       << exception.code().value() << "], errMsg = \""        \
+                       << what << "\", errno ";                               \
+        throw std::system_error(exception.code(), __what__stream.str());      \
     }
 
 } // namespace buildboxcommon
