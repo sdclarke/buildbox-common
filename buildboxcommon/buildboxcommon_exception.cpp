@@ -15,13 +15,3 @@
  */
 
 #include <buildboxcommon_exception.h>
-
-namespace buildboxcommon {
-
-std::string ExceptionUtil::basename(const std::string &fileName)
-{
-    const size_t startAt = std::max<size_t>(fileName.find_last_of("/") + 1, 0);
-    return fileName.substr(startAt);
-}
-
-} // namespace buildboxcommon
