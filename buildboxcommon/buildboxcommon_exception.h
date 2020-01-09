@@ -98,7 +98,7 @@ namespace buildboxcommon {
                        << "[" << ::basename(___tmp_file_name) << ":"          \
                        << __LINE__ << "] [" << cat().name() << ":" << err     \
                        << "], errMsg = \"" << what << "\", errno ";           \
-        throw std::system_error(err, cat(), __what__stream.str());            \
+        throw exception(err, cat(), __what__stream.str());                    \
     }
 
 } // namespace buildboxcommon
