@@ -17,7 +17,6 @@ syntax = "proto3";
 package build.buildgrid;
 
 import "build/bazel/remote/execution/v2/remote_execution.proto";
-import "google/api/annotations.proto";
 import "google/rpc/status.proto";
 
 service LocalContentAddressableStorage {
