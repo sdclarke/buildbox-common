@@ -61,7 +61,7 @@ namespace buildboxcommon {
  *         read(fd, &buffer[0], bytestreamChunkSizeBytes());
  *     if (bytesRead < 0) {
  *         BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
- *             std::system_error(errno, std::generic_category()),
+ *             std::system_error, errno, std::generic_category,
  *             "Error in read on descriptor " << fd);
  *     }
  * }
@@ -90,17 +90,15 @@ namespace buildboxcommon {
         throw exception(__what__stream.str());                                \
     }
 
-#define BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(exception, what)                \
+#define BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(exception, err, cat, what)      \
     {                                                                         \
         char ___tmp_file_name[] = {__FILE__};                                 \
         std::ostringstream __what__stream;                                    \
-        __what__stream << "exception thrown at "                              \
+        __what__stream << #exception << " exception thrown at "               \
                        << "[" << ::basename(___tmp_file_name) << ":"          \
-                       << __LINE__ << "] ["                                   \
-                       << exception.code().category().name() << ":"           \
-                       << exception.code().value() << "], errMsg = \""        \
-                       << what << "\", errno ";                               \
-        throw std::system_error(exception.code(), __what__stream.str());      \
+                       << __LINE__ << "] [" << cat().name() << ":" << err     \
+                       << "], errMsg = \"" << what << "\", errno ";           \
+        throw std::system_error(err, cat(), __what__stream.str());            \
     }
 
 } // namespace buildboxcommon

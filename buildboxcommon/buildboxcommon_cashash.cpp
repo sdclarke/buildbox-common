@@ -61,7 +61,7 @@ Digest CASHash::hashFile(const std::string &path)
     const int fd = open(path.c_str(), O_RDONLY);
     if (fd == -1) {
         BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
-            std::system_error(errno, std::system_category()),
+            std::system_error, errno, std::system_category,
             "Error opening file \"" << path << "\"");
     }
 

@@ -287,7 +287,7 @@ void Client::downloadDirectory(
         const std::string directory_path = path + "/" + directory_node.name();
         if (mkdir(directory_path.c_str(), 0777) == -1) {
             BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
-                std::system_error(errno, std::system_category()),
+                std::system_error, errno, std::system_category,
                 "Error in mkdir for directory \"" << directory_path << "\"");
         }
 
@@ -323,7 +323,7 @@ void Client::downloadDirectory(
         if (symlink(symlink_node.target().c_str(), symlink_path.c_str()) !=
             0) {
             BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
-                std::system_error(errno, std::system_category()),
+                std::system_error, errno, std::system_category,
                 "Unable to create symlink: \""
                     << symlink_path + "\" to target: \""
                     << symlink_node.target() << "\"");
@@ -432,7 +432,7 @@ void Client::upload(int fd, const Digest &digest)
                 read(fd, &buffer[0], bytestreamChunkSizeBytes());
             if (bytesRead < 0) {
                 BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
-                    std::system_error(errno, std::generic_category()),
+                    std::system_error, errno, std::generic_category,
                     "Error in read on descriptor " << fd);
             }
 
