@@ -161,5 +161,3 @@ if(BUILD_TESTING)
     include_directories(third_party/grpc/include)
     add_subdirectory(test)
 endif()
-
-add_subdirectory(tools)
