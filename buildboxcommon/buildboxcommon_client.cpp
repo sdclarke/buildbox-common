@@ -286,10 +286,9 @@ void Client::downloadDirectory(
     for (const DirectoryNode &directory_node : directory.directories()) {
         const std::string directory_path = path + "/" + directory_node.name();
         if (mkdir(directory_path.c_str(), 0777) == -1) {
-            BUILDBOXCOMMON_THROW_EXCEPTION("Error in mkdir for directory \""
-                                           << directory_path << "\", errno = ["
-                                           << errno << ":"
-                                           << std::strerror(errno) << "]");
+            BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+                std::system_error, errno, std::system_category,
+                "Error in mkdir for directory \"" << directory_path << "\"");
         }
 
         downloadDirectory(directory_node.digest(), directory_path,
@@ -313,22 +312,21 @@ void Client::downloadDirectory(
         // and `//` in the target path.
         if (symlink_node.target().find("/./") != std::string::npos ||
             symlink_node.target().find("//") != std::string::npos) {
-            const auto error_message =
-                "Cannot create symlink. The target path: [" +
-                symlink_node.target() +
-                "] contains substrings not allowed by the API: [/./] or [//].";
-            BUILDBOX_LOG_ERROR(error_message);
-            throw std::invalid_argument(error_message);
+            BUILDBOXCOMMON_THROW_EXCEPTION(
+                std::invalid_argument,
+                "Cannot create symlink. The target path \""
+                    << symlink_node.target()
+                    << "\" contains substrings not allowed "
+                       "by the API: [/./] or "
+                       "[//]");
         }
         if (symlink(symlink_node.target().c_str(), symlink_path.c_str()) !=
             0) {
-            const int errsv = errno;
-            const auto error_message = "Unable to create symlink: [" +
-                                       symlink_path + "]" + " to target: [" +
-                                       symlink_node.target() +
-                                       "] with error: " + strerror(errsv);
-            BUILDBOX_LOG_ERROR(error_message);
-            throw std::runtime_error(error_message);
+            BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+                std::system_error, errno, std::system_category,
+                "Unable to create symlink: \""
+                    << symlink_path + "\" to target: \""
+                    << symlink_node.target() << "\"");
         }
     }
 }
@@ -355,11 +353,12 @@ void Client::upload(const std::string &data, const Digest &digest)
     const auto data_size = static_cast<google::protobuf::int64>(data.size());
 
     if (data_size != digest.size_bytes()) {
-        std::ostringstream errorMsg;
-        errorMsg << "Digest length of " << digest.size_bytes() << " bytes for "
-                 << digest.hash() << " does not match string length of "
-                 << data_size << " bytes";
-        throw std::logic_error(errorMsg.str());
+        BUILDBOXCOMMON_THROW_EXCEPTION(
+            std::logic_error, "Digest length of "
+                                  << digest.size_bytes() << " bytes for "
+                                  << digest.hash()
+                                  << " does not match string length of "
+                                  << data_size << " bytes");
     }
 
     const std::string resourceName = this->makeResourceName(digest, true);
@@ -432,7 +431,9 @@ void Client::upload(int fd, const Digest &digest)
             const ssize_t bytesRead =
                 read(fd, &buffer[0], bytestreamChunkSizeBytes());
             if (bytesRead < 0) {
-                throw std::system_error(errno, std::generic_category());
+                BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+                    std::system_error, errno, std::generic_category,
+                    "Error in read on descriptor " << fd);
             }
 
             WriteRequest request;
@@ -688,8 +689,10 @@ Client::stage(const Digest &root_digest, const std::string &path) const
     if (!succesful_write) {
         const grpc::Status write_error_status = reader_writer->Finish();
         BUILDBOXCOMMON_THROW_EXCEPTION(
-            "Error staging \"" + toString(root_digest) + "\" into \"" + path +
-            "\": \"" + write_error_status.error_message() + "\"");
+            std::runtime_error,
+            "Error staging \"" << toString(root_digest) << "\" into \"" << path
+                               << "\": \""
+                               << write_error_status.error_message() << "\"");
     }
 
     StageTreeResponse response;
@@ -698,8 +701,10 @@ Client::stage(const Digest &root_digest, const std::string &path) const
         reader_writer->WritesDone();
         const grpc::Status read_error_status = reader_writer->Finish();
         BUILDBOXCOMMON_THROW_EXCEPTION(
-            "Error staging \"" + toString(root_digest) + "\" into \"" + path +
-            "\": \"" + read_error_status.error_message() + "\"");
+            std::runtime_error,
+            "Error staging \"" << toString(root_digest) << "\" into \"" << path
+                               << "\": \"" << read_error_status.error_message()
+                               << "\"");
     }
 
     return std::make_unique<StagedDirectory>(context, reader_writer,

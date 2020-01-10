@@ -17,42 +17,88 @@
 #ifndef INCLUDED_BUILDBOXCOMMON_EXCEPTION
 #define INCLUDED_BUILDBOXCOMMON_EXCEPTION
 
+#include <libgen.h>
+#include <sstream>
 #include <stdexcept>
 #include <string>
+#include <system_error>
 
 namespace buildboxcommon {
 
-class CodePosition;
+/*
+ * Use these macros to programatically capture the source location(file, line)
+ * of a throw'd exception
+ */
 
-class Exception : public std::runtime_error {
-  public:
-    Exception(const std::string &msg, const CodePosition &cp);
-};
+// clang-format off
+/*
+ * Example usage #1 from file foo.cpp:
+ * int func()
+ * {
+ *     const int rcode = tryThis();
+ *     if (!rcode) {
+ *         BUILDBOXCOMMON_THROW_EXCEPTION(std::logic_error, "tryThis failed");
+ *     }
+ *     return 0;
+ * }
+ * ...
+ *     try {
+ *         func();
+ *     }
+ *     catch (const std::logic_error &e) {
+ *         std::cout << e.what() << std::endl;
+ *     }
+ *
+ * Sample output from example #1:
+ * std::logic_error exception thrown at [foo.cpp:25], errMsg = "tryThis failed"
+ * ^                                     ^                      ^
+ * |- Name of exception                  |- Source location     |- Descriptive text
+ *
+ * Example usage #2 from file buildboxcommon_client.cpp:
+ * void Client::upload(int fd, const Digest &digest)
+ * {
+ *     const ssize_t bytesRead =
+ *         read(fd, &buffer[0], bytestreamChunkSizeBytes());
+ *     if (bytesRead < 0) {
+ *         BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+ *             std::system_error, errno, std::generic_category,
+ *             "Error in read on descriptor " << fd);
+ *     }
+ * }
+ * ...
+ *     try {
+ *         client.upload(-40, digest);
+ *     }
+ *     catch (const std::system_error &e) {
+ *         std::cout << e.what() << std::endl;
+ *     }
+ *
+ * Sample output from example #2:
+ * exception thrown at [buildboxcommon_client.cpp:29] [generic:9], errMsg = "Error in read on descriptor -40", errno : Bad file descriptor
+ *                      ^                              ^                    ^                                          ^
+ *                      |- Source location             |- Category/errno    |- Descriptive text                        |- Errno text
+ */
+// clang-format on
 
-class CodePosition {
-  private:
-    std::string d_file;
-    int d_line;
-
-  public:
-    CodePosition(const std::string &file, const int line)
-        : d_file(file), d_line(line)
-    {
+#define BUILDBOXCOMMON_THROW_EXCEPTION(exception, what)                       \
+    {                                                                         \
+        char ___tmp_file_name[] = {__FILE__};                                 \
+        std::ostringstream __what__stream;                                    \
+        __what__stream << #exception << " exception thrown at "               \
+                       << "[" << ::basename(___tmp_file_name) << ":"          \
+                       << __LINE__ << "], errMsg = \"" << what << "\"";       \
+        throw exception(__what__stream.str());                                \
     }
 
-    const std::string &file() const { return d_file; }
-    int line() const { return d_line; }
-};
-
-#define BUILDBOXCOMMON_CODEPOSITION()                                         \
-    buildboxcommon::CodePosition(__FILE__, __LINE__)
-
-#define BUILDBOXCOMMON_THROW_EXCEPTION(message)                               \
+#define BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(exception, err, cat, what)      \
     {                                                                         \
-        std::ostringstream oss;                                               \
-        oss << message;                                                       \
-        throw buildboxcommon::Exception(oss.str(),                            \
-                                        BUILDBOXCOMMON_CODEPOSITION());       \
+        char ___tmp_file_name[] = {__FILE__};                                 \
+        std::ostringstream __what__stream;                                    \
+        __what__stream << #exception << " exception thrown at "               \
+                       << "[" << ::basename(___tmp_file_name) << ":"          \
+                       << __LINE__ << "] [" << cat().name() << ":" << err     \
+                       << "], errMsg = \"" << what << "\", errno ";           \
+        throw exception(err, cat(), __what__stream.str());                    \
     }
 
 } // namespace buildboxcommon

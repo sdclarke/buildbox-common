@@ -15,24 +15,3 @@
  */
 
 #include <buildboxcommon_exception.h>
-
-#include <sstream>
-
-namespace buildboxcommon {
-namespace {
-
-std::string makeMessage(const std::string &msg, const CodePosition &cp)
-{
-    std::ostringstream oss;
-    oss << "[" << cp.file() << ":" << cp.line() << "] " << msg;
-    return oss.str();
-}
-
-} // namespace
-
-Exception::Exception(const std::string &msg, const CodePosition &cp)
-    : std::runtime_error(makeMessage(msg, cp))
-{
-}
-
-} // namespace buildboxcommon
