@@ -17,6 +17,7 @@
 #include <buildboxcommon_systemutils.h>
 
 #include <buildboxcommon_exception.h>
+#include <buildboxcommon_fileutils.h>
 #include <buildboxcommon_logging.h>
 
 #include <cerrno>
@@ -72,6 +73,44 @@ int SystemUtils::executeCommand(const std::vector<std::string> &command)
     else {
         return 126; // Command invoked cannot execute
     }
+}
+
+std::string SystemUtils::getPathToCommand(const std::string &command)
+{
+    if (command.find('/') != std::string::npos) {
+        return command; // `command` is a path, no need to search.
+    }
+
+    // Reading $PATH, parsing it, and looking for the binary:
+    char *path_pointer = getenv("PATH");
+    if (path_pointer == nullptr) {
+        BUILDBOX_LOG_ERROR("Could not read $PATH");
+        return "";
+    }
+
+    // `strtok()` modifies its input, making a copy:
+    const std::unique_ptr<char> path_envvar_contents(strdup(path_pointer));
+    if (path_envvar_contents == nullptr) {
+        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(std::system_error, errno,
+                                              std::system_category,
+                                              "Error making a copy of $PATH");
+    }
+
+    const char *separator = ":";
+    char *token = strtok(path_envvar_contents.get(), separator);
+
+    while (token != nullptr) {
+        const std::string path = std::string(token) + "/" + command;
+
+        if (FileUtils::is_regular_file(path.c_str()) &&
+            FileUtils::is_executable(path.c_str())) {
+            return path;
+        }
+
+        token = strtok(nullptr, separator);
+    }
+
+    return "";
 }
 
 int SystemUtils::waitPid(const pid_t pid)

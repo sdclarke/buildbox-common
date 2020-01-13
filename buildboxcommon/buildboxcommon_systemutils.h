@@ -19,6 +19,15 @@ struct SystemUtils {
      */
     static int executeCommand(const std::vector<std::string> &command);
 
+    /* Looks for the absolute path to a given command using the `$PATH`
+     * environment variable.
+     *
+     * If `command` is already a path, it returns it unmodified.
+     *
+     * If the corresponding executable is not found, returns an empty string.
+     */
+    static std::string getPathToCommand(const std::string &command);
+
     /*
      * Waits for the given PID and returns an exit code following the
      * convention used by Bash:
