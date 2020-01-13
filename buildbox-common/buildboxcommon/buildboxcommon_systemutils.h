@@ -9,7 +9,7 @@ namespace buildboxcommon {
 struct SystemUtils {
     /*
      * Executes the given command in the current process. `command[0]` must be
-     * a command name and the other entries its arguments.
+     * a path to a binary and the other entries its arguments.
      *
      * If successful, it does not return.
      *

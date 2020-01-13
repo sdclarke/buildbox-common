@@ -53,15 +53,16 @@ int SystemUtils::executeCommand(const std::vector<std::string> &command)
     }
     argv[argc] = nullptr;
 
-    execvp(argv[0], const_cast<char *const *>(argv.get()));
+    execv(argv[0], const_cast<char *const *>(argv.get()));
+    // `execv()` does NOT search for binaries using $PATH.
     // ---------------------------------------------------------------------
-    // The lines below will only be executed if `execvp()` failed, otherwise
-    // `execvp()` does not return.
+    // The lines below will only be executed if `execv()` failed, otherwise
+    // `execv()` does not return.
 
     const auto exec_error = errno;
     const auto exec_error_reason = strerror(errno);
 
-    BUILDBOX_LOG_ERROR("Error while calling `execvp("
+    BUILDBOX_LOG_ERROR("Error while calling `execv("
                        << logLineForCommand(command)
                        << ")`: " << exec_error_reason);
 

@@ -152,3 +152,14 @@ TEST_F(CommandLookupFixture, NonExecutableIgnored)
 
     ASSERT_EQ(SystemUtils::getPathToCommand(command_name), "");
 }
+
+TEST(SystemUtilsTests, ExecuteIgnoresPathEnvVar)
+{
+    const auto command_name = "echo";
+    // The command exists:
+    ASSERT_FALSE(SystemUtils::getPathToCommand(command_name).empty());
+
+    // But `executeCommand()` will not find it:
+    ASSERT_EQ(SystemUtils::executeCommand({command_name}),
+              127); // 127 == "command not found" as in Bash
+}

@@ -452,8 +452,16 @@ void Runner::executeAndStore(
         dup2(stderr_pipe[1], STDERR_FILENO);
         close(stderr_pipe[1]);
 
+        // According to the REAPI:
+        // "[...] the path to the executable [...] must be either a relative
+        // path, in which case it is evaluated with respect to the input root,
+        // or an absolute path."
+        //
+        // `executeCommand()` does NOT search for binaries using $PATH. So, if
+        // the command does not comply with that, it will fail.
         const int exit_code =
             buildboxcommon::SystemUtils::executeCommand(command);
+        // --------------------------------------------------------------------
 
         // `executeCommand()` only returns when encountering an error, so the
         // lines below will only be executed in that case:

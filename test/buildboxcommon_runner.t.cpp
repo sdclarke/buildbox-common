@@ -84,7 +84,10 @@ TEST(RunnerTest, ExecuteAndStoreHelloWorld)
     TestRunner runner;
     ActionResult result;
 
-    runner.executeAndStore({"echo", "hello", "world"},
+    const auto path_to_echo = SystemUtils::getPathToCommand("echo");
+    ASSERT_FALSE(path_to_echo.empty());
+
+    runner.executeAndStore({path_to_echo, "hello", "world"},
                            TestRunner::dummyUploadFunction, &result);
 
     const auto expected_stdout = "hello world\n";
@@ -103,11 +106,14 @@ TEST(RunnerTest, TestEmptyOutputsNotUploaded)
     TestRunner runner;
     ActionResult result;
 
-    runner.executeAndStore({"true"}, TestRunner::dummyUploadFunction, &result);
+    const auto path_to_true = SystemUtils::getPathToCommand("true");
+    ASSERT_FALSE(path_to_true.empty());
+
+    runner.executeAndStore({path_to_true}, TestRunner::dummyUploadFunction,
+                           &result);
 
     EXPECT_EQ(result.stdout_digest(), CASHash::hash(""));
     EXPECT_EQ(result.stderr_digest(), CASHash::hash(""));
-
     EXPECT_EQ(result.exit_code(), 0);
 
     assert_metadata_execution_timestamps_set(result);
@@ -143,7 +149,10 @@ TEST(RunnerTest, ExecuteAndStoreExitCode)
     TestRunner runner;
     ActionResult result;
 
-    runner.executeAndStore({"sh", "-c", "exit 23"},
+    const auto path_to_sh = SystemUtils::getPathToCommand("sh");
+    ASSERT_FALSE(path_to_sh.empty());
+
+    runner.executeAndStore({path_to_sh, "-c", "exit 23"},
                            TestRunner::dummyUploadFunction, &result);
 
     EXPECT_EQ(result.exit_code(), 23);
@@ -154,7 +163,10 @@ TEST(RunnerTest, ExecuteAndStoreStderr)
     TestRunner runner;
     ActionResult result;
 
-    runner.executeAndStore({"sh", "-c", "echo hello; echo world >&2"},
+    const auto path_to_sh = SystemUtils::getPathToCommand("sh");
+    ASSERT_FALSE(path_to_sh.empty());
+
+    runner.executeAndStore({path_to_sh, "-c", "echo hello; echo world >&2"},
                            TestRunner::dummyUploadFunction, &result);
 
     const auto expected_stdout = "hello\n";
