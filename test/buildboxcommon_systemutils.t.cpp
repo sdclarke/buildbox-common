@@ -15,6 +15,7 @@
  */
 
 #include <buildboxcommon_systemutils.h>
+#include <buildboxcommon_temporarydirectory.h>
 #include <buildboxcommon_temporaryfile.h>
 #include <gtest/gtest.h>
 
@@ -80,4 +81,74 @@ TEST(SystemUtilsTests, WaitPidThrowsOnError)
 {
     const int invalid_pid = -1;
     ASSERT_THROW(SystemUtils::waitPid(invalid_pid), std::system_error);
+}
+
+class CommandLookupFixture : public ::testing::Test {
+  protected:
+    CommandLookupFixture()
+    {
+        // Save the contents of $PATH:
+        char *path_pointer = getenv("PATH");
+        if (path_pointer == nullptr) {
+            throw std::runtime_error("Could not read $PATH");
+        }
+
+        d_path = strdup(path_pointer);
+        if (d_path == nullptr) {
+            throw std::runtime_error("Error copying $PATH: " +
+                                     std::string(strerror(errno)));
+        }
+    }
+
+    ~CommandLookupFixture()
+    {
+        // Restore $PATH:
+        setenv("PATH", d_path, true);
+        free(d_path);
+    }
+
+    char *d_path;
+};
+
+TEST_F(CommandLookupFixture, NonExistentCommand)
+{
+    ASSERT_EQ(SystemUtils::getPathToCommand("command-does-not-exist"), "");
+}
+
+TEST_F(CommandLookupFixture, Command)
+{
+    ASSERT_NE(SystemUtils::getPathToCommand("echo"), "");
+}
+
+TEST_F(CommandLookupFixture, CustomCommand)
+{
+    TemporaryDirectory dir;
+    const auto command_name = "test-executable";
+    const auto path_to_command = std::string(dir.name()) + "/" + command_name;
+
+    FileUtils::write_file_atomically(path_to_command, "");
+    FileUtils::make_executable(path_to_command.c_str());
+
+    ASSERT_TRUE(FileUtils::is_regular_file(path_to_command.c_str()));
+    ASSERT_TRUE(FileUtils::is_executable(path_to_command.c_str()));
+
+    ASSERT_EQ(setenv("PATH", dir.name(), true), 0);
+
+    ASSERT_EQ(SystemUtils::getPathToCommand(command_name), path_to_command);
+}
+
+TEST_F(CommandLookupFixture, NonExecutableIgnored)
+{
+    TemporaryDirectory dir;
+    const auto command_name = "non-executable";
+    const auto path_to_command = std::string(dir.name()) + "/" + command_name;
+
+    FileUtils::write_file_atomically(path_to_command, "");
+
+    ASSERT_TRUE(FileUtils::is_regular_file(path_to_command.c_str()));
+    ASSERT_FALSE(FileUtils::is_executable(path_to_command.c_str()));
+
+    ASSERT_EQ(setenv("PATH", dir.name(), true), 0);
+
+    ASSERT_EQ(SystemUtils::getPathToCommand(command_name), "");
 }
