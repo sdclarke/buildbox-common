@@ -20,6 +20,7 @@
 #include <libgen.h>
 #include <sstream>
 #include <stdexcept>
+#include <string.h>
 #include <string>
 #include <system_error>
 

@@ -15,6 +15,7 @@
 #include <buildboxcommon_merklize.h>
 
 #include <buildboxcommon_cashash.h>
+#include <buildboxcommon_exception.h>
 #include <buildboxcommon_fileutils.h>
 #include <buildboxcommon_logging.h>
 #include <buildboxcommon_timeutils.h>
@@ -184,10 +185,9 @@ make_nesteddirectory(const char *path, digest_string_map *fileMap,
     NestedDirectory result;
     const auto dir = opendir(path);
     if (dir == nullptr) {
-        const int opendirError = errno;
-        BUILDBOX_LOG_ERROR("Failed to open path \""
-                           << path << "\": " << strerror(opendirError));
-        throw std::system_error(opendirError, std::system_category());
+        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+            std::system_error, errno, std::system_category,
+            "Failed to open path \"" << path << "\"");
     }
 
     const std::string pathString(path);
@@ -222,13 +222,12 @@ make_nesteddirectory(const char *path, digest_string_map *fileMap,
             std::string target(static_cast<size_t>(statResult.st_size), '\0');
 
             if (readlink(entityPath.c_str(), &target[0], target.size()) < 0) {
-                const int readlinkError = errno;
-                BUILDBOX_LOG_ERROR(
-                    "Error reading symlink at \""
-                    << entityPath << "\": " << strerror(readlinkError)
-                    << ". (st_size == " << statResult.st_size << ")");
                 closedir(dir);
-                throw std::system_error(readlinkError, std::system_category());
+                BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+                    std::system_error, errno, std::system_category,
+                    "Error reading symlink at \""
+                        << entityPath
+                        << "\", st_size = " << statResult.st_size);
             }
             result.d_symlinks[entityName] = target;
         }

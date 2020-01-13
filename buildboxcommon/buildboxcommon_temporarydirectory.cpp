@@ -12,8 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <buildboxcommon_fileutils.h>
 #include <buildboxcommon_temporarydirectory.h>
+
+#include <buildboxcommon_exception.h>
+#include <buildboxcommon_fileutils.h>
+
 #include <cstring>
 #include <stdexcept>
 #include <string>
@@ -26,8 +29,9 @@ namespace {
 const char *constructTmpDirPath(const char *path)
 {
     if (path == nullptr) {
-        throw std::runtime_error(
-            "NULL path was passed into TemporaryDirectory.");
+        BUILDBOXCOMMON_THROW_EXCEPTION(
+            std::runtime_error,
+            "NULL path was passed into TemporaryDirectory");
     }
     if (strlen(path) == 0) {
         const char *tmpdir = getenv("TMPDIR");
@@ -63,7 +67,9 @@ std::string TemporaryDirectory::create(const char *path, const char *prefix)
     name = FileUtils::normalize_path(name.c_str());
 
     if (mkdtemp(&name[0]) == nullptr) {
-        throw std::system_error(errno, std::system_category());
+        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(std::system_error, errno,
+                                              std::system_category,
+                                              "Error in mkdtemp");
     }
 
     return name;

@@ -16,6 +16,7 @@
 
 #include <buildboxcommon_fallbackstageddirectory.h>
 
+#include <buildboxcommon_exception.h>
 #include <buildboxcommon_fileutils.h>
 #include <buildboxcommon_logging.h>
 
@@ -47,7 +48,9 @@ FallbackStagedDirectory::FallbackStagedDirectory(
     // (It will be closed by the destructor.)
 
     if (this->d_stage_directory_fd == -1) {
-        throw std::system_error(errno, std::system_category());
+        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+            std::system_error, errno, std::system_category,
+            "Error opening directory path \"" << path << "\"");
     }
 
     BUILDBOX_LOG_DEBUG("Downloading to " << this->d_path);
@@ -156,13 +159,10 @@ int FallbackStagedDirectory::openFile(const char *relative_path) const
 {
     const int fd = openat(this->d_stage_directory_fd, relative_path, O_RDONLY);
     if (fd == -1) {
-        const int openat_error = errno;
-        BUILDBOX_LOG_ERROR("Error opening \""
-                           << relative_path << "\" inside of \""
-                           << this->d_stage_directory.name()
-                           << "\": " << strerror(openat_error));
-
-        throw std::system_error(openat_error, std::system_category());
+        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+            std::system_error, errno, std::system_category,
+            "Error opening \"" << relative_path << "\" inside of \""
+                               << this->d_stage_directory.name() << "\"");
     }
 
     return fd;

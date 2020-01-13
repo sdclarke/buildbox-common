@@ -15,6 +15,7 @@
  */
 
 #include <buildboxcommon_direntwrapper.h>
+#include <buildboxcommon_exception.h>
 #include <buildboxcommon_fileutils.h>
 #include <buildboxcommon_logging.h>
 #include <cerrno>
@@ -39,13 +40,11 @@ DirentWrapper::DirentWrapper(const int fd, const int p_fd,
 {
     d_dir = fdopendir(fd);
     if (d_dir == nullptr) {
-        int errsv = errno;
-        const std::string error_message =
-            "Error opening directory from file descriptor at path: [" +
-            d_path + "]: " + strerror(errsv);
         close(fd);
-        BUILDBOX_LOG_ERROR(error_message);
-        throw std::runtime_error(error_message);
+        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+            std::system_error, errno, std::system_category,
+            "Error opening directory from file descriptor at path \""
+                << d_path + "\"");
     }
     next();
 }
@@ -68,10 +67,9 @@ bool DirentWrapper::currentEntryIsFile() const
         ret_val = S_ISREG(statResult.st_mode);
     }
     else {
-        const std::string error_message =
-            "Unable to stat entity: [" + std::string(d_entry->d_name) + "]";
-        BUILDBOX_LOG_ERROR(error_message);
-        throw std::runtime_error(error_message);
+        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+            std::system_error, errno, std::system_category,
+            "Unable to stat entity \"" << d_entry->d_name << "\"");
     }
     return ret_val;
 }
@@ -88,10 +86,9 @@ bool DirentWrapper::currentEntryIsDirectory() const
         ret_val = S_ISDIR(statResult.st_mode);
     }
     else {
-        const std::string error_message =
-            "Unable to stat entity: [" + std::string(d_entry->d_name) + "]";
-        BUILDBOX_LOG_ERROR(error_message);
-        throw std::runtime_error(error_message);
+        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+            std::system_error, errno, std::system_category,
+            "Unable to stat entity \"" << d_entry->d_name << "\"");
     }
     return ret_val;
 }
@@ -100,7 +97,8 @@ DirentWrapper DirentWrapper::nextDir() const
 {
     int next_fd = this->openEntry(O_DIRECTORY);
     if (next_fd == -1) {
-        throw std::runtime_error("Error getting dir from non-directory.");
+        BUILDBOXCOMMON_THROW_EXCEPTION(std::runtime_error,
+                                       "Error getting dir from non-directory");
     }
 
     return DirentWrapper(next_fd, this->fd(), this->currentEntryPath());
@@ -166,23 +164,19 @@ void DirentWrapper::openDir()
     if (d_dir == nullptr) {
         d_dir = opendir(d_path.c_str());
         if (d_dir == nullptr) {
-            const int errsv = errno;
-            const std::string error_message = "Error opening directory: [" +
-                                              d_path + "]: " + strerror(errsv);
-            BUILDBOX_LOG_ERROR(error_message);
-            throw std::runtime_error(error_message);
+            BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+                std::system_error, errno, std::system_category,
+                "Error opening directory \"" << d_path + "\"");
         }
     }
     // Get directory file descriptor.
     if (d_fd < 0) {
         d_fd = dirfd(d_dir);
         if (d_fd < 0) {
-            const int errsv = errno;
-            const std::string error_message =
-                "Error opening directory file descriptor at path: [" + d_path +
-                "]: " + strerror(errsv);
-            BUILDBOX_LOG_ERROR(error_message);
-            throw std::runtime_error(error_message);
+            BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+                std::system_error, errno, std::system_category,
+                "Error opening directory file descriptor at path \"" << d_path
+                                                                     << "\"");
         }
         this->next();
     }
@@ -195,12 +189,9 @@ void DirentWrapper::next()
         errno = 0;
         d_entry = readdir(d_dir);
         if (errno != 0 && d_entry == nullptr) {
-            int errsv = errno;
-            const std::string error_message =
-                "Error reading from directory: [" + d_path +
-                "]: " + strerror(errsv);
-            BUILDBOX_LOG_ERROR(error_message);
-            throw std::runtime_error(error_message);
+            BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+                std::system_error, errno, std::system_category,
+                "Error reading from directory \"" << d_path << "\"");
         }
     } while (d_entry != nullptr && (strcmp(d_entry->d_name, ".") == 0 ||
                                     strcmp(d_entry->d_name, "..") == 0));

@@ -17,6 +17,7 @@
 #include <buildboxcommon_runner.h>
 
 #include <buildboxcommon_connectionoptions.h>
+#include <buildboxcommon_exception.h>
 #include <buildboxcommon_fallbackstageddirectory.h>
 #include <buildboxcommon_fileutils.h>
 #include <buildboxcommon_localcasstageddirectory.h>
@@ -46,10 +47,14 @@ static void markNonBlocking(int fd)
 {
     const int flags = fcntl(fd, F_GETFL);
     if (flags == -1) {
-        throw std::system_error(errno, std::system_category());
+        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+            std::system_error, errno, std::system_category,
+            "Error in fcntl for file descriptor " << fd);
     }
     if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
-        throw std::system_error(errno, std::system_category());
+        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+            std::system_error, errno, std::system_category,
+            "Error in fcntl for file descriptor " << fd);
     }
 }
 
@@ -58,7 +63,9 @@ static void writeAll(int fd, const char *buffer, ssize_t len)
     while (len > 0) {
         const auto bytes_written = write(fd, buffer, static_cast<size_t>(len));
         if (bytes_written == -1) {
-            throw std::system_error(errno, std::system_category());
+            BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+                std::system_error, errno, std::system_category,
+                "Error in write for file descriptor " << fd);
         }
         len -= bytes_written;
         buffer += bytes_written;
@@ -339,10 +346,9 @@ std::array<int, 2> Runner::createPipe() const
     std::array<int, 2> pipe_fds = {0, 0};
 
     if (pipe(pipe_fds.data()) == -1) {
-        const auto pipe_error = errno;
-        BUILDBOX_RUNNER_LOG(ERROR,
-                            "Error calling pipe():" << strerror(pipe_error));
-        throw std::system_error(pipe_error, std::system_category());
+        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(std::system_error, errno,
+                                              std::system_category,
+                                              "Error calling pipe()");
     }
 
     markNonBlocking(pipe_fds[0]);
@@ -414,7 +420,8 @@ void Runner::executeAndStore(const std::vector<std::string> &command,
     // Fork and exec
     const auto pid = fork();
     if (pid == -1) {
-        throw std::system_error(errno, std::system_category());
+        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+            std::system_error, errno, std::system_category, "Error in fork()");
     }
     else if (pid == 0) {
         // runs only on the child

@@ -17,6 +17,7 @@
 #include <buildboxcommon_localcasstageddirectory.h>
 
 #include <buildboxcommon_client.h>
+#include <buildboxcommon_exception.h>
 #include <buildboxcommon_fileutils.h>
 #include <buildboxcommon_logging.h>
 #include <buildboxcommon_protos.h>
@@ -47,20 +48,19 @@ LocalCasStagedDirectory::captureFile(const char *relative_path) const
         this->d_cas_client->captureFiles({absolute_path}, {"MTime"}, false);
 
     if (response.responses().empty()) {
-        const auto error_message = "Error capturing \"" + absolute_path +
-                                   "\": server returned empty response.";
-        BUILDBOX_LOG_DEBUG(error_message);
-        throw std::runtime_error(error_message);
+        BUILDBOXCOMMON_THROW_EXCEPTION(
+            std::runtime_error, "Error capturing \""
+                                    << absolute_path
+                                    << "\": server returned empty response");
     }
 
     const auto captured_file = response.responses(0);
 
     if (captured_file.status().code() != grpc::StatusCode::OK) {
-        const auto error_message = "Error capturing \"" + absolute_path +
-                                   "\": " + captured_file.status().message();
-
-        BUILDBOX_LOG_DEBUG(error_message);
-        throw std::runtime_error(error_message);
+        BUILDBOXCOMMON_THROW_EXCEPTION(
+            std::runtime_error, "Error capturing \""
+                                    << absolute_path << "\": "
+                                    << captured_file.status().message());
     }
 
     OutputFile output_file;
