@@ -88,6 +88,8 @@ static void usage(const char *name)
         << "    --use-localcas              Use LocalCAS protocol methods\n";
     std::clog << "    --workspace-path=PATH           Location on disk which "
                  "runner will use as root when executing jobs\n";
+    std::clog << "    --capabilities              Print capabilities "
+                 "supported by this runner\n";
     ConnectionOptions::printArgHelp(BUILDBOXCOMMON_RUNNER_USAGE_PAD_WIDTH);
 }
 
@@ -526,6 +528,10 @@ bool Runner::parseArguments(int argc, char *argv[])
                 }
                 else if (strcmp(arg, "verbose") == 0) {
                     BUILDBOX_LOG_SET_LEVEL(LogLevel::DEBUG);
+                }
+                else if (strcmp(arg, "capabilities") == 0) {
+                    printSpecialCapabilities();
+                    exit(0);
                 }
                 else {
                     std::cerr << "Invalid option " << argv[0] << std::endl;
