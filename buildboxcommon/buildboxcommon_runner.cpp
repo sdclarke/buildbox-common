@@ -479,18 +479,18 @@ bool Runner::parseArguments(int argc, char *argv[])
         else if (arg[0] == '-' && arg[1] == '-') {
             arg += 2;
             if (assign) {
-                const auto key_len = static_cast<size_t>(assign - arg);
+                const std::string key(arg, static_cast<size_t>(assign - arg));
                 const char *value = assign + 1;
-                if (strncmp(arg, "action", key_len) == 0) {
+                if (key == "action") {
                     this->d_inputPath = std::string(value);
                 }
-                else if (strncmp(arg, "action-result", key_len) == 0) {
+                else if (key == "action-result") {
                     this->d_outputPath = std::string(value);
                 }
-                else if (strncmp(arg, "workspace-path", key_len) == 0) {
+                else if (key == "workspace-path") {
                     this->d_stage_path = std::string(value);
                 }
-                else if (strncmp(arg, "log-level", key_len) == 0) {
+                else if (key == "log-level") {
                     std::string level(value);
                     std::transform(level.begin(), level.end(), level.begin(),
                                    ::tolower);
@@ -502,7 +502,7 @@ bool Runner::parseArguments(int argc, char *argv[])
                     BUILDBOX_LOG_SET_LEVEL(
                         logging::stringToLogLevel.at(level));
                 }
-                else if (strncmp(arg, "log-file", key_len) == 0) {
+                else if (key == "log-file") {
                     FILE *fp = fopen(value, "w");
                     if (fp == nullptr) {
                         std::cerr << "--log-file: unable to write to "
