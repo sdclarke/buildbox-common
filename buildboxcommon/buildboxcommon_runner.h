@@ -59,6 +59,15 @@ class Runner {
      * its usage message.
      */
     virtual void printSpecialUsage() {}
+
+    /**
+     * Subclasses can override this to print Runner-specific capabilities.
+     * The format is one capability name per line. In the common case where the
+     * capability is associated with a CLI option, the printed capability name
+     * should match the name of the option.
+     */
+    virtual void printSpecialCapabilities() {}
+
     static void handleSignal(int signal);
     static sig_atomic_t getSignalStatus();
     /**
