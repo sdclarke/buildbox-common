@@ -63,38 +63,33 @@ bool ConnectionOptions::parseArg(const char *arg, const char *prefix)
     }
     const char *assign = strchr(arg, '=');
     if (assign) {
-        const long keyLen = assign - arg;
+        const std::string key(arg, static_cast<size_t>(assign - arg));
         const char *value = assign + 1;
-        if (strncmp(arg, "remote", static_cast<size_t>(keyLen)) == 0) {
+        if (key == "remote") {
             this->d_url = value;
             return true;
         }
-        else if (strncmp(arg, "instance", static_cast<size_t>(keyLen)) == 0) {
+        else if (key == "instance") {
             this->d_instanceName = value;
             return true;
         }
-        else if (strncmp(arg, "server-cert", static_cast<size_t>(keyLen)) ==
-                 0) {
+        else if (key == "server-cert") {
             this->d_serverCertPath = value;
             return true;
         }
-        else if (strncmp(arg, "client-key", static_cast<size_t>(keyLen)) ==
-                 0) {
+        else if (key == "client-key") {
             this->d_clientKeyPath = value;
             return true;
         }
-        else if (strncmp(arg, "client-cert", static_cast<size_t>(keyLen)) ==
-                 0) {
+        else if (key == "client-cert") {
             this->d_clientCertPath = value;
             return true;
         }
-        else if (strncmp(arg, "retry-limit", static_cast<size_t>(keyLen)) ==
-                 0) {
+        else if (key == "retry-limit") {
             this->d_retryLimit = value;
             return true;
         }
-        else if (strncmp(arg, "retry-delay", static_cast<size_t>(keyLen)) ==
-                 0) {
+        else if (key == "retry-delay") {
             this->d_retryDelay = value;
             return true;
         }
