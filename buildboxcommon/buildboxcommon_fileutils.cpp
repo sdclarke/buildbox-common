@@ -516,6 +516,11 @@ std::string FileUtils::normalize_path(const char *path)
         }
         result.pop_back();
     }
+    else if (!global) {
+        // The normalized path for the current directory is `.`,
+        // not an empty string.
+        result = ".";
+    }
     return result;
 }
 
