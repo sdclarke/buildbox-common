@@ -242,6 +242,7 @@ TEST(NormalizePathTest, AlreadyNormalPaths)
     EXPECT_EQ("test.txt", FileUtils::normalize_path("test.txt"));
     EXPECT_EQ("subdir/hello", FileUtils::normalize_path("subdir/hello"));
     EXPECT_EQ("/usr/bin/gcc", FileUtils::normalize_path("/usr/bin/gcc"));
+    EXPECT_EQ(".", FileUtils::normalize_path("."));
 }
 
 TEST(NormalizePathTest, RemoveEmptySegments)
@@ -274,6 +275,14 @@ TEST(NormalizePathTest, AlwaysRemoveTrailingSlash)
 {
     EXPECT_EQ("/usr/bin", FileUtils::normalize_path("/usr/bin"));
     EXPECT_EQ("/usr/bin", FileUtils::normalize_path("/usr/bin/"));
+    EXPECT_EQ(".", FileUtils::normalize_path("./"));
+}
+
+TEST(NormalizePathTest, CurrentDirectory)
+{
+    EXPECT_EQ(".", FileUtils::normalize_path("foo/.."));
+    EXPECT_EQ(".", FileUtils::normalize_path("foo/bar/../.."));
+    EXPECT_EQ(".", FileUtils::normalize_path("foo/../bar/.."));
 }
 
 TEST(MakePathAbsoluteTest, CwdNotAbsoluteThrows)
