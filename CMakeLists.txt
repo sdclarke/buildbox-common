@@ -42,7 +42,9 @@ else()
 endif()
 add_subdirectory(protos)
 
-file(GLOB BUILDBOXCOMMON_CPP "buildboxcommon/*.cpp")
+include_directories("buildbox-common/buildboxcommon")
+
+file(GLOB BUILDBOXCOMMON_CPP "buildbox-common/buildboxcommon/*.cpp")
 
 set_source_files_properties(${PROTO_GENERATED_SRCS} PROPERTIES COMPILE_FLAGS "-Wno-all -Wno-error -Wno-extra -Wno-conversion")
 
@@ -120,7 +122,7 @@ endif()
 
 target_compile_definitions(buildboxcommon PUBLIC BUILDBOXCOMMON_DIGEST_FUNCTION_VALUE=${BUILDBOXCOMMON_DIGEST_FUNCTION_VALUE})
 
-file(GLOB BUILDBOXCOMMON_H "buildboxcommon/*.h")
+file(GLOB BUILDBOXCOMMON_H "buildbox-common/buildboxcommon/*.h")
 
 install(FILES ${BUILDBOXCOMMON_H} DESTINATION include/buildbox)
 install(DIRECTORY ${PROTO_GEN_DIR}/google DESTINATION include/buildbox FILES_MATCHING PATTERN "*.h*")
@@ -157,7 +159,7 @@ install(
 
 include(CTest)
 if(BUILD_TESTING)
-    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/buildboxcommon ${PROTO_GEN_DIR})
+    include_directories(${PROTO_GEN_DIR})
     include_directories(third_party/grpc/include)
     add_subdirectory(test)
 endif()
