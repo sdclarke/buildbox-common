@@ -43,13 +43,16 @@ endif()
 add_subdirectory(protos)
 
 include_directories("buildbox-common/buildboxcommon")
+include_directories("buildbox-common/buildboxcommonmetrics")
 
 file(GLOB BUILDBOXCOMMON_CPP "buildbox-common/buildboxcommon/*.cpp")
+file(GLOB BUILDBOXCOMMONMETRICS_CPP "buildbox-common/buildboxcommonmetrics/*.cpp")
 
 set_source_files_properties(${PROTO_GENERATED_SRCS} PROPERTIES COMPILE_FLAGS "-Wno-all -Wno-error -Wno-extra -Wno-conversion")
 
 add_library(buildboxcommon STATIC
     ${BUILDBOXCOMMON_CPP}
+    ${BUILDBOXCOMMONMETRICS_CPP}
     ${PROTO_GENERATED_SRCS})
 
 ## Only add flags when compiling buildbox-common, not tests.
@@ -123,8 +126,10 @@ endif()
 target_compile_definitions(buildboxcommon PUBLIC BUILDBOXCOMMON_DIGEST_FUNCTION_VALUE=${BUILDBOXCOMMON_DIGEST_FUNCTION_VALUE})
 
 file(GLOB BUILDBOXCOMMON_H "buildbox-common/buildboxcommon/*.h")
+file(GLOB BUILDBOXCOMMONMETRICS_H "buildbox-common/buildboxcommonmetrics/*.h")
 
 install(FILES ${BUILDBOXCOMMON_H} DESTINATION include/buildbox)
+install(FILES ${BUILDBOXCOMMONMETRICS_H} DESTINATION include/buildbox)
 install(DIRECTORY ${PROTO_GEN_DIR}/google DESTINATION include/buildbox FILES_MATCHING PATTERN "*.h*")
 install(DIRECTORY ${PROTO_SOURCE_DIR}/google DESTINATION include/buildbox FILES_MATCHING PATTERN "*.proto")
 install(DIRECTORY ${PROTO_GEN_DIR}/build DESTINATION include/buildbox FILES_MATCHING PATTERN "*.h*")
