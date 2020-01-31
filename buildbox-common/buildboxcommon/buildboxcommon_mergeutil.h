@@ -61,19 +61,24 @@ namespace buildboxcommon {
 
 struct MergeUtil {
     typedef std::vector<Directory> DirectoryTree;
+    typedef std::vector<buildboxcommon::Digest> DigestVector;
 
     /**
      * Create a merged Directory tree made up of the sum of all the
      * parts of the 2 input Directory's. Save the merged root digest
-     * to 'rootDigest'. Optionally, save all the digests created
-     * into 'dsmap'
+     * to 'rootDigest'. Save all the digests created
+     * into 'newDirectoryBlobs'. Save all the newly created directory
+     * digests (from merging directories) into 'mergedDirectoryList'.
+     * 'mergedDirectoryList' defaults to nullptr to maintain backwards
+     * compatability.
      *
      * Returns true on success, false if collisions were detected
      */
-    static bool createMergedDigest(const DirectoryTree &inputTree,
-                                   const DirectoryTree &templateTree,
-                                   Digest *rootDigest,
-                                   digest_string_map *dsMap);
+    static bool
+    createMergedDigest(const DirectoryTree &inputTree,
+                       const DirectoryTree &templateTree, Digest *rootDigest,
+                       digest_string_map *newDirectoryBlobs,
+                       DigestVector *mergedDirectoryList = nullptr);
 };
 
 // convenience streaming operators

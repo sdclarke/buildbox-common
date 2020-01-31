@@ -272,7 +272,8 @@ void buildDigestDirectoryMap(
 bool MergeUtil::createMergedDigest(const DirectoryTree &inputTree,
                                    const DirectoryTree &templateTree,
                                    Digest *rootDigest,
-                                   digest_string_map *dsMap)
+                                   digest_string_map *newDirectoryBlobs,
+                                   DigestVector *mergedDirectoryList)
 {
     if (inputTree.empty() && templateTree.empty()) {
         BUILDBOX_LOG_ERROR("invalid args: both input trees are empty");
@@ -280,8 +281,9 @@ bool MergeUtil::createMergedDigest(const DirectoryTree &inputTree,
     }
 
     // build a mapping that maps all Directory entries by their digests
-    buildDigestDirectoryMap(inputTree, dsMap);
-    buildDigestDirectoryMap(templateTree, dsMap);
+    digest_string_map dsMap;
+    buildDigestDirectoryMap(inputTree, &dsMap);
+    buildDigestDirectoryMap(templateTree, &dsMap);
 
     // Create a map of full pathnames and while doing so, detect
     // collisions, which we define as files/directories with the
@@ -291,8 +293,8 @@ bool MergeUtil::createMergedDigest(const DirectoryTree &inputTree,
     // proj/headers/file.h
     PathNodeMetaDataMap map;
     try {
-        buildFlattenedPath(&map, inputTree.at(0), *dsMap);
-        buildFlattenedPath(&map, templateTree.at(0), *dsMap);
+        buildFlattenedPath(&map, inputTree.at(0), dsMap);
+        buildFlattenedPath(&map, templateTree.at(0), dsMap);
     }
     catch (const std::runtime_error &e) {
         return false;
@@ -307,8 +309,17 @@ bool MergeUtil::createMergedDigest(const DirectoryTree &inputTree,
     }
 
     // Iterate over all the dirs/file and generate a new
-    // merged root digest
-    *rootDigest = result.to_digest(dsMap);
+    // merged root digest. Store all digest in newDirectoryBlob
+    *rootDigest = result.to_digest(newDirectoryBlobs);
+
+    // Place newly created merged directories into mergedDirectoryList
+    if (mergedDirectoryList != nullptr) {
+        for (const auto &it : *newDirectoryBlobs) {
+            if (dsMap.find(it.first) == dsMap.end()) {
+                mergedDirectoryList->emplace_back(it.first);
+            }
+        }
+    }
 
     return true;
 }

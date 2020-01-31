@@ -671,6 +671,47 @@ class MergeFixture : public ::testing::Test {
                                blobs, verbose);
         }
     }
+
+    // Verify that the populated `mergedDirectoryDigests` only contains
+    // digests from merged directories. This is done by checking it
+    // against the diff of the merged tree, and the union of the
+    // template & input trees.
+    void verify_merged_directory_list(
+        const MergeUtil::DirectoryTree &inputTree,
+        const MergeUtil::DirectoryTree &templateTree,
+        const digest_string_map &newDirectoryBlobs,
+        const MergeUtil::DigestVector &mergedDirectoryDigests)
+    {
+        std::set<std::string> newDirSet;
+        std::set<std::string> oldDirSet;
+        std::set<std::string> mergeDirSet;
+
+        for (const auto &directory : inputTree) {
+            const auto serialized = directory.SerializeAsString();
+            const auto digest = buildboxcommon::make_digest(serialized);
+            oldDirSet.emplace(toString(digest));
+        }
+        for (const auto &directory : templateTree) {
+            const auto serialized = directory.SerializeAsString();
+            const auto digest = buildboxcommon::make_digest(serialized);
+            oldDirSet.emplace(toString(digest));
+        }
+        for (const auto &it : newDirectoryBlobs) {
+            newDirSet.emplace(toString(it.first));
+        }
+        for (const auto &it : mergedDirectoryDigests) {
+            mergeDirSet.emplace(toString(it));
+        }
+
+        // Using set_difference to cross check logic in createMergedDigest
+        // Which constructs the diff using comparisons between unordered maps
+        std::set<std::string> diffSet;
+        std::set_difference(newDirSet.cbegin(), newDirSet.cend(),
+                            oldDirSet.cbegin(), oldDirSet.cend(),
+                            std::inserter(diffSet, diffSet.end()));
+
+        ASSERT_EQ(diffSet, mergeDirSet);
+    }
 };
 
 // TEST CASES
@@ -679,8 +720,10 @@ TEST_F(MergeFixture, MergeSuccessEmptyInputTree)
     // merge
     Digest mergedRootDigest;
     buildboxcommon::digest_string_map dsMap;
+    MergeUtil::DigestVector mergedDirectoryList;
     const bool result = MergeUtil::createMergedDigest(
-        d_emptyInputTree, d_chrootTemplateTree, &mergedRootDigest, &dsMap);
+        d_emptyInputTree, d_chrootTemplateTree, &mergedRootDigest, &dsMap,
+        &mergedDirectoryList);
     ASSERT_TRUE(result);
 
     MerkleTree expected_tree = {
@@ -700,6 +743,8 @@ TEST_F(MergeFixture, MergeSuccessEmptyInputTree)
     int startIndex = 0;
     verify_merkle_tree(mergedRootDigest, expected_tree, startIndex,
                        expected_tree.size(), dsMap);
+    verify_merged_directory_list(d_emptyInputTree, d_chrootTemplateTree, dsMap,
+                                 mergedDirectoryList);
 }
 
 TEST_F(MergeFixture, MergeSuccessNoOverlap)
@@ -707,9 +752,10 @@ TEST_F(MergeFixture, MergeSuccessNoOverlap)
     // merge
     Digest mergedRootDigest;
     buildboxcommon::digest_string_map dsMap;
+    MergeUtil::DigestVector mergedDirectoryList;
     const bool result = MergeUtil::createMergedDigest(
         d_inputTreeWithExecutableTrue, d_chrootTemplateTree, &mergedRootDigest,
-        &dsMap);
+        &dsMap, &mergedDirectoryList);
     ASSERT_TRUE(result);
 
     MerkleTree expected_tree = {
@@ -742,11 +788,64 @@ TEST_F(MergeFixture, MergeSuccessNoOverlap)
         {{"directories", {}}}};
 
     int startIndex = 0;
+
     verify_merkle_tree(mergedRootDigest, expected_tree, startIndex,
                        expected_tree.size(), dsMap);
+    verify_merged_directory_list(d_inputTreeWithExecutableTrue,
+                                 d_chrootTemplateTree, dsMap,
+                                 mergedDirectoryList);
 }
 
 TEST_F(MergeFixture, MergeSuccessOverlapWithoutConflict)
+{
+    // merge
+    Digest mergedRootDigest;
+    buildboxcommon::digest_string_map dsMap;
+    MergeUtil::DigestVector mergedDirectoryList;
+    const bool result = MergeUtil::createMergedDigest(
+        d_inputTreeWithOverlapWithoutConflict, d_chrootTemplateTree,
+        &mergedRootDigest, &dsMap, &mergedDirectoryList);
+    ASSERT_TRUE(result);
+
+    MerkleTree expected_tree = {
+        // top level, aka 'root'
+        {{"directories", {"include", "local", "src", "var"}}},
+
+        // contents of 'include'
+        {{"files", {"time.h"}}, {"directories", {"sys"}}},
+
+        // contents of 'include/sys'
+        {{"files", {"stat.h"}}},
+
+        // contents of 'local'
+        {{"directories", {"lib"}}},
+
+        // contents of 'lib'
+        {{"files", {"libc.so"}}},
+
+        // contents of 'src'
+        {{"directories", {"cpp", "headers"}}},
+
+        // contents of 'cpp'
+        {{"files", {"foo.cpp"}}},
+
+        // contents of 'headers'
+        {{"files", {"foo.h"}}},
+
+        // contents of 'var'
+        {{"directories", {}}}};
+
+    int startIndex = 0;
+    verify_merkle_tree(mergedRootDigest, expected_tree, startIndex,
+                       expected_tree.size(), dsMap);
+    verify_merged_directory_list(d_inputTreeWithOverlapWithoutConflict,
+                                 d_chrootTemplateTree, dsMap,
+                                 mergedDirectoryList);
+}
+
+// To test backwards compatibility
+// where mergedDirectoryList == nullptr by default.
+TEST_F(MergeFixture, MergeSuccessOverlapWithoutConflictNullptr)
 {
     // merge
     Digest mergedRootDigest;
@@ -794,6 +893,20 @@ TEST_F(MergeFixture, MergeFailOverlapWithConflict)
     // merge
     Digest mergedRootDigest;
     buildboxcommon::digest_string_map dsMap;
+    MergeUtil::DigestVector mergedDirectoryList;
+    const bool result = MergeUtil::createMergedDigest(
+        d_inputTreeWithOverlapWithConflict, d_chrootTemplateTree,
+        &mergedRootDigest, &dsMap, &mergedDirectoryList);
+    ASSERT_FALSE(result);
+}
+
+// To test backwards compatibility
+// // where mergedDirectoryList == nullptr by default.
+TEST_F(MergeFixture, MergeFailOverlapWithConflictNullptr)
+{
+    // merge
+    Digest mergedRootDigest;
+    buildboxcommon::digest_string_map dsMap;
     const bool result = MergeUtil::createMergedDigest(
         d_inputTreeWithOverlapWithConflict, d_chrootTemplateTree,
         &mergedRootDigest, &dsMap);
@@ -805,9 +918,10 @@ TEST_F(MergeFixture, MergeMismatchIsExecutable)
     // merge
     Digest mergedRootDigest;
     buildboxcommon::digest_string_map dsMap;
+    MergeUtil::DigestVector mergedDirectoryList;
     const bool result = MergeUtil::createMergedDigest(
         d_inputTreeWithExecutableTrue, d_inputTreeWithExecutableFalse,
-        &mergedRootDigest, &dsMap);
+        &mergedRootDigest, &dsMap, &mergedDirectoryList);
     ASSERT_FALSE(result);
 }
 
@@ -816,9 +930,10 @@ TEST_F(MergeFixture, MergeSuccessSymlinkCollision)
     // merge
     Digest mergedRootDigest;
     buildboxcommon::digest_string_map dsMap;
+    MergeUtil::DigestVector mergedDirectoryList;
     const bool result = MergeUtil::createMergedDigest(
         d_inputTreeWithSymlinks, d_chrootTemplateTreeWithoutSymlinkCollision,
-        &mergedRootDigest, &dsMap);
+        &mergedRootDigest, &dsMap, &mergedDirectoryList);
     ASSERT_TRUE(result);
 
     MerkleTree expected_tree = {
@@ -847,6 +962,9 @@ TEST_F(MergeFixture, MergeSuccessSymlinkCollision)
     int startingIndex = 0;
     verify_merkle_tree(mergedRootDigest, expected_tree, startingIndex,
                        expected_tree.size(), dsMap);
+    verify_merged_directory_list(d_chrootTemplateTreeWithoutSymlinkCollision,
+                                 d_chrootTemplateTree, dsMap,
+                                 mergedDirectoryList);
 }
 
 TEST_F(MergeFixture, MergeFailureSymlinkCollision)
@@ -854,8 +972,9 @@ TEST_F(MergeFixture, MergeFailureSymlinkCollision)
     // merge
     Digest mergedRootDigest;
     buildboxcommon::digest_string_map dsMap;
+    MergeUtil::DigestVector mergedDirectoryList;
     const bool result = MergeUtil::createMergedDigest(
         d_inputTreeWithSymlinks, d_chrootTemplateTreeWithSymlinkCollision,
-        &mergedRootDigest, &dsMap);
+        &mergedRootDigest, &dsMap, &mergedDirectoryList);
     ASSERT_FALSE(result);
 }
