@@ -936,11 +936,16 @@ Client::findMissingBlobs(const std::vector<Digest> &digests)
     // We take the given digests and split them across requests to not exceed
     // the maximum size of a gRPC message:
     std::vector<FindMissingBlobsRequest> requests_to_issue;
+    size_t batch_size = 0;
     for (const Digest &digest : digests) {
-        if (request.ByteSizeLong() + digest.ByteSizeLong() >
-            bytestreamChunkSizeBytes()) {
+        const size_t digest_size = digest.ByteSizeLong();
+        if (batch_size + digest_size > bytestreamChunkSizeBytes()) {
             requests_to_issue.push_back(request);
             request.clear_blob_digests();
+            batch_size = 0;
+        }
+        else {
+            batch_size += digest_size;
         }
 
         auto entry = request.add_blob_digests();
