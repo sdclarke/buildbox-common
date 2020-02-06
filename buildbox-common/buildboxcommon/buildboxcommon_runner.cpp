@@ -464,6 +464,11 @@ void Runner::executeAndStore(const std::vector<std::string> &command,
     result->set_exit_code(exit_code);
 }
 
+std::unique_ptr<StagedDirectory> Runner::stageDirectory(const Digest &digest)
+{
+    return this->stage(digest, d_stage_path, d_use_localcas_protocol);
+}
+
 bool Runner::parseArguments(int argc, char *argv[])
 {
     argv++;

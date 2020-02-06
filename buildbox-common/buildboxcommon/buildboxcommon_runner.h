@@ -93,6 +93,10 @@ class Runner {
      * If `use_localcas_protocol` is `true` uses `LocalCasStagedDirectory`
      * instead of `FallBackStagedDirectory`.
      */
+    std::unique_ptr<StagedDirectory> stageDirectory(const Digest &digest);
+
+    // These two versions should be deprecated, and the version above used
+    // instead. (Arguments are already member variables.)
     std::unique_ptr<StagedDirectory> stage(const Digest &directoryDigest,
                                            const std::string &stage_path = "",
                                            bool use_localcas_protocol = false);
