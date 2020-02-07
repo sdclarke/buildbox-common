@@ -14,7 +14,7 @@
 
 #include <buildboxcommonmetrics_durationmetricvalue.h>
 #include <buildboxcommonmetrics_metriccollector.h>
-#include <buildboxcommonmetrics_metriccollectorfactory.h>
+#include <buildboxcommonmetrics_metriccollectorfactoryutil.h>
 #include <buildboxcommonmetrics_totaldurationmetricvalue.h>
 #include <gtest/gtest.h>
 
@@ -23,8 +23,7 @@ using namespace buildboxcommon::buildboxcommonmetrics;
 TEST(MetricsTest, MetricCollectorFactoryGetTwoCollectorsTest)
 {
     TotalDurationMetricValue myValue2;
-    MetricCollectorFactory::getCollector<TotalDurationMetricValue>()->store(
-        "metric-4", myValue2);
+    MetricCollectorFactoryUtil::store("metric-4", myValue2);
 
     EXPECT_EQ(0, MetricCollectorFactory::getCollector<DurationMetricValue>()
                      ->getIterableContainer()

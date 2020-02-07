@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include <buildboxcommonmetrics_durationmetrictimer.h>
-#include <buildboxcommonmetrics_metriccollectorfactory.h>
+#include <buildboxcommonmetrics_metriccollectorfactoryutil.h>
 #include <buildboxcommonmetrics_statsdpublisher.h>
 #include <buildboxcommonmetrics_statsdpublisheroptions.h>
 #include <gtest/gtest.h>
@@ -55,8 +55,7 @@ TEST(MetricsTest, StatsDPublisherTestRedirectedStdErr)
     redirectedCerr.str("");
 
     // Store "my-metric"
-    MetricCollectorFactory::getCollector<MockValueType>()->store(
-        "my-metric", MockValueType());
+    MetricCollectorFactoryUtil::store("my-metric", MockValueType());
     // Publish
     myPublisher.publish();
     // Expect to have `my-metric` published
@@ -65,8 +64,7 @@ TEST(MetricsTest, StatsDPublisherTestRedirectedStdErr)
     redirectedCerr.str("");
 
     // Store "another-metric"
-    MetricCollectorFactory::getCollector<MockValueType>()->store(
-        "another-metric", MockValueType());
+    MetricCollectorFactoryUtil::store("another-metric", MockValueType());
     // Publish
     myPublisher.publish();
     // Expect to have those two metrics
@@ -98,8 +96,7 @@ TEST(MetricsTest, StatsDPublisherTestRedirectedStdErr2ValueTypes)
     redirectedCerr.str("");
 
     // Store "my-metric"
-    MetricCollectorFactory::getCollector<AnotherMockValueType1>()->store(
-        "my-metric", AnotherMockValueType1());
+    MetricCollectorFactoryUtil::store("my-metric", AnotherMockValueType1());
     // Publish
     myPublisher.publish();
     // Expect to have `my-metric` published
@@ -108,8 +105,8 @@ TEST(MetricsTest, StatsDPublisherTestRedirectedStdErr2ValueTypes)
     redirectedCerr.str("");
 
     // Store "additional-metric"
-    MetricCollectorFactory::getCollector<AnotherMockValueType2>()->store(
-        "additional-metric", AnotherMockValueType2());
+    MetricCollectorFactoryUtil::store("additional-metric",
+                                      AnotherMockValueType2());
     // Publish
     myPublisher.publish();
     // Expect to have those two metrics
@@ -120,8 +117,8 @@ TEST(MetricsTest, StatsDPublisherTestRedirectedStdErr2ValueTypes)
     redirectedCerr.str("");
 
     // Store "another-metric"
-    MetricCollectorFactory::getCollector<AnotherMockValueType1>()->store(
-        "another-metric", AnotherMockValueType1());
+    MetricCollectorFactoryUtil::store("another-metric",
+                                      AnotherMockValueType1());
     // Publish
     myPublisher.publish();
     // Expect to have those two metrics

@@ -17,7 +17,7 @@
 
 #include <string>
 
-#include <buildboxcommonmetrics_metriccollectorfactory.h>
+#include <buildboxcommonmetrics_metriccollectorfactoryutil.h>
 
 namespace buildboxcommon {
 namespace buildboxcommonmetrics {
@@ -39,8 +39,7 @@ template <class MetricType> class MetricGuard {
 
   public:
     MetricGuard(const std::string &name, bool enabled,
-                MetricCollector<ValueType> *collector =
-                    MetricCollectorFactory::getCollector<ValueType>())
+                MetricCollector<ValueType> *collector = nullptr)
         : d_enabled(enabled), d_collector(collector), d_metric(name)
     {
         if (!enabled)
@@ -54,7 +53,9 @@ template <class MetricType> class MetricGuard {
         if (!d_enabled)
             return;
         d_metric.stop();
-        d_collector->store(d_metric.name(), d_metric.value());
+        d_collector ? d_collector->store(d_metric.name(), d_metric.value())
+                    : MetricCollectorFactoryUtil::store(d_metric.name(),
+                                                        d_metric.value());
     };
 };
 
