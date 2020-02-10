@@ -30,6 +30,9 @@ namespace buildboxcommonmetrics {
  */
 class MetricCollectorFactory {
   private:
+    // Flag to indicate whether metrics are globally enabled.
+    // Default to true.
+    bool d_metricsEnabled = true;
     // Constructor
     MetricCollectorFactory(){};
     // Delete Copy Constructor
@@ -50,6 +53,15 @@ class MetricCollectorFactory {
         static MetricCollector<ValueType> collector;
         return &collector;
     }
+
+    // These manipulators and accessors are not thread-safe: the enablement and
+    // disablement of metrics should be done at process start time.
+    // MANIPULATORS
+    void enableMetrics();
+    void disableMetrics();
+
+    // ACCESSORS
+    bool metricsEnabled() const;
 };
 
 } // namespace buildboxcommonmetrics

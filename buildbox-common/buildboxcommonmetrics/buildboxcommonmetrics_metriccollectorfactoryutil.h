@@ -25,10 +25,16 @@ struct MetricCollectorFactoryUtil {
     // around the 'MetricCollectorFactory' singleton to fetch the singleton and
     // store the specified 'metric' having the specified 'value'.
     template <typename ValueType>
-    static void store(const std::string &metric, const ValueType value)
+    static void store(const std::string &metric, const ValueType value,
+                      MetricCollector<ValueType> *overrideCollector = nullptr)
     {
-        MetricCollectorFactory::getCollector<ValueType>()->store(metric,
-                                                                 value);
+        MetricCollector<ValueType> *collector =
+            overrideCollector
+                ? overrideCollector
+                : MetricCollectorFactory::getCollector<ValueType>();
+        if (MetricCollectorFactory::getInstance()->metricsEnabled()) {
+            collector->store(metric, value);
+        }
     }
 };
 

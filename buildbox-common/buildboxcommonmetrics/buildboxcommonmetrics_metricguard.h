@@ -33,29 +33,38 @@ template <class MetricType> class MetricGuard {
     // Infer the type of the value of MetricType
     // by inspecting the type MetricType.value() returns
     typedef decltype(std::declval<MetricType>().value()) ValueType;
-    bool d_enabled;
     MetricCollector<ValueType> *d_collector;
     MetricType d_metric;
 
   public:
-    MetricGuard(const std::string &name, bool enabled,
-                MetricCollector<ValueType> *collector = nullptr)
-        : d_enabled(enabled), d_collector(collector), d_metric(name)
+    explicit MetricGuard(const std::string &name,
+                         MetricCollector<ValueType> *collector = nullptr)
+        : d_collector(collector), d_metric(name)
     {
-        if (!enabled)
-            return;
-        d_metric.start();
+        if (MetricCollectorFactory::getInstance()->metricsEnabled()) {
+            d_metric.start();
+        }
+    }
+
+    // DEPRECATED: the boolean flag indicating whether this metric is
+    // enabled/disabled is no longer respected and will be removed in a later
+    // version. The enablement of metrics is now configured at the
+    // MetricCollectorFactory level (since it should be global, not per
+    // MetricGuard instance).
+    MetricGuard(const std::string &name, bool,
+                MetricCollector<ValueType> *collector = nullptr)
+        : MetricGuard(name, collector)
+    {
     }
 
     // Destructor
     ~MetricGuard<MetricType>()
     {
-        if (!d_enabled)
-            return;
-        d_metric.stop();
-        d_collector ? d_collector->store(d_metric.name(), d_metric.value())
-                    : MetricCollectorFactoryUtil::store(d_metric.name(),
-                                                        d_metric.value());
+        if (MetricCollectorFactory::getInstance()->metricsEnabled()) {
+            d_metric.stop();
+            MetricCollectorFactoryUtil::store(d_metric.name(),
+                                              d_metric.value(), d_collector);
+        }
     };
 };
 

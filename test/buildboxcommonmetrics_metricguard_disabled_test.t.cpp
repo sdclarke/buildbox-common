@@ -24,6 +24,8 @@ class MockValueType {
 };
 
 class MockTimer {
+    typedef MockValueType ValueType;
+
   private:
     MockValueType d_valueType;
     const std::string d_name;
@@ -48,7 +50,7 @@ class MockTimer {
 
 using namespace buildboxcommon::buildboxcommonmetrics;
 
-TEST(MetricsTest, MetricGuardTestDisabled)
+TEST(MetricsTest, MetricGuardTestIgnoreLocallyDisabled)
 {
     EXPECT_EQ(0, MetricCollectorFactory::getCollector<MockValueType>()
                      ->getIterableContainer()
@@ -58,13 +60,42 @@ TEST(MetricsTest, MetricGuardTestDisabled)
                          ->getIterableContainer()
                          ->size());
 
+        EXPECT_TRUE(MetricCollectorFactory::getInstance()->metricsEnabled());
         MetricGuard<MockTimer> mg("test-metric", false);
-
-        EXPECT_EQ(0, MetricCollectorFactory::getCollector<MockValueType>()
-                         ->getIterableContainer()
-                         ->size());
     }
+    // As of February 2020 the flag on the MetricGuard is ignored (see
+    // DEPRECATED comment in buildboxcommonmetrics_metricguard.h)
+    // But we left metrics globally enabled.
+    EXPECT_EQ(1, MetricCollectorFactory::getCollector<MockValueType>()
+                     ->getIterableContainer()
+                     ->size());
+    MetricCollectorFactory::getCollector<MockValueType>()
+        ->getIterableContainer()
+        ->clear();
+}
+
+TEST(MetricsTest, MetricGuardTestGloballyDisabled)
+{
+    MetricCollectorFactory::getInstance()
+        ->getCollector<MockValueType>()
+        ->getIterableContainer()
+        ->clear();
+    MetricCollectorFactory::getInstance()->disableMetrics();
     EXPECT_EQ(0, MetricCollectorFactory::getCollector<MockValueType>()
                      ->getIterableContainer()
                      ->size());
+    { // scoped to check guard
+        EXPECT_EQ(0, MetricCollectorFactory::getCollector<MockValueType>()
+                         ->getIterableContainer()
+                         ->size());
+
+        MetricGuard<MockTimer> mg("test-metric", false);
+        MetricGuard<MockTimer> mg2("test-metric", true);
+    }
+    // As of February 2020 the flag on the MetricGuard is ignored (see
+    // DEPRECATED comment in buildboxcommonmetrics_metricguard.h)
+    EXPECT_EQ(0, MetricCollectorFactory::getCollector<MockValueType>()
+                     ->getIterableContainer()
+                     ->size());
+    MetricCollectorFactory::getInstance()->enableMetrics();
 }

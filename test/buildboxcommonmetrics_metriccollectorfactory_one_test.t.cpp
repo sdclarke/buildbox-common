@@ -15,6 +15,7 @@
 #include <buildboxcommonmetrics_durationmetricvalue.h>
 #include <buildboxcommonmetrics_metriccollector.h>
 #include <buildboxcommonmetrics_metriccollectorfactory.h>
+#include <buildboxcommonmetrics_metriccollectorfactoryutil.h>
 #include <buildboxcommonmetrics_totaldurationmetricvalue.h>
 #include <gtest/gtest.h>
 
@@ -44,4 +45,26 @@ TEST(MetricsTest, MetricCollectorFactoryGetSingleCollectorTest)
     EXPECT_EQ(2, MetricCollectorFactory::getCollector<DurationMetricValue>()
                      ->getIterableContainer()
                      ->size());
+}
+
+TEST(MetricsTest, MetricCollectorFactoryEnableDisable)
+{
+    EXPECT_TRUE(MetricCollectorFactory::getInstance()->metricsEnabled());
+    MetricCollectorFactory::getInstance()->disableMetrics();
+
+    TotalDurationMetricValue myValue2;
+    MetricCollectorFactoryUtil::store("metric-4", myValue2);
+
+    EXPECT_FALSE(MetricCollectorFactory::getInstance()->metricsEnabled());
+    MetricCollectorFactory::getInstance()->enableMetrics();
+    EXPECT_EQ(0,
+              MetricCollectorFactory::getCollector<TotalDurationMetricValue>()
+                  ->getIterableContainer()
+                  ->size());
+    EXPECT_TRUE(MetricCollectorFactory::getInstance()->metricsEnabled());
+    MetricCollectorFactoryUtil::store("metric-4", myValue2);
+    EXPECT_EQ(1,
+              MetricCollectorFactory::getCollector<TotalDurationMetricValue>()
+                  ->getIterableContainer()
+                  ->size());
 }

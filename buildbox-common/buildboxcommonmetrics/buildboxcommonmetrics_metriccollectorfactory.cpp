@@ -23,5 +23,14 @@ MetricCollectorFactory *MetricCollectorFactory::getInstance()
     return &instance;
 }
 
+void MetricCollectorFactory::enableMetrics() { d_metricsEnabled = true; }
+
+void MetricCollectorFactory::disableMetrics() { d_metricsEnabled = false; }
+
+bool MetricCollectorFactory::metricsEnabled() const
+{
+    return d_metricsEnabled;
+}
+
 } // namespace buildboxcommonmetrics
 } // namespace buildboxcommon
