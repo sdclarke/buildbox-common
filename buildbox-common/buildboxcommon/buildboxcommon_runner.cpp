@@ -23,6 +23,7 @@
 #include <buildboxcommon_localcasstageddirectory.h>
 #include <buildboxcommon_logging.h>
 #include <buildboxcommon_systemutils.h>
+#include <buildboxcommon_timeutils.h>
 
 #include <algorithm>
 #include <cerrno>
@@ -234,6 +235,13 @@ int Runner::main(int argc, char *argv[])
         return 1;
     }
 
+    ActionResult result;
+    auto *result_metadata = result.mutable_execution_metadata();
+
+    // -- Worker started --
+    result_metadata->mutable_worker_start_timestamp()->CopyFrom(
+        TimeUtils::now());
+
     const Action input = readAction(this->d_inputPath);
     this->d_action_digest = CASHash::hash(input.SerializeAsString());
 
@@ -243,7 +251,6 @@ int Runner::main(int argc, char *argv[])
     BUILDBOX_RUNNER_LOG(DEBUG, "Fetching Command " << input.command_digest());
     const Command command = fetchCommand(input.command_digest());
 
-    ActionResult result;
     try {
         const auto signal_status = getSignalStatus();
         if (signal_status) {
@@ -262,6 +269,9 @@ int Runner::main(int argc, char *argv[])
             "buildbox-run: " + std::string(e.what()) + "\n";
         *(result.mutable_stderr_raw()) += error_message;
     }
+    //  -- Worker finished --
+    result_metadata->mutable_worker_completed_timestamp()->CopyFrom(
+        TimeUtils::now());
 
     if (!this->d_outputPath.empty()) {
         writeActionResult(result, this->d_outputPath);
@@ -419,6 +429,12 @@ void Runner::executeAndStore(const std::vector<std::string> &command,
     auto stdout_pipe = createPipe();
     auto stderr_pipe = createPipe();
 
+    auto *result_metadata = result->mutable_execution_metadata();
+
+    // -- Execution started --
+    result_metadata->mutable_execution_start_timestamp()->CopyFrom(
+        TimeUtils::now());
+
     // Fork and exec
     const auto pid = fork();
     if (pid == -1) {
@@ -461,6 +477,10 @@ void Runner::executeAndStore(const std::vector<std::string> &command,
                    result->mutable_stderr_digest());
 
     const int exit_code = SystemUtils::waitPid(pid);
+
+    // -- Execution ended --
+    result_metadata->mutable_execution_completed_timestamp()->CopyFrom(
+        TimeUtils::now());
     result->set_exit_code(exit_code);
 }
 

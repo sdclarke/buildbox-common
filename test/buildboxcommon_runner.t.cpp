@@ -48,6 +48,26 @@ TEST(RunnerTest, PrintingUsageDoesntCrash)
     EXPECT_NO_THROW(runner.main(1, const_cast<char **>(argv)));
 }
 
+void assert_metadata_execution_timestamps_set(const ActionResult &result)
+{
+    // `ExecutedActionMetadata` execution timestamps are set:
+    const auto empty_timestamp = google::protobuf::Timestamp();
+    EXPECT_NE(result.execution_metadata().execution_start_timestamp(),
+              empty_timestamp);
+    EXPECT_NE(result.execution_metadata().execution_completed_timestamp(),
+              empty_timestamp);
+
+    // But the remaining timestamps aren't modified:
+    EXPECT_EQ(result.execution_metadata().worker_start_timestamp(),
+              empty_timestamp);
+    EXPECT_EQ(result.execution_metadata().worker_completed_timestamp(),
+              empty_timestamp);
+    EXPECT_EQ(result.execution_metadata().worker_start_timestamp(),
+              result.execution_metadata().worker_start_timestamp());
+    EXPECT_EQ(result.execution_metadata().worker_completed_timestamp(),
+              result.execution_metadata().worker_start_timestamp());
+}
+
 TEST(RunnerTest, ExecuteAndStoreHelloWorld)
 {
     TestRunner runner;
@@ -57,6 +77,8 @@ TEST(RunnerTest, ExecuteAndStoreHelloWorld)
     EXPECT_EQ(result.stdout_raw(), "hello world\n");
     EXPECT_EQ(result.stderr_raw(), "");
     EXPECT_EQ(result.exit_code(), 0);
+
+    assert_metadata_execution_timestamps_set(result);
 }
 
 TEST(RunnerTest, CommandNotFound)
@@ -66,6 +88,8 @@ TEST(RunnerTest, CommandNotFound)
 
     runner.executeAndStore({"command-does-not-exist"}, &result);
     EXPECT_EQ(result.exit_code(), 127); // "command not found" as in Bash
+
+    assert_metadata_execution_timestamps_set(result);
 }
 
 TEST(RunnerTest, CommandIsNotAnExecutable)
@@ -76,6 +100,8 @@ TEST(RunnerTest, CommandIsNotAnExecutable)
     TemporaryFile non_executable_file;
     runner.executeAndStore({non_executable_file.name()}, &result);
     EXPECT_EQ(result.exit_code(), 126); // Command invoked cannot execute
+
+    assert_metadata_execution_timestamps_set(result);
 }
 
 TEST(RunnerTest, ExecuteAndStoreExitCode)

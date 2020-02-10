@@ -45,6 +45,8 @@ struct TimeUtils {
      */
     static struct timespec
     make_timespec(const std::chrono::system_clock::time_point timepoint);
+
+    static google::protobuf::Timestamp now();
 };
 } // namespace buildboxcommon
 

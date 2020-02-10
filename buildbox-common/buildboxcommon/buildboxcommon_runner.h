@@ -24,6 +24,7 @@
 #include <buildboxcommon_connectionoptions.h>
 #include <buildboxcommon_logging.h>
 #include <buildboxcommon_stageddirectory.h>
+#include <buildboxcommon_timeutils.h>
 
 namespace buildboxcommon {
 
@@ -126,6 +127,36 @@ class Runner {
 
     Digest d_action_digest;
 
+    // Helpers to set the timestamps of the different stages that are carried
+    // out in the runner. Those will be returned in the `ActionResult`, as part
+    // of its `ExecutedActionMetadata` field.
+    inline static void
+    metadata_mark_input_download_start(ExecutedActionMetadata *metadata)
+    {
+        set_timestamp_to_now(metadata->mutable_input_fetch_start_timestamp());
+    }
+
+    inline static void
+    metadata_mark_input_download_end(ExecutedActionMetadata *metadata)
+    {
+        set_timestamp_to_now(
+            metadata->mutable_input_fetch_completed_timestamp());
+    }
+
+    inline static void
+    metadata_mark_output_upload_start(ExecutedActionMetadata *metadata)
+    {
+        set_timestamp_to_now(
+            metadata->mutable_output_upload_start_timestamp());
+    }
+
+    inline static void
+    metadata_mark_output_upload_end(ExecutedActionMetadata *metadata)
+    {
+        set_timestamp_to_now(
+            metadata->mutable_output_upload_completed_timestamp());
+    }
+
   private:
     /**
      * Attempt to parse all of the given arguments and update this object
@@ -167,7 +198,14 @@ class Runner {
     // Fetch a `Command` message from the remote CAS. If that fails, log
     // the error and `exit(1)`.
     Command fetchCommand(const Digest &command_digest) const;
-};
+
+    // Populates a `protobuf::Timestamp` with the current time.
+    inline static void set_timestamp_to_now(google::protobuf::Timestamp *t)
+    {
+        t->CopyFrom(buildboxcommon::TimeUtils::now());
+    }
+
+}; // namespace buildboxcommon
 
 #define BUILDBOX_RUNNER_MAIN(x)                                               \
     int main(int argc, char *argv[]) { x().main(argc, argv); }

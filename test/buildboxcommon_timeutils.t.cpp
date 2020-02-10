@@ -55,3 +55,10 @@ TEST(TimeUtilsTests, MakeTimespec)
     ASSERT_EQ(mtime.tv_sec, 1575452181);
     ASSERT_EQ(mtime.tv_nsec, 12345000);
 }
+
+TEST(TimeUtilsTests, TestNowTimestamp)
+{
+    const google::protobuf::Timestamp timestamp = TimeUtils::now();
+    ASSERT_GT(timestamp.seconds(), 0);
+    ASSERT_GE(timestamp.nanos(), 0);
+}

@@ -67,4 +67,19 @@ TimeUtils::make_timespec(std::chrono::system_clock::time_point timepoint)
     return time;
 }
 
+google::protobuf::Timestamp TimeUtils::now()
+{
+    google::protobuf::Timestamp res;
+    struct timeval tv;
+    if (gettimeofday(&tv, nullptr) != 0) {
+        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(std::system_error, errno,
+                                              std::system_category,
+                                              "Could not read current time.")
+    }
+
+    res.set_seconds(tv.tv_sec);
+    res.set_nanos(static_cast<google::protobuf::int32>(tv.tv_usec * 1000));
+    return res;
+}
+
 } // namespace buildboxcommon
