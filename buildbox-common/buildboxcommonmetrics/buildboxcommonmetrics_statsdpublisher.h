@@ -108,10 +108,10 @@ template <class... ValueTypeList> class StatsDPublisher {
     void
     gatherStatsDFromValueTypeCollector(MetricCollector<ValueType> *collector)
     {
-        auto *collectorContainer = collector->getIterableContainer();
+        auto collectorContainer = collector->getSnapshot();
 
-        auto from = collectorContainer->begin();
-        const auto to = collectorContainer->end();
+        auto from = collectorContainer.begin();
+        const auto to = collectorContainer.end();
 
         for (; from != to; from++) {
             const std::string &metricName = from->first;

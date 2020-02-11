@@ -26,12 +26,12 @@ TEST(MetricsTest, DurationMetricValueCollectorMultiTest)
     DurationMetricValue myValue1;
     durationMetricCollector.store("metric-1", myValue1);
 
-    ASSERT_EQ(1, durationMetricCollector.getIterableContainer()->size());
+    ASSERT_EQ(1, durationMetricCollector.getSnapshot().size());
 
     DurationMetricValue myValue2;
     durationMetricCollector.store("metric-2", myValue1);
 
-    ASSERT_EQ(2, durationMetricCollector.getIterableContainer()->size());
+    ASSERT_EQ(1, durationMetricCollector.getSnapshot().size());
 }
 
 TEST(MetricsTest, DurationMetricValueCollectorUpdateTest)
@@ -43,11 +43,10 @@ TEST(MetricsTest, DurationMetricValueCollectorUpdateTest)
 
     // We should only have 1 metric, with the value we instantiated it with
     // above
-    ASSERT_EQ(1, durationMetricCollector.getIterableContainer()->size());
+    auto metrics = durationMetricCollector.getSnapshot();
+    ASSERT_EQ(1, metrics.size());
     ASSERT_EQ(std::chrono::microseconds(2),
-              durationMetricCollector.getIterableContainer()
-                  ->find("metric")
-                  ->second.value());
+              metrics.find("metric")->second.value());
 
     // Since DurationMetricValue is non-aggregatable,
     // storing the metric with the same name should *replace* it with the new
@@ -55,11 +54,10 @@ TEST(MetricsTest, DurationMetricValueCollectorUpdateTest)
     DurationMetricValue myValue2(std::chrono::microseconds(5));
     durationMetricCollector.store("metric", myValue2);
 
-    ASSERT_EQ(1, durationMetricCollector.getIterableContainer()->size());
+    metrics = durationMetricCollector.getSnapshot();
+    ASSERT_EQ(1, metrics.size());
     ASSERT_EQ(std::chrono::microseconds(5),
-              durationMetricCollector.getIterableContainer()
-                  ->find("metric")
-                  ->second.value());
+              metrics.find("metric")->second.value());
 }
 
 TEST(MetricsTest, TotalDurationMetricValueCollectorMultiTest)
@@ -69,66 +67,57 @@ TEST(MetricsTest, TotalDurationMetricValueCollectorMultiTest)
     TotalDurationMetricValue myValue1;
     totalDurationMetricCollector.store("metric-1", myValue1);
 
-    ASSERT_EQ(1, totalDurationMetricCollector.getIterableContainer()->size());
+    ASSERT_EQ(1, totalDurationMetricCollector.getSnapshot().size());
 
     TotalDurationMetricValue myValue2;
     totalDurationMetricCollector.store("metric-2", myValue1);
 
-    ASSERT_EQ(2, totalDurationMetricCollector.getIterableContainer()->size());
+    ASSERT_EQ(1, totalDurationMetricCollector.getSnapshot().size());
 }
 
 TEST(MetricsTest, TotalDurationMetricValueCollectorAggregateTest)
 {
     MetricCollector<TotalDurationMetricValue> totalDurationMetricCollector;
 
+    // add 2 seconds to a metric named 'metric'
     TotalDurationMetricValue myValue1(std::chrono::microseconds(2));
     totalDurationMetricCollector.store("metric", myValue1);
 
-    ASSERT_EQ(1, totalDurationMetricCollector.getIterableContainer()->size());
-    ASSERT_EQ(std::chrono::microseconds(2),
-              totalDurationMetricCollector.getIterableContainer()
-                  ->find("metric")
-                  ->second.value());
-
+    // add 5 seconds to a metric named 'metric'
     TotalDurationMetricValue myValue2(std::chrono::microseconds(5));
     totalDurationMetricCollector.store("metric", myValue2);
-    ASSERT_EQ(1, totalDurationMetricCollector.getIterableContainer()->size());
+
+    auto metrics = totalDurationMetricCollector.getSnapshot();
+    ASSERT_EQ(1, metrics.size());
     ASSERT_EQ(std::chrono::microseconds(7),
-              totalDurationMetricCollector.getIterableContainer()
-                  ->find("metric")
-                  ->second.value());
+              metrics.find("metric")->second.value());
 }
 
 TEST(MetricsTest, TotalDurationMetricValueCollectorMultiAggregateTest)
 {
     MetricCollector<TotalDurationMetricValue> totalDurationMetricCollector;
 
+    // add 2 seconds to a metric named 'metric'
     TotalDurationMetricValue myValue1(std::chrono::microseconds(2));
     totalDurationMetricCollector.store("metric", myValue1);
 
-    ASSERT_EQ(1, totalDurationMetricCollector.getIterableContainer()->size());
-    ASSERT_EQ(std::chrono::microseconds(2),
-              totalDurationMetricCollector.getIterableContainer()
-                  ->find("metric")
-                  ->second.value());
-
+    // add 4 seconds to a metric named 'metric-other'
     TotalDurationMetricValue myValueOther1(std::chrono::microseconds(4));
     totalDurationMetricCollector.store("metric-other", myValueOther1);
-    ASSERT_EQ(2, totalDurationMetricCollector.getIterableContainer()->size());
 
+    // add 5 seconds to a metric named 'metric'
     TotalDurationMetricValue myValue2(std::chrono::microseconds(5));
     totalDurationMetricCollector.store("metric", myValue2);
-    ASSERT_EQ(2, totalDurationMetricCollector.getIterableContainer()->size());
-    ASSERT_EQ(std::chrono::microseconds(7),
-              totalDurationMetricCollector.getIterableContainer()
-                  ->find("metric")
-                  ->second.value());
 
+    // add 9 seconds to a metric named 'metric-other'
     TotalDurationMetricValue myValueOther2(std::chrono::microseconds(9));
     totalDurationMetricCollector.store("metric-other", myValueOther2);
-    ASSERT_EQ(2, totalDurationMetricCollector.getIterableContainer()->size());
+
+    // confirm that we have 2 entries --> 'metric' and 'metric-other'
+    auto metrics = totalDurationMetricCollector.getSnapshot();
+    ASSERT_EQ(2, metrics.size());
+    ASSERT_EQ(std::chrono::microseconds(7),
+              metrics.find("metric")->second.value());
     ASSERT_EQ(std::chrono::microseconds(13),
-              totalDurationMetricCollector.getIterableContainer()
-                  ->find("metric-other")
-                  ->second.value());
+              metrics.find("metric-other")->second.value());
 }

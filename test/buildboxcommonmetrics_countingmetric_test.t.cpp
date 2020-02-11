@@ -34,9 +34,11 @@ TEST(MetricsTest, CountingMetricGuarded)
     {
         MetricGuard<CountingMetric> counted("some-test", &collector);
     }
-    EXPECT_EQ(1, collector.getIterableContainer()->size());
-    EXPECT_EQ(1, collector.getIterableContainer()->begin()->second.value());
-    EXPECT_EQ("some-test", collector.getIterableContainer()->begin()->first);
+
+    auto metrics = collector.getSnapshot();
+    EXPECT_EQ(1, metrics.size());
+    EXPECT_EQ(1, metrics.begin()->second.value());
+    EXPECT_EQ("some-test", metrics.begin()->first);
 }
 
 TEST(MetricsTest, CountingMetricWithMetricGuard)
@@ -51,9 +53,11 @@ TEST(MetricsTest, CountingMetricWithMetricGuard)
             m++;
         }
     }
-    ASSERT_EQ(1, collector.getIterableContainer()->size());
-    EXPECT_EQ(2, collector.getIterableContainer()->begin()->second.value());
-    EXPECT_EQ("my-counted", collector.getIterableContainer()->begin()->first);
+
+    auto metrics = collector.getSnapshot();
+    ASSERT_EQ(1, metrics.size());
+    EXPECT_EQ(2, metrics.begin()->second.value());
+    EXPECT_EQ("my-counted", metrics.begin()->first);
 }
 
 TEST(MetricsTest, CountingMetricWithMetricGuardCustomValue)
@@ -67,9 +71,11 @@ TEST(MetricsTest, CountingMetricWithMetricGuardCustomValue)
             m.setValue(-22);
         }
     }
-    ASSERT_EQ(1, collector.getIterableContainer()->size());
-    EXPECT_EQ(-22, collector.getIterableContainer()->begin()->second.value());
-    EXPECT_EQ("my-counted", collector.getIterableContainer()->begin()->first);
+
+    auto metrics = collector.getSnapshot();
+    ASSERT_EQ(1, metrics.size());
+    EXPECT_EQ(-22, metrics.begin()->second.value());
+    EXPECT_EQ("my-counted", metrics.begin()->first);
 }
 
 TEST(MetricsTest, CountingMetricsAddition)

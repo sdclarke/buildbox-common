@@ -26,11 +26,11 @@ TEST(MetricsTest, MetricCollectorFactoryGetTwoCollectorsTest)
     MetricCollectorFactoryUtil::store("metric-4", myValue2);
 
     EXPECT_EQ(0, MetricCollectorFactory::getCollector<DurationMetricValue>()
-                     ->getIterableContainer()
-                     ->size());
+                     ->getSnapshot()
+                     .size());
 
     EXPECT_EQ(1,
               MetricCollectorFactory::getCollector<TotalDurationMetricValue>()
-                  ->getIterableContainer()
-                  ->size());
+                  ->getSnapshot()
+                  .size());
 }

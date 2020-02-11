@@ -51,20 +51,20 @@ using namespace buildboxcommon::buildboxcommonmetrics;
 TEST(MetricsTest, MetricGuardTestEnabled)
 {
     EXPECT_EQ(0, MetricCollectorFactory::getCollector<MockValueType>()
-                     ->getIterableContainer()
-                     ->size());
+                     ->getSnapshot()
+                     .size());
     { // scoped to check guard
         EXPECT_EQ(0, MetricCollectorFactory::getCollector<MockValueType>()
-                         ->getIterableContainer()
-                         ->size());
+                         ->getSnapshot()
+                         .size());
 
         MetricGuard<MockTimer> mg("test-metric", true);
 
         EXPECT_EQ(0, MetricCollectorFactory::getCollector<MockValueType>()
-                         ->getIterableContainer()
-                         ->size());
+                         ->getSnapshot()
+                         .size());
     }
     EXPECT_EQ(1, MetricCollectorFactory::getCollector<MockValueType>()
-                     ->getIterableContainer()
-                     ->size());
+                     ->getSnapshot()
+                     .size());
 }

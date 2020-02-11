@@ -33,7 +33,8 @@ namespace buildboxcommonmetrics {
  */
 template <class ValueType> class MetricCollector {
   private:
-    std::unordered_map<std::string, ValueType> d_metrics;
+    typedef std::unordered_map<std::string, ValueType> MetricsMap;
+    MetricsMap d_metrics;
     std::mutex d_metrics_mutex;
 
   public:
@@ -67,9 +68,14 @@ template <class ValueType> class MetricCollector {
         d_metrics[name] = value;
     }
 
-    std::unordered_map<std::string, ValueType> *getIterableContainer()
+    MetricsMap getSnapshot()
     {
-        return &d_metrics;
+        MetricsMap snapshot;
+        {
+            std::lock_guard<std::mutex> lock(d_metrics_mutex);
+            d_metrics.swap(snapshot);
+        }
+        return snapshot;
     }
 };
 

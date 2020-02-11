@@ -24,34 +24,13 @@ TEST(MetricsTest, SimpleOnelineMetricPublish)
     // All these tests are in a single function as they will not behave well
     // when running in parallel.
     CountingMetricUtil::recordCounterMetric("namehere", 3);
-    ASSERT_EQ(1, MetricCollectorFactory::getCollector<CountingMetricValue>()
-                     ->getIterableContainer()
-                     ->size());
-    EXPECT_EQ(3, MetricCollectorFactory::getCollector<CountingMetricValue>()
-                     ->getIterableContainer()
-                     ->begin()
-                     ->second.value());
     CountingMetricUtil::recordCounterMetric("namehere",
                                             CountingMetricValue(5));
-    EXPECT_EQ(8, MetricCollectorFactory::getCollector<CountingMetricValue>()
-                     ->getIterableContainer()
-                     ->begin()
-                     ->second.value());
+    auto metrics = MetricCollectorFactory::getCollector<CountingMetricValue>()
+                       ->getSnapshot();
 
-    CountingMetricUtil::recordCounterMetric("foo", CountingMetricValue(5));
-    EXPECT_EQ(2, MetricCollectorFactory::getCollector<CountingMetricValue>()
-                     ->getIterableContainer()
-                     ->size());
-
-    CountingMetricUtil::recordCounterMetric(
-        CountingMetric("foo", CountingMetricValue(5)));
-    EXPECT_EQ(2, MetricCollectorFactory::getCollector<CountingMetricValue>()
-                     ->getIterableContainer()
-                     ->size());
-
-    MetricCollectorFactory::getCollector<CountingMetricValue>()
-        ->getIterableContainer()
-        ->clear();
+    ASSERT_EQ(1, metrics.size());
+    EXPECT_EQ(8, metrics.begin()->second.value());
 
     CountingMetricUtil::recordCounterMetric(
         CountingMetric("other", CountingMetricValue(5)));
@@ -61,11 +40,8 @@ TEST(MetricsTest, SimpleOnelineMetricPublish)
     other.setValue(42);
     CountingMetricUtil::recordCounterMetric(other);
 
-    ASSERT_EQ(1, MetricCollectorFactory::getCollector<CountingMetricValue>()
-                     ->getIterableContainer()
-                     ->size());
-    EXPECT_EQ(52, MetricCollectorFactory::getCollector<CountingMetricValue>()
-                      ->getIterableContainer()
-                      ->begin()
-                      ->second.value());
+    metrics = MetricCollectorFactory::getCollector<CountingMetricValue>()
+                  ->getSnapshot();
+    ASSERT_EQ(1, metrics.size());
+    EXPECT_EQ(52, metrics.begin()->second.value());
 }

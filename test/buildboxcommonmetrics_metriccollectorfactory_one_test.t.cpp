@@ -29,22 +29,22 @@ TEST(MetricsTest, MetricCollectorFactoryGetSingleCollectorTest)
         instance->getCollector<DurationMetricValue>();
 
     EXPECT_EQ(0, MetricCollectorFactory::getCollector<DurationMetricValue>()
-                     ->getIterableContainer()
-                     ->size());
+                     ->getSnapshot()
+                     .size());
 
     DurationMetricValue myValue1;
     durationMetricCollector->store("metric-1", myValue1);
 
     EXPECT_EQ(1, MetricCollectorFactory::getCollector<DurationMetricValue>()
-                     ->getIterableContainer()
-                     ->size());
+                     ->getSnapshot()
+                     .size());
 
     DurationMetricValue myValue2;
     durationMetricCollector->store("metric-2", myValue2);
 
-    EXPECT_EQ(2, MetricCollectorFactory::getCollector<DurationMetricValue>()
-                     ->getIterableContainer()
-                     ->size());
+    EXPECT_EQ(1, MetricCollectorFactory::getCollector<DurationMetricValue>()
+                     ->getSnapshot()
+                     .size());
 }
 
 TEST(MetricsTest, MetricCollectorFactoryEnableDisable)
@@ -59,12 +59,12 @@ TEST(MetricsTest, MetricCollectorFactoryEnableDisable)
     MetricCollectorFactory::getInstance()->enableMetrics();
     EXPECT_EQ(0,
               MetricCollectorFactory::getCollector<TotalDurationMetricValue>()
-                  ->getIterableContainer()
-                  ->size());
+                  ->getSnapshot()
+                  .size());
     EXPECT_TRUE(MetricCollectorFactory::getInstance()->metricsEnabled());
     MetricCollectorFactoryUtil::store("metric-4", myValue2);
     EXPECT_EQ(1,
               MetricCollectorFactory::getCollector<TotalDurationMetricValue>()
-                  ->getIterableContainer()
-                  ->size());
+                  ->getSnapshot()
+                  .size());
 }
