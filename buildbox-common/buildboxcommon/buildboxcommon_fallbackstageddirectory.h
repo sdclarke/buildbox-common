@@ -41,8 +41,10 @@ class FallbackStagedDirectory : public StagedDirectory {
 
     ~FallbackStagedDirectory() override;
 
-    OutputFile captureFile(const char *relative_path) const override;
-    OutputDirectory captureDirectory(const char *relative_path) const override;
+    OutputFile captureFile(const char *relative_path,
+                           const Command &command) const override;
+    OutputDirectory captureDirectory(const char *relative_path,
+                                     const Command &command) const override;
 
     /* Helpers marked as protected to unit test */
 

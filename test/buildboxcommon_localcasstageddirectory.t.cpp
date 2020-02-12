@@ -148,24 +148,27 @@ TEST_F(LocalCasStagedDirectoryFixture, CaptureCommandOutputs)
 
 TEST_F(LocalCasStagedDirectoryFixture, CaptureNonExistentDirectory)
 {
+    Command command;
     auto fs = stageDirectory("");
 
     const auto non_existent_path = "/dir/that/does/not/exist";
     ASSERT_FALSE(FileUtils::isDirectory(non_existent_path));
 
-    const auto captured_directory = fs->captureDirectory(non_existent_path);
+    const auto captured_directory =
+        fs->captureDirectory(non_existent_path, command);
 
     ASSERT_TRUE(captured_directory.path().empty());
 }
 
 TEST_F(LocalCasStagedDirectoryFixture, CaptureNonExistentFile)
 {
+    Command command;
     auto fs = stageDirectory("");
 
     const auto non_existent_path = "/file/that/does/not/exist";
     ASSERT_FALSE(FileUtils::isRegularFile(non_existent_path));
 
-    const auto captured_file = fs->captureFile(non_existent_path);
+    const auto captured_file = fs->captureFile(non_existent_path, command);
 
     ASSERT_TRUE(captured_file.path().empty());
 }

@@ -37,12 +37,13 @@ class MockStagedDirectory : public StagedDirectory, public testing::Test {
 
     ~MockStagedDirectory() override {}
 
-    OutputFile captureFile(const char *) const override
+    OutputFile captureFile(const char *, const Command &) const override
     {
         return OutputFile();
     }
 
-    OutputDirectory captureDirectory(const char *) const override
+    OutputDirectory captureDirectory(const char *,
+                                     const Command &) const override
     {
         return OutputDirectory();
     }

@@ -53,10 +53,11 @@ class StagedDirectory {
      */
     inline const char *getPath() const { return d_path.c_str(); }
 
-    virtual OutputFile captureFile(const char *relative_path) const = 0;
+    virtual OutputFile captureFile(const char *relative_path,
+                                   const Command &command) const = 0;
 
-    virtual OutputDirectory
-    captureDirectory(const char *relative_path) const = 0;
+    virtual OutputDirectory captureDirectory(const char *relative_path,
+                                             const Command &command) const = 0;
 
     /**
      * Capture all the outputs of the given `Command` and store them in an

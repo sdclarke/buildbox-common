@@ -28,11 +28,13 @@ void StagedDirectory::captureAllOutputs(const Command &command,
                                         ActionResult *result) const
 {
     CaptureFileCallback capture_file_function = [&](const char *path) {
-        return this->captureFile(path);
+        return this->captureFile(path, command);
     };
 
     CaptureDirectoryCallback capture_directory_function =
-        [&](const char *path) { return this->captureDirectory(path); };
+        [&](const char *path) {
+            return this->captureDirectory(path, command);
+        };
 
     return captureAllOutputs(command, result, capture_file_function,
                              capture_directory_function);

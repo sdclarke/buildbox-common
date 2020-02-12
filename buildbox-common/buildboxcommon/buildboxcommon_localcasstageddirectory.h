@@ -39,8 +39,10 @@ class LocalCasStagedDirectory final : public StagedDirectory {
     // These functions could be called for paths that do not exist.
     // In that case they will just return empty messages, without attempting
     // to request their staging.
-    OutputFile captureFile(const char *relative_path) const override;
-    OutputDirectory captureDirectory(const char *relative_path) const override;
+    OutputFile captureFile(const char *relative_path,
+                           const Command &command) const override;
+    OutputDirectory captureDirectory(const char *relative_path,
+                                     const Command &command) const override;
 
     // It's illegal to copy a LocalCasStagedDirectory since destroying one copy
     // would cause the other's local directory to be deleted.

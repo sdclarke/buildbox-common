@@ -63,8 +63,8 @@ FallbackStagedDirectory::~FallbackStagedDirectory()
     close(this->d_stage_directory_fd);
 }
 
-OutputFile
-FallbackStagedDirectory::captureFile(const char *relative_path) const
+OutputFile FallbackStagedDirectory::captureFile(const char *relative_path,
+                                                const Command &) const
 {
 
     const auto upload_file_function = [this](const int fd,
@@ -76,7 +76,8 @@ FallbackStagedDirectory::captureFile(const char *relative_path) const
 }
 
 OutputDirectory
-FallbackStagedDirectory::captureDirectory(const char *relative_path) const
+FallbackStagedDirectory::captureDirectory(const char *relative_path,
+                                          const Command &) const
 {
 
     const auto upload_directory_function = [this](const std::string &path) {

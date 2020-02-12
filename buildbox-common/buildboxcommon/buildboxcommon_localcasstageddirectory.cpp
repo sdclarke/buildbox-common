@@ -34,8 +34,8 @@ LocalCasStagedDirectory::LocalCasStagedDirectory(
     this->d_path = d_cas_client_staged_directory->path();
 }
 
-OutputFile
-LocalCasStagedDirectory::captureFile(const char *relative_path) const
+OutputFile LocalCasStagedDirectory::captureFile(const char *relative_path,
+                                                const Command &command) const
 {
     const std::string absolute_path =
         FileUtils::makePathAbsolute(relative_path, this->d_path);
@@ -44,8 +44,12 @@ LocalCasStagedDirectory::captureFile(const char *relative_path) const
         return OutputFile();
     }
 
+    const std::vector<std::string> properties(
+        command.output_node_properties().cbegin(),
+        command.output_node_properties().cend());
+
     const CaptureFilesResponse response =
-        this->d_cas_client->captureFiles({absolute_path}, {"MTime"}, false);
+        this->d_cas_client->captureFiles({absolute_path}, properties, false);
 
     if (response.responses().empty()) {
         BUILDBOXCOMMON_THROW_EXCEPTION(
@@ -73,7 +77,8 @@ LocalCasStagedDirectory::captureFile(const char *relative_path) const
 }
 
 OutputDirectory
-LocalCasStagedDirectory::captureDirectory(const char *relative_path) const
+LocalCasStagedDirectory::captureDirectory(const char *relative_path,
+                                          const Command &command) const
 {
 
     const std::string absolute_path =
@@ -84,8 +89,12 @@ LocalCasStagedDirectory::captureDirectory(const char *relative_path) const
         return OutputDirectory();
     }
 
+    const std::vector<std::string> properties(
+        command.output_node_properties().cbegin(),
+        command.output_node_properties().cend());
+
     const CaptureTreeResponse capture_response =
-        this->d_cas_client->captureTree({absolute_path}, {"MTime"}, false);
+        this->d_cas_client->captureTree({absolute_path}, properties, false);
 
     OutputDirectory captured_directory;
     captured_directory.set_path(relative_path);
