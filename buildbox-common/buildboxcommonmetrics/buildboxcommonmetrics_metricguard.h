@@ -17,10 +17,13 @@
 
 #include <string>
 
-#include <buildboxcommonmetrics_metriccollectorfactoryutil.h>
+#include <buildboxcommonmetrics_scopedmetric.h>
 
 namespace buildboxcommon {
 namespace buildboxcommonmetrics {
+
+template <class ValueType> class MetricCollector;
+
 /**
  * MetricGuard is the Metric Guard class
  *
@@ -32,18 +35,15 @@ template <class MetricType> class MetricGuard {
   private:
     // Infer the type of the value of MetricType
     // by inspecting the type MetricType.value() returns
-    typedef decltype(std::declval<MetricType>().value()) ValueType;
-    MetricCollector<ValueType> *d_collector;
     MetricType d_metric;
+    typedef typename ScopedMetric<MetricType>::ValueType ValueType;
+    ScopedMetric<MetricType> d_scopedMetric;
 
   public:
     explicit MetricGuard(const std::string &name,
                          MetricCollector<ValueType> *collector = nullptr)
-        : d_collector(collector), d_metric(name)
+        : d_metric(name), d_scopedMetric(&d_metric, collector)
     {
-        if (MetricCollectorFactory::getInstance()->metricsEnabled()) {
-            d_metric.start();
-        }
     }
 
     // DEPRECATED: the boolean flag indicating whether this metric is
@@ -56,16 +56,6 @@ template <class MetricType> class MetricGuard {
         : MetricGuard(name, collector)
     {
     }
-
-    // Destructor
-    ~MetricGuard<MetricType>()
-    {
-        if (MetricCollectorFactory::getInstance()->metricsEnabled()) {
-            d_metric.stop();
-            MetricCollectorFactoryUtil::store(d_metric.name(),
-                                              d_metric.value(), d_collector);
-        }
-    };
 };
 
 } // namespace buildboxcommonmetrics
