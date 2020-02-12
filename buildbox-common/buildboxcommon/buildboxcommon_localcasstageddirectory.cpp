@@ -68,11 +68,7 @@ LocalCasStagedDirectory::captureFile(const char *relative_path) const
     output_file.mutable_digest()->CopyFrom(captured_file.digest());
     output_file.set_is_executable(
         FileUtils::isExecutable(absolute_path.c_str()));
-    NodeProperty *property = output_file.add_node_properties();
-    property->set_name("MTime");
-    std::chrono::system_clock::time_point timepoint =
-        FileUtils::getFileMtime(absolute_path.c_str());
-    property->set_value(TimeUtils::make_timestamp(timepoint));
+    *output_file.mutable_node_properties() = captured_file.node_properties();
     return output_file;
 }
 
