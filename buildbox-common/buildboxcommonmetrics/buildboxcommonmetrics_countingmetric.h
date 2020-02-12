@@ -31,17 +31,30 @@ class CountingMetric {
   private:
     typedef CountingMetricValue ValueType;
     ValueType d_value;
-    const std::string d_name;
+    std::string d_name;
 
   public:
     explicit CountingMetric(const std::string &name);
     CountingMetric(const std::string &name, ValueType value);
     void setValue(ValueType value);
     void setValue(ValueType::Count value);
+    void add(ValueType::Count value) { *this += value; };
     ValueType value() const;
     void start();
     void stop();
     const std::string &name() const;
+
+    CountingMetric &operator+=(ValueType::Count other)
+    {
+        this->d_value.setValue(this->d_value.value() + other);
+        return *this;
+    }
+
+    CountingMetric &operator+(ValueType::Count value)
+    {
+        this->d_value += value;
+        return *this;
+    }
     CountingMetric &operator++(int)
     {
         this->d_value++;

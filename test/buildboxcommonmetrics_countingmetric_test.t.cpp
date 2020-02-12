@@ -71,3 +71,19 @@ TEST(MetricsTest, CountingMetricWithMetricGuardCustomValue)
     EXPECT_EQ(-22, collector.getIterableContainer()->begin()->second.value());
     EXPECT_EQ("my-counted", collector.getIterableContainer()->begin()->first);
 }
+
+TEST(MetricsTest, CountingMetricsAddition)
+{
+    CountingMetric count("counted");
+    count.setValue(10);
+    count++;
+    EXPECT_EQ(11, count.value().value());
+    count += 4;         // 15
+    count++;            // 16
+    count = count + 10; // 26
+
+    EXPECT_EQ(26, count.value().value());
+
+    count.add(4);
+    EXPECT_EQ(30, count.value().value());
+}

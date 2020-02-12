@@ -42,7 +42,10 @@ class CountingMetricValue {
 
     // OPERATORS
     CountingMetricValue &operator+=(const CountingMetricValue &other);
+    CountingMetricValue &operator+=(const Count other);
     CountingMetricValue &operator++(int);
+    CountingMetricValue &operator+(CountingMetricValue other);
+    CountingMetricValue &operator+(Count other);
 
   private:
     // DATA MEMBERS

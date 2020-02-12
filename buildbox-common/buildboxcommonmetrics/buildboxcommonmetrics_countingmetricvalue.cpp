@@ -46,5 +46,23 @@ CountingMetricValue &CountingMetricValue::operator++(int)
     ++this->d_value;
     return *this;
 }
+
+CountingMetricValue &CountingMetricValue::operator+(CountingMetricValue value)
+{
+    this->d_value += value.value();
+    return *this;
+}
+
+CountingMetricValue &CountingMetricValue::operator+=(const Count value)
+{
+    this->d_value += value;
+    return *this;
+}
+
+CountingMetricValue &CountingMetricValue::operator+(const Count value)
+{
+    this->d_value += value;
+    return *this;
+}
 } // namespace buildboxcommonmetrics
 } // namespace buildboxcommon
