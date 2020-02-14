@@ -234,13 +234,8 @@ int Runner::main(int argc, char *argv[])
         printSpecialUsage();
         return 1;
     }
-
-    ActionResult result;
-    auto *result_metadata = result.mutable_execution_metadata();
-
     // -- Worker started --
-    result_metadata->mutable_worker_start_timestamp()->CopyFrom(
-        TimeUtils::now());
+    const auto worker_start_time = TimeUtils::now();
 
     const Action input = readAction(this->d_inputPath);
     this->d_action_digest = CASHash::hash(input.SerializeAsString());
@@ -251,6 +246,7 @@ int Runner::main(int argc, char *argv[])
     BUILDBOX_RUNNER_LOG(DEBUG, "Fetching Command " << input.command_digest());
     const Command command = fetchCommand(input.command_digest());
 
+    ActionResult result;
     try {
         const auto signal_status = getSignalStatus();
         if (signal_status) {
@@ -265,9 +261,12 @@ int Runner::main(int argc, char *argv[])
         BUILDBOX_RUNNER_LOG(ERROR, "Error executing command: " << e.what());
         return EXIT_FAILURE;
     }
-    //  -- Worker finished --
+    //  -- Worker finished, set start/completed timestamps --
+    auto *result_metadata = result.mutable_execution_metadata();
     result_metadata->mutable_worker_completed_timestamp()->CopyFrom(
         TimeUtils::now());
+    result_metadata->mutable_worker_start_timestamp()->CopyFrom(
+        worker_start_time);
 
     if (!this->d_outputPath.empty()) {
         writeActionResult(result, this->d_outputPath);
