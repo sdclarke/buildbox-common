@@ -208,7 +208,7 @@ class Runner {
 }; // namespace buildboxcommon
 
 #define BUILDBOX_RUNNER_MAIN(x)                                               \
-    int main(int argc, char *argv[]) { x().main(argc, argv); }
+    int main(int argc, char *argv[]) { return x().main(argc, argv); }
 
 } // namespace buildboxcommon
 

@@ -263,11 +263,7 @@ int Runner::main(int argc, char *argv[])
     }
     catch (const std::exception &e) {
         BUILDBOX_RUNNER_LOG(ERROR, "Error executing command: " << e.what());
-
-        result.set_exit_code(255);
-        const std::string error_message =
-            "buildbox-run: " + std::string(e.what()) + "\n";
-        *(result.mutable_stderr_raw()) += error_message;
+        return EXIT_FAILURE;
     }
     //  -- Worker finished --
     result_metadata->mutable_worker_completed_timestamp()->CopyFrom(
@@ -284,7 +280,7 @@ int Runner::main(int argc, char *argv[])
         return getSignalStatus();
     }
 
-    return result.exit_code();
+    return 0;
 }
 
 std::unique_ptr<StagedDirectory> Runner::stage(const Digest &digest,
@@ -546,7 +542,9 @@ bool Runner::parseArguments(int argc, char *argv[])
             }
             else {
                 if (strcmp(arg, "help") == 0) {
-                    return false;
+                    usage(argv[0]);
+                    printSpecialUsage();
+                    exit(0);
                 }
                 else if (strcmp(arg, "use-localcas") == 0) {
                     this->d_use_localcas_protocol = true;
