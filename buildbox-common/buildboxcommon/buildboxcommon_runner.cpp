@@ -31,17 +31,18 @@
 #include <cstdio>
 #include <exception>
 #include <fcntl.h>
+#include <functional>
 #include <sstream>
 #include <stdlib.h>
 #include <sys/select.h>
 #include <sys/stat.h>
 #include <system_error>
 #include <unistd.h>
+#include <utility>
 
 namespace buildboxcommon {
 
 static const int BUILDBOXCOMMON_RUNNER_USAGE_PAD_WIDTH = 32;
-static const int BUILDBOXCOMMON_RUNNER_MAX_INLINED_OUTPUT = 1024;
 
 namespace {
 static void markNonBlocking(int fd)
@@ -362,10 +363,11 @@ std::array<int, 2> Runner::createPipe() const
     return pipe_fds;
 }
 
-void Runner::writeStandardStreamsToResult(const int stdout_read_fd,
-                                          const int stderr_read_fd,
-                                          ActionResult *result)
+std::pair<std::string, std::string>
+Runner::readStandardOutputs(const int stdout_read_fd, const int stderr_read_fd)
 {
+    std::string stdout_contents, stderr_contents;
+
     fd_set fds_to_read;
     FD_ZERO(&fds_to_read);
     FD_SET(stdout_read_fd, &fds_to_read);
@@ -401,17 +403,21 @@ void Runner::writeStandardStreamsToResult(const int stdout_read_fd,
 
         if (FD_ISSET(stdout_read_fd, &fdsSuccessfullyRead)) {
             writeStreamContents(stdout_read_fd, STDOUT_FILENO,
-                                result->mutable_stdout_raw());
+                                &stdout_contents);
         }
         if (FD_ISSET(stderr_read_fd, &fdsSuccessfullyRead)) {
             writeStreamContents(stderr_read_fd, STDERR_FILENO,
-                                result->mutable_stderr_raw());
+                                &stderr_contents);
         }
     }
+
+    return std::make_pair(std::move(stdout_contents),
+                          std::move(stderr_contents));
 }
 
-void Runner::executeAndStore(const std::vector<std::string> &command,
-                             ActionResult *result)
+void Runner::executeAndStore(
+    const std::vector<std::string> &command,
+    const UploadOutputsCallback &upload_outputs_function, ActionResult *result)
 {
     std::ostringstream logline;
     for (const auto &token : command) {
@@ -459,17 +465,22 @@ void Runner::executeAndStore(const std::vector<std::string> &command,
     close(stdout_pipe[1]);
     close(stderr_pipe[1]);
 
-    // Read `stdout` and `stderr` and add the contents to the `ActionResult`:
-    writeStandardStreamsToResult(stdout_pipe[0], stderr_pipe[0], result);
-    BUILDBOX_RUNNER_LOG(DEBUG, "Finished reading commands's stdout/err");
+    // Read `stdout` and `stderr`:
+    const auto standard_outputs =
+        readStandardOutputs(stdout_pipe[0], stderr_pipe[0]);
+    const std::string &stdout_contents = standard_outputs.first;
+    const std::string &stderr_contents = standard_outputs.second;
 
+    BUILDBOX_RUNNER_LOG(DEBUG, "Finished reading commands's stdout/err");
     close(stdout_pipe[0]);
     close(stderr_pipe[0]);
 
-    uploadIfNeeded(result->mutable_stdout_raw(),
-                   result->mutable_stdout_digest());
-    uploadIfNeeded(result->mutable_stderr_raw(),
-                   result->mutable_stderr_digest());
+    Digest stdout_digest, stderr_digest;
+    std::tie(stdout_digest, stderr_digest) =
+        upload_outputs_function(stdout_contents, stderr_contents);
+
+    result->mutable_stdout_digest()->CopyFrom(stdout_digest);
+    result->mutable_stderr_digest()->CopyFrom(stderr_digest);
 
     const int exit_code = SystemUtils::waitPid(pid);
 
@@ -477,6 +488,17 @@ void Runner::executeAndStore(const std::vector<std::string> &command,
     result_metadata->mutable_execution_completed_timestamp()->CopyFrom(
         TimeUtils::now());
     result->set_exit_code(exit_code);
+}
+
+void Runner::executeAndStore(const std::vector<std::string> &command,
+                             ActionResult *result)
+{
+    // This callback will be used to upload the contents of stdout and stderr.
+    const UploadOutputsCallback outputs_upload_function =
+        std::bind(&Runner::uploadOutputs, this, std::placeholders::_1,
+                  std::placeholders::_2);
+
+    this->executeAndStore(command, outputs_upload_function, result);
 }
 
 std::unique_ptr<StagedDirectory> Runner::stageDirectory(const Digest &digest)
@@ -576,26 +598,43 @@ bool Runner::parseArguments(int argc, char *argv[])
     return true;
 }
 
-void Runner::uploadIfNeeded(std::string *str, Digest *digest) const
+std::pair<Digest, Digest>
+Runner::uploadOutputs(const std::string &stdout_contents,
+                      const std::string &stderr_contents) const
 {
-    if (str->length() > BUILDBOXCOMMON_RUNNER_MAX_INLINED_OUTPUT) {
-        BUILDBOX_RUNNER_LOG(DEBUG, "Uploading contents of standard output: "
-                                       << digest->hash());
-        *digest = CASHash::hash(*str);
+    Digest stdout_digest = CASHash::hash(stdout_contents);
+    Digest stderr_digest = CASHash::hash(stderr_contents);
 
-        try {
-            this->d_casClient->upload(*str, *digest);
-            BUILDBOX_RUNNER_LOG(DEBUG, "Done uploading " << digest->hash());
-        }
-        catch (const std::runtime_error &e) {
-            BUILDBOX_RUNNER_LOG(ERROR,
-                                "Could not upload stdout/stderr contents to \""
-                                    << d_casRemote.d_url
-                                    << "\", output lost: " << e.what());
-        }
+    const std::vector<Client::UploadRequest> upload_requests = {
+        Client::UploadRequest(stdout_digest, stdout_contents),
+        Client::UploadRequest(stderr_digest, stderr_contents),
+    };
 
-        str->clear();
+    // If some output fails to be uploaded, we'll return an empty digest for
+    // it.
+    std::vector<Client::UploadResult> failed_blobs;
+    try {
+        failed_blobs = this->d_casClient->uploadBlobs(upload_requests);
     }
+    catch (const std::exception &e) {
+        BUILDBOX_LOG_ERROR("Failed to upload stdout and stderr: " << e.what());
+        return std::make_pair(Digest(), Digest());
+    }
+
+    for (const auto &blob : failed_blobs) {
+        if (blob.digest == stdout_digest) {
+            BUILDBOX_LOG_ERROR("Failed to upload stdout contents. Received: "
+                               << blob.status.error_message());
+            stdout_digest = Digest();
+        }
+        else {
+            BUILDBOX_LOG_ERROR("Failed to upload stderr contents. Received: "
+                               << blob.status.error_message());
+            stderr_digest = Digest();
+        }
+    }
+
+    return std::make_pair(std::move(stdout_digest), std::move(stderr_digest));
 }
 
 } // namespace buildboxcommon

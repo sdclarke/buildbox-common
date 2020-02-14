@@ -38,6 +38,17 @@ class TestRunner : public Runner {
     {
         createOutputDirectories(command, workingDir);
     }
+
+    static std::pair<Digest, Digest>
+    dummyUploadFunction(const std::string &stdout_contents,
+                        const std::string &stderr_contents)
+    {
+        // Return valid hashes to verify that this was invoked with the
+        // expected data:
+        return std::make_pair(CASHash::hash(stdout_contents),
+                              CASHash::hash(stderr_contents));
+    }
+
     using Runner::executeAndStore;
 };
 
@@ -73,9 +84,30 @@ TEST(RunnerTest, ExecuteAndStoreHelloWorld)
     TestRunner runner;
     ActionResult result;
 
-    runner.executeAndStore({"echo", "hello", "world"}, &result);
-    EXPECT_EQ(result.stdout_raw(), "hello world\n");
-    EXPECT_EQ(result.stderr_raw(), "");
+    runner.executeAndStore({"echo", "hello", "world"},
+                           TestRunner::dummyUploadFunction, &result);
+
+    const auto expected_stdout = "hello world\n";
+    EXPECT_EQ(result.stdout_digest(), CASHash::hash(expected_stdout));
+    EXPECT_TRUE(result.stdout_raw().empty()); // `Runner` does not inline.
+
+    EXPECT_EQ(result.stderr_digest(), CASHash::hash(""));
+
+    EXPECT_EQ(result.exit_code(), 0);
+
+    assert_metadata_execution_timestamps_set(result);
+}
+
+TEST(RunnerTest, TestEmptyOutputsNotUploaded)
+{
+    TestRunner runner;
+    ActionResult result;
+
+    runner.executeAndStore({"true"}, TestRunner::dummyUploadFunction, &result);
+
+    EXPECT_EQ(result.stdout_digest(), CASHash::hash(""));
+    EXPECT_EQ(result.stderr_digest(), CASHash::hash(""));
+
     EXPECT_EQ(result.exit_code(), 0);
 
     assert_metadata_execution_timestamps_set(result);
@@ -86,7 +118,8 @@ TEST(RunnerTest, CommandNotFound)
     TestRunner runner;
     ActionResult result;
 
-    runner.executeAndStore({"command-does-not-exist"}, &result);
+    runner.executeAndStore({"command-does-not-exist"},
+                           TestRunner::dummyUploadFunction, &result);
     EXPECT_EQ(result.exit_code(), 127); // "command not found" as in Bash
 
     assert_metadata_execution_timestamps_set(result);
@@ -98,7 +131,8 @@ TEST(RunnerTest, CommandIsNotAnExecutable)
     ActionResult result;
 
     TemporaryFile non_executable_file;
-    runner.executeAndStore({non_executable_file.name()}, &result);
+    runner.executeAndStore({non_executable_file.name()},
+                           TestRunner::dummyUploadFunction, &result);
     EXPECT_EQ(result.exit_code(), 126); // Command invoked cannot execute
 
     assert_metadata_execution_timestamps_set(result);
@@ -109,10 +143,9 @@ TEST(RunnerTest, ExecuteAndStoreExitCode)
     TestRunner runner;
     ActionResult result;
 
-    runner.executeAndStore({"sh", "-c", "exit 23"}, &result);
+    runner.executeAndStore({"sh", "-c", "exit 23"},
+                           TestRunner::dummyUploadFunction, &result);
 
-    EXPECT_EQ(result.stdout_raw(), "");
-    EXPECT_EQ(result.stderr_raw(), "");
     EXPECT_EQ(result.exit_code(), 23);
 }
 
@@ -122,9 +155,17 @@ TEST(RunnerTest, ExecuteAndStoreStderr)
     ActionResult result;
 
     runner.executeAndStore({"sh", "-c", "echo hello; echo world >&2"},
-                           &result);
-    EXPECT_EQ(result.stdout_raw(), "hello\n");
-    EXPECT_EQ(result.stderr_raw(), "world\n");
+                           TestRunner::dummyUploadFunction, &result);
+
+    const auto expected_stdout = "hello\n";
+    const auto expected_stderr = "world\n";
+
+    EXPECT_EQ(result.stdout_digest(), CASHash::hash(expected_stdout));
+    EXPECT_EQ(result.stderr_digest(), CASHash::hash(expected_stderr));
+
+    EXPECT_TRUE(result.stdout_raw().empty());
+    EXPECT_TRUE(result.stderr_raw().empty());
+
     EXPECT_EQ(result.exit_code(), 0);
 }
 

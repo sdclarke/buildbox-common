@@ -19,6 +19,7 @@
 
 #include <atomic>
 #include <signal.h>
+#include <utility>
 
 #include <buildboxcommon_client.h>
 #include <buildboxcommon_connectionoptions.h>
@@ -63,9 +64,9 @@ class Runner {
 
     /**
      * Subclasses can override this to print Runner-specific capabilities.
-     * The format is one capability name per line. In the common case where the
-     * capability is associated with a CLI option, the printed capability name
-     * should match the name of the option.
+     * The format is one capability name per line. In the common case where
+     * the capability is associated with a CLI option, the printed
+     * capability name should match the name of the option.
      */
     virtual void printSpecialCapabilities() {}
 
@@ -85,6 +86,19 @@ class Runner {
      * store its stdout, stderr, and exit code in the given ActionResult.
      */
     void executeAndStore(const std::vector<std::string> &command,
+                         ActionResult *result);
+
+    typedef std::function<std::pair<Digest, Digest>(
+        const std::string &stdout_contents,
+        const std::string &stderr_contents)>
+        UploadOutputsCallback;
+    /**
+     * Helper method to unit test the runner-facing implementation.
+     * Invokes the `upload_output_function` callback for `stdout` and
+     * `stderr` if those are not empty.
+     */
+    void executeAndStore(const std::vector<std::string> &command,
+                         const UploadOutputsCallback &upload_outputs_function,
                          ActionResult *result);
     /**
      * Stage the directory with the given digest, to stage_path, and
@@ -127,9 +141,9 @@ class Runner {
 
     Digest d_action_digest;
 
-    // Helpers to set the timestamps of the different stages that are carried
-    // out in the runner. Those will be returned in the `ActionResult`, as part
-    // of its `ExecutedActionMetadata` field.
+    // Helpers to set the timestamps of the different stages that are
+    // carried out in the runner. Those will be returned in the
+    // `ActionResult`, as part of its `ExecutedActionMetadata` field.
     inline static void
     metadata_mark_input_download_start(ExecutedActionMetadata *metadata)
     {
@@ -166,10 +180,15 @@ class Runner {
     bool parseArguments(int argc, char *argv[]);
 
     /**
-     * If the given string is larger than the maximum size, upload it to
-     * CAS, store its digest in the given digest pointer, and clear it.
+     * Upload the contents of `stdout` and `stderr` and return a pair
+     * containing their digests in the same order.
+     *
+     * If an entry fails to be uploaded, its corresponding position in the
+     * result will contain an empty `Digest` object.
      */
-    void uploadIfNeeded(std::string *str, Digest *digest) const;
+    std::pair<Digest, Digest>
+    uploadOutputs(const std::string &stdout_contents,
+                  const std::string &stderr_contents) const;
 
     ConnectionOptions d_casRemote;
     std::string d_inputPath;
@@ -190,10 +209,10 @@ class Runner {
                            const std::string &path) const;
 
     // Given file descriptors to `stdout` and `stderr` pipes' reading ends,
-    // get their contents and add them to the `ActionResult`.
-    static void writeStandardStreamsToResult(const int stdout_read_fd,
-                                             const int stderr_read_fd,
-                                             ActionResult *result);
+    // get their contents. Returns a pair of strings in the same order,
+    // i.e. (stdout, stderr).
+    static std::pair<std::string, std::string>
+    readStandardOutputs(const int stdout_read_fd, const int stderr_read_fd);
 
     // Fetch a `Command` message from the remote CAS. If that fails, log
     // the error and `exit(1)`.
