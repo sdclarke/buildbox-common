@@ -44,7 +44,7 @@
 
 namespace buildboxcommon {
 
-bool FileUtils::is_regular_file(const char *path)
+bool FileUtils::isRegularFile(const char *path)
 {
     struct stat statResult;
     if (stat(path, &statResult) == 0) {
@@ -53,7 +53,7 @@ bool FileUtils::is_regular_file(const char *path)
     return false;
 }
 
-bool FileUtils::is_directory(const char *path)
+bool FileUtils::isDirectory(const char *path)
 {
     struct stat statResult;
     if (stat(path, &statResult) == 0) {
@@ -62,7 +62,7 @@ bool FileUtils::is_directory(const char *path)
     return false;
 }
 
-bool FileUtils::is_directory(int fd)
+bool FileUtils::isDirectory(int fd)
 {
     struct stat statResult;
     if (fstat(fd, &statResult) == 0) {
@@ -71,7 +71,7 @@ bool FileUtils::is_directory(int fd)
     return false;
 }
 
-bool FileUtils::is_symlink(const char *path)
+bool FileUtils::isSymlink(const char *path)
 {
     struct stat statResult;
     if (lstat(path, &statResult) == 0) {
@@ -80,7 +80,7 @@ bool FileUtils::is_symlink(const char *path)
     return false;
 }
 
-bool FileUtils::directory_is_empty(const char *path)
+bool FileUtils::directoryIsEmpty(const char *path)
 {
     DirentWrapper root(path);
 
@@ -90,11 +90,11 @@ bool FileUtils::directory_is_empty(const char *path)
     return (root.entry() == nullptr);
 }
 
-void FileUtils::create_directory(const char *path, mode_t mode)
+void FileUtils::createDirectory(const char *path, mode_t mode)
 {
     // Normalize path first as the parent directory creation logic below
     // can't handle paths with '..' components.
-    const std::string normalized_path = normalize_path(path);
+    const std::string normalized_path = normalizePath(path);
 
     // Attempt to create the directory:
     const auto mkdir_status = mkdir(normalized_path.c_str(), mode);
@@ -117,7 +117,7 @@ void FileUtils::create_directory(const char *path, mode_t mode)
     // We'll recursively create the parent directory and try again:
     const std::string parent_path =
         normalized_path.substr(0, normalized_path.rfind('/'));
-    create_directory(parent_path.c_str());
+    createDirectory(parent_path.c_str());
 
     // Now that all the parent directories exist, we create the last directory:
     if (mkdir(normalized_path.c_str(), mode) != 0) {
@@ -125,17 +125,17 @@ void FileUtils::create_directory(const char *path, mode_t mode)
     }
 }
 
-void FileUtils::delete_directory(const char *path)
+void FileUtils::deleteDirectory(const char *path)
 {
-    delete_recursively(path, true);
+    deleteRecursively(path, true);
 }
 
-void FileUtils::clear_directory(const char *path)
+void FileUtils::clearDirectory(const char *path)
 {
-    delete_recursively(path, false);
+    deleteRecursively(path, false);
 }
 
-bool FileUtils::is_executable(const char *path)
+bool FileUtils::isExecutable(const char *path)
 {
     struct stat statResult;
     if (stat(path, &statResult) == 0) {
@@ -144,7 +144,7 @@ bool FileUtils::is_executable(const char *path)
     return false;
 }
 
-bool FileUtils::is_executable(int fd)
+bool FileUtils::isExecutable(int fd)
 {
     struct stat statResult;
     if (fstat(fd, &statResult) == 0) {
@@ -153,7 +153,7 @@ bool FileUtils::is_executable(int fd)
     return false;
 }
 
-struct stat FileUtils::get_file_stat(const char *path)
+struct stat FileUtils::getFileStat(const char *path)
 {
     struct stat statResult;
     if (stat(path, &statResult) != 0) {
@@ -164,7 +164,7 @@ struct stat FileUtils::get_file_stat(const char *path)
     return statResult;
 }
 
-struct stat FileUtils::get_file_stat(const int fd)
+struct stat FileUtils::getFileStat(const int fd)
 {
     struct stat statResult;
     if (fstat(fd, &statResult) != 0) {
@@ -175,21 +175,20 @@ struct stat FileUtils::get_file_stat(const int fd)
     return statResult;
 }
 
-std::chrono::system_clock::time_point
-FileUtils::get_file_mtime(const char *path)
+std::chrono::system_clock::time_point FileUtils::getFileMtime(const char *path)
 {
-    struct stat statResult = get_file_stat(path);
-    return FileUtils::get_mtime_timepoint(statResult);
+    struct stat statResult = getFileStat(path);
+    return FileUtils::getMtimeTimepoint(statResult);
 }
 
-std::chrono::system_clock::time_point FileUtils::get_file_mtime(const int fd)
+std::chrono::system_clock::time_point FileUtils::getFileMtime(const int fd)
 {
-    struct stat statResult = get_file_stat(fd);
-    return FileUtils::get_mtime_timepoint(statResult);
+    struct stat statResult = getFileStat(fd);
+    return FileUtils::getMtimeTimepoint(statResult);
 }
 
 std::chrono::system_clock::time_point
-FileUtils::get_mtime_timepoint(struct stat &result)
+FileUtils::getMtimeTimepoint(struct stat &result)
 {
     const std::chrono::system_clock::time_point timepoint =
         std::chrono::system_clock::from_time_t(result.st_mtim.tv_sec) +
@@ -197,11 +196,11 @@ FileUtils::get_mtime_timepoint(struct stat &result)
     return timepoint;
 }
 
-void FileUtils::set_file_mtime(
+void FileUtils::setFileMtime(
     const int fd, const std::chrono::system_clock::time_point timepoint)
 {
     const struct timespec new_mtime = TimeUtils::make_timespec(timepoint);
-    const struct stat stat_result = FileUtils::get_file_stat(fd);
+    const struct stat stat_result = FileUtils::getFileStat(fd);
     // AIX stat.h defines st_timespec_t as the return of stat().st_atim
     const struct timespec atime = {
         stat_result.st_atim.tv_sec,
@@ -215,11 +214,11 @@ void FileUtils::set_file_mtime(
                                           "Failed to set file mtime");
 }
 
-void FileUtils::set_file_mtime(
+void FileUtils::setFileMtime(
     const char *path, const std::chrono::system_clock::time_point timepoint)
 {
     const struct timespec new_mtime = TimeUtils::make_timespec(timepoint);
-    const struct stat stat_result = FileUtils::get_file_stat(path);
+    const struct stat stat_result = FileUtils::getFileStat(path);
     // AIX stat.h defines st_timespec_t as the return of stat().st_atim
     const struct timespec atime = {
         stat_result.st_atim.tv_sec,
@@ -233,7 +232,7 @@ void FileUtils::set_file_mtime(
         "Failed to set file \"" << path << "\" mtime");
 }
 
-void FileUtils::make_executable(const char *path)
+void FileUtils::makeExecutable(const char *path)
 {
     struct stat statResult;
     if (stat(path, &statResult) == 0) {
@@ -247,7 +246,7 @@ void FileUtils::make_executable(const char *path)
         "Error in stat for path \"" << path << "\"");
 }
 
-std::string FileUtils::get_file_contents(const char *path)
+std::string FileUtils::getFileContents(const char *path)
 {
     std::ifstream file_stream(path, std::ios::in | std::ios::binary);
     if (file_stream.bad() || file_stream.fail()) {
@@ -267,11 +266,11 @@ std::string FileUtils::get_file_contents(const char *path)
     return file_stringstream.str();
 }
 
-void FileUtils::copy_file(const char *src_path, const char *dest_path)
+void FileUtils::copyFile(const char *src_path, const char *dest_path)
 {
     ssize_t rdsize, wrsize;
     int err = 0;
-    const mode_t mode = FileUtils::get_file_stat(src_path).st_mode;
+    const mode_t mode = FileUtils::getFileStat(src_path).st_mode;
 
     int src = open(src_path, O_RDONLY, mode);
     if (src == -1) {
@@ -328,10 +327,10 @@ void FileUtils::copy_file(const char *src_path, const char *dest_path)
     }
 }
 
-int FileUtils::write_file_atomically(const std::string &path,
-                                     const std::string &data, mode_t mode,
-                                     const std::string &intermediate_directory,
-                                     const std::string &prefix)
+int FileUtils::writeFileAtomically(const std::string &path,
+                                   const std::string &data, mode_t mode,
+                                   const std::string &intermediate_directory,
+                                   const std::string &prefix)
 {
     std::string temporary_directory;
     if (!intermediate_directory.empty()) {
@@ -392,15 +391,15 @@ int FileUtils::write_file_atomically(const std::string &path,
     return errno;
 }
 
-void FileUtils::delete_recursively(const char *path,
-                                   const bool delete_root_directory)
+void FileUtils::deleteRecursively(const char *path,
+                                  const bool delete_root_directory)
 {
     DirentWrapper root(path);
 
     DirectoryTraversalFnPtr rmdir_func = [](const char *dir_path, int fd) {
         std::string dir_basename(dir_path);
         if (fd != -1) {
-            dir_basename = FileUtils::path_basename(dir_path);
+            dir_basename = FileUtils::pathBasename(dir_path);
             if (dir_basename.empty()) {
                 return;
             }
@@ -432,18 +431,18 @@ void FileUtils::delete_recursively(const char *path,
         }
     };
 
-    FileDescriptorTraverseAndApply(&root, rmdir_func, unlink_func,
+    fileDescriptorTraverseAndApply(&root, rmdir_func, unlink_func,
                                    delete_root_directory, true);
 }
 
-void FileUtils::FileDescriptorTraverseAndApply(
+void FileUtils::fileDescriptorTraverseAndApply(
     DirentWrapper *dir, DirectoryTraversalFnPtr dir_func,
     DirectoryTraversalFnPtr file_func, bool apply_to_root, bool pass_parent_fd)
 {
     while (dir->entry() != nullptr) {
         if (dir->currentEntryIsDirectory()) {
             auto nextDir = dir->nextDir();
-            FileDescriptorTraverseAndApply(&nextDir, dir_func, file_func, true,
+            fileDescriptorTraverseAndApply(&nextDir, dir_func, file_func, true,
                                            pass_parent_fd);
         }
         else {
@@ -463,8 +462,8 @@ void FileUtils::FileDescriptorTraverseAndApply(
     }
 }
 
-std::string FileUtils::make_path_absolute(const std::string &path,
-                                          const std::string &cwd)
+std::string FileUtils::makePathAbsolute(const std::string &path,
+                                        const std::string &cwd)
 {
     if (cwd.empty() || cwd.front() != '/') {
         BUILDBOXCOMMON_THROW_EXCEPTION(std::runtime_error,
@@ -473,7 +472,7 @@ std::string FileUtils::make_path_absolute(const std::string &path,
     }
 
     const std::string full_path = cwd + '/' + path;
-    std::string normalized_path = FileUtils::normalize_path(full_path.c_str());
+    std::string normalized_path = FileUtils::normalizePath(full_path.c_str());
 
     // normalize_path removes trailing slashes, so let's preserve them here
     if (path.back() == '/' && normalized_path.back() != '/') {
@@ -482,7 +481,7 @@ std::string FileUtils::make_path_absolute(const std::string &path,
     return normalized_path;
 }
 
-std::string FileUtils::normalize_path(const char *path)
+std::string FileUtils::normalizePath(const char *path)
 {
     std::vector<std::string> segments;
 
@@ -529,7 +528,7 @@ std::string FileUtils::normalize_path(const char *path)
     return result;
 }
 
-std::string FileUtils::path_basename(const char *path)
+std::string FileUtils::pathBasename(const char *path)
 {
     std::string basename(path);
 
