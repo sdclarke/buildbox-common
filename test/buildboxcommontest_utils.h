@@ -48,7 +48,7 @@ struct TestUtils {
                                           const std::string &subdir_name)
     {
         auto subdir = root_path + "/" + subdir_name;
-        FileUtils::create_directory(subdir.c_str());
+        FileUtils::createDirectory(subdir.c_str());
         return subdir;
     }
 

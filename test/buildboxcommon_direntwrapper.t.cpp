@@ -57,7 +57,7 @@ TEST(DirentWrapperTests, CreateEmptyDirectory)
 {
     TemporaryDirectory tempDir = TemporaryDirectory("testdir");
     auto name = std::string(tempDir.name());
-    FileUtils::create_directory(name.c_str());
+    FileUtils::createDirectory(name.c_str());
 
     DirentWrapper d(name);
     ASSERT_EQ(d.path(), name);

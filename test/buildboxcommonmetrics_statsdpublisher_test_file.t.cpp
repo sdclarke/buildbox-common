@@ -52,7 +52,7 @@ TEST(MetricsTest, StatsDPublisherTestWriteToFile)
     // Publish
     myPublisher.publish();
     // Expect the file to be empty since there were no actual metrics
-    EXPECT_EQ("", buildboxcommon::FileUtils::get_file_contents(metricsFile));
+    EXPECT_EQ("", buildboxcommon::FileUtils::getFileContents(metricsFile));
 
     // Store "my-metric"
     MetricCollectorFactoryUtil::store("my-metric", MockValueType());
@@ -60,7 +60,7 @@ TEST(MetricsTest, StatsDPublisherTestWriteToFile)
     myPublisher.publish();
     // Expect to have `my-metric` published
     EXPECT_EQ("my-metric\n",
-              buildboxcommon::FileUtils::get_file_contents(metricsFile));
+              buildboxcommon::FileUtils::getFileContents(metricsFile));
 
     // Store "another-metric"
     MetricCollectorFactoryUtil::store("another-metric", MockValueType());
@@ -68,7 +68,7 @@ TEST(MetricsTest, StatsDPublisherTestWriteToFile)
     myPublisher.publish();
     // Expect to have those two metrics
     const auto fileContents =
-        buildboxcommon::FileUtils::get_file_contents(metricsFile);
+        buildboxcommon::FileUtils::getFileContents(metricsFile);
     EXPECT_NE(std::string::npos, fileContents.find("my-metric"));
     EXPECT_NE(std::string::npos, fileContents.find("another-metric"));
 }
@@ -87,7 +87,7 @@ TEST(MetricsTest, StatsDPublisherTestWriteToFile2ValueTypes)
     // Expect the file to be empty since there were no actual metrics
     {
         const auto fileContents =
-            buildboxcommon::FileUtils::get_file_contents(metricsFilename);
+            buildboxcommon::FileUtils::getFileContents(metricsFilename);
         EXPECT_EQ("", fileContents);
     }
 
@@ -98,7 +98,7 @@ TEST(MetricsTest, StatsDPublisherTestWriteToFile2ValueTypes)
     // Expect to have `my-metric` published
     {
         const auto fileContents =
-            buildboxcommon::FileUtils::get_file_contents(metricsFilename);
+            buildboxcommon::FileUtils::getFileContents(metricsFilename);
         EXPECT_EQ("my-metric\n", fileContents);
     }
 
@@ -109,7 +109,7 @@ TEST(MetricsTest, StatsDPublisherTestWriteToFile2ValueTypes)
     myPublisher.publish();
     {
         const auto fileContents =
-            buildboxcommon::FileUtils::get_file_contents(metricsFilename);
+            buildboxcommon::FileUtils::getFileContents(metricsFilename);
         // Expect to have those two metrics
         EXPECT_NE(std::string::npos, fileContents.find("my-metric"));
         EXPECT_NE(std::string::npos, fileContents.find("additional-metric"));
@@ -122,7 +122,7 @@ TEST(MetricsTest, StatsDPublisherTestWriteToFile2ValueTypes)
     myPublisher.publish();
     {
         const auto fileContents =
-            buildboxcommon::FileUtils::get_file_contents(metricsFilename);
+            buildboxcommon::FileUtils::getFileContents(metricsFilename);
         // Expect to have those two metrics
         EXPECT_NE(std::string::npos, fileContents.find("my-metric"));
         EXPECT_NE(std::string::npos, fileContents.find("another-metric"));

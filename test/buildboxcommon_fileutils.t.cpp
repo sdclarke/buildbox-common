@@ -41,20 +41,20 @@ TEST(FileUtilsTests, DirectoryTests)
     const char *path = pathStr.c_str();
 
     ASSERT_FALSE(buildboxcommontest::TestUtils::pathExists(path));
-    ASSERT_FALSE(FileUtils::is_directory(path));
-    ASSERT_FALSE(FileUtils::is_regular_file(path));
+    ASSERT_FALSE(FileUtils::isDirectory(path));
+    ASSERT_FALSE(FileUtils::isRegularFile(path));
 
-    FileUtils::create_directory(path);
+    FileUtils::createDirectory(path);
 
     ASSERT_TRUE(buildboxcommontest::TestUtils::pathExists(path));
-    ASSERT_TRUE(FileUtils::is_directory(path));
-    ASSERT_FALSE(FileUtils::is_regular_file(path));
+    ASSERT_TRUE(FileUtils::isDirectory(path));
+    ASSERT_FALSE(FileUtils::isRegularFile(path));
 
-    FileUtils::delete_directory(path);
+    FileUtils::deleteDirectory(path);
 
     ASSERT_FALSE(buildboxcommontest::TestUtils::pathExists(path));
-    ASSERT_FALSE(FileUtils::is_directory(path));
-    ASSERT_FALSE(FileUtils::is_regular_file(path));
+    ASSERT_FALSE(FileUtils::isDirectory(path));
+    ASSERT_FALSE(FileUtils::isRegularFile(path));
 }
 
 TEST(FileUtilsTest, CreateDirectorySingleLevel)
@@ -63,9 +63,9 @@ TEST(FileUtilsTest, CreateDirectorySingleLevel)
 
     const std::string path = std::string(dir.name()) + "/subdir";
 
-    ASSERT_FALSE(FileUtils::is_directory(path.c_str()));
-    FileUtils::create_directory(path.c_str());
-    ASSERT_TRUE(FileUtils::is_directory(path.c_str()));
+    ASSERT_FALSE(FileUtils::isDirectory(path.c_str()));
+    FileUtils::createDirectory(path.c_str());
+    ASSERT_TRUE(FileUtils::isDirectory(path.c_str()));
 }
 
 TEST(FileUtilsTest, CreateDirectoryPlusItsParents)
@@ -74,15 +74,15 @@ TEST(FileUtilsTest, CreateDirectoryPlusItsParents)
 
     const std::string path = std::string(dir.name()) + "/dir1/dir2/dir3/";
 
-    ASSERT_FALSE(FileUtils::is_directory(path.c_str()));
-    FileUtils::create_directory(path.c_str());
-    ASSERT_TRUE(FileUtils::is_directory(path.c_str()));
+    ASSERT_FALSE(FileUtils::isDirectory(path.c_str()));
+    FileUtils::createDirectory(path.c_str());
+    ASSERT_TRUE(FileUtils::isDirectory(path.c_str()));
 }
 
 TEST(FileUtilsTest, CreateExistingDirectory)
 {
     TemporaryDirectory dir;
-    ASSERT_NO_THROW(FileUtils::create_directory(dir.name()));
+    ASSERT_NO_THROW(FileUtils::createDirectory(dir.name()));
 }
 
 TEST(FileUtilsTests, IsFile)
@@ -95,8 +95,8 @@ TEST(FileUtilsTests, IsFile)
 
     ASSERT_TRUE(buildboxcommontest::TestUtils::pathExists(path));
 
-    ASSERT_TRUE(FileUtils::is_regular_file(path));
-    ASSERT_FALSE(FileUtils::is_directory(path));
+    ASSERT_TRUE(FileUtils::isRegularFile(path));
+    ASSERT_FALSE(FileUtils::isDirectory(path));
 }
 
 TEST(FileUtilsTests, IsFileFD)
@@ -104,7 +104,7 @@ TEST(FileUtilsTests, IsFileFD)
     TemporaryFile file;
 
     ASSERT_NE(file.fd(), -1);
-    ASSERT_FALSE(FileUtils::is_directory(file.fd()));
+    ASSERT_FALSE(FileUtils::isDirectory(file.fd()));
 }
 
 TEST(FileUtilsTests, IsNotFileFD)
@@ -114,13 +114,13 @@ TEST(FileUtilsTests, IsNotFileFD)
     const int dir_fd = open(dir.name(), O_RDONLY);
     ASSERT_NE(dir_fd, -1);
 
-    ASSERT_TRUE(FileUtils::is_directory(dir_fd));
+    ASSERT_TRUE(FileUtils::isDirectory(dir_fd));
 }
 
 TEST(FileUtilsTests, IsDirectoryBadFdReturnsFalse)
 {
     const int bad_fd = -1;
-    ASSERT_FALSE(FileUtils::is_directory(bad_fd));
+    ASSERT_FALSE(FileUtils::isDirectory(bad_fd));
 }
 
 TEST(FileUtilsTests, ExecutableTests)
@@ -130,19 +130,19 @@ TEST(FileUtilsTests, ExecutableTests)
     const char *path = pathStr.c_str();
 
     ASSERT_FALSE(buildboxcommontest::TestUtils::pathExists(path));
-    ASSERT_FALSE(FileUtils::is_executable(path));
+    ASSERT_FALSE(FileUtils::isExecutable(path));
 
     buildboxcommontest::TestUtils::touchFile(path);
 
     ASSERT_TRUE(buildboxcommontest::TestUtils::pathExists(path));
-    ASSERT_TRUE(FileUtils::is_regular_file(path));
-    ASSERT_FALSE(FileUtils::is_executable(path));
+    ASSERT_TRUE(FileUtils::isRegularFile(path));
+    ASSERT_FALSE(FileUtils::isExecutable(path));
 
-    FileUtils::make_executable(path);
+    FileUtils::makeExecutable(path);
 
     ASSERT_TRUE(buildboxcommontest::TestUtils::pathExists(path));
-    ASSERT_TRUE(FileUtils::is_regular_file(path));
-    ASSERT_TRUE(FileUtils::is_executable(path));
+    ASSERT_TRUE(FileUtils::isRegularFile(path));
+    ASSERT_TRUE(FileUtils::isExecutable(path));
 }
 
 TEST(FileUtilsTests, IsSymlink)
@@ -151,17 +151,17 @@ TEST(FileUtilsTests, IsSymlink)
     const auto file_in_dir =
         buildboxcommontest::TestUtils::createFileInDirectory("file1",
                                                              dir.name());
-    ASSERT_FALSE(FileUtils::is_symlink(file_in_dir.c_str()));
+    ASSERT_FALSE(FileUtils::isSymlink(file_in_dir.c_str()));
     const auto symlink_path = dir.strname() + "/symlink";
     symlink(file_in_dir.c_str(), symlink_path.c_str());
-    ASSERT_TRUE(FileUtils::is_symlink(symlink_path.c_str()));
+    ASSERT_TRUE(FileUtils::isSymlink(symlink_path.c_str()));
 }
 
 TEST(FileUtilsTest, DirectoryIsEmptyTest)
 {
     TemporaryDirectory dir;
 
-    ASSERT_TRUE(FileUtils::directory_is_empty(dir.name()));
+    ASSERT_TRUE(FileUtils::directoryIsEmpty(dir.name()));
 }
 
 TEST(FileUtilsTest, DirectoryIsNotEmptyTest)
@@ -173,15 +173,15 @@ TEST(FileUtilsTest, DirectoryIsNotEmptyTest)
     std::ofstream file(file_path);
     file.close();
 
-    ASSERT_FALSE(FileUtils::directory_is_empty(dir.name()));
+    ASSERT_FALSE(FileUtils::directoryIsEmpty(dir.name()));
 }
 
 TEST(FileUtilsTest, RemoveSymlinkToDirectory)
 {
     TemporaryDirectory dir;
     TemporaryDirectory dir2;
-    ASSERT_TRUE(FileUtils::is_directory(dir.name()));
-    ASSERT_TRUE(FileUtils::is_directory(dir2.name()));
+    ASSERT_TRUE(FileUtils::isDirectory(dir.name()));
+    ASSERT_TRUE(FileUtils::isDirectory(dir2.name()));
 
     // Create a symlink to dir from a subdirectory in dir2
     const auto symlink_to_dir =
@@ -190,21 +190,21 @@ TEST(FileUtilsTest, RemoveSymlinkToDirectory)
 
     const auto file_in_dir = std::string(dir.name()) + "/" + "file_in_dir.txt";
     buildboxcommontest::TestUtils::touchFile(file_in_dir.c_str());
-    ASSERT_TRUE(FileUtils::is_regular_file(file_in_dir.c_str()));
+    ASSERT_TRUE(FileUtils::isRegularFile(file_in_dir.c_str()));
 
     // Follow the path make sure target is directory.
-    ASSERT_TRUE(FileUtils::is_directory(symlink_to_dir.c_str()));
-    ASSERT_FALSE(FileUtils::directory_is_empty(dir.name()));
+    ASSERT_TRUE(FileUtils::isDirectory(symlink_to_dir.c_str()));
+    ASSERT_FALSE(FileUtils::directoryIsEmpty(dir.name()));
 
     // Clear dir2
-    FileUtils::clear_directory(dir2.name());
-    ASSERT_TRUE(FileUtils::directory_is_empty(dir2.name()));
+    FileUtils::clearDirectory(dir2.name());
+    ASSERT_TRUE(FileUtils::directoryIsEmpty(dir2.name()));
 
     // Check that dir still exists
-    ASSERT_TRUE(FileUtils::is_directory(dir.name()));
+    ASSERT_TRUE(FileUtils::isDirectory(dir.name()));
     // Assert file exists in dir
-    ASSERT_TRUE(FileUtils::is_regular_file(file_in_dir.c_str()));
-    ASSERT_FALSE(FileUtils::directory_is_empty(dir.name()));
+    ASSERT_TRUE(FileUtils::isRegularFile(file_in_dir.c_str()));
+    ASSERT_FALSE(FileUtils::directoryIsEmpty(dir.name()));
 }
 
 TEST(FileUtilsTests, ClearDirectoryTest)
@@ -214,9 +214,9 @@ TEST(FileUtilsTests, ClearDirectoryTest)
     // Populating the directory with a subdirectory and a file:
     const std::string subdirectory_path =
         std::string(directory.name()) + "/subdir";
-    FileUtils::create_directory(subdirectory_path.c_str());
+    FileUtils::createDirectory(subdirectory_path.c_str());
 
-    ASSERT_TRUE(FileUtils::is_directory(subdirectory_path.c_str()));
+    ASSERT_TRUE(FileUtils::isDirectory(subdirectory_path.c_str()));
 
     const std::string file_in_subdirectory_path =
         subdirectory_path + "/file1.txt";
@@ -228,102 +228,101 @@ TEST(FileUtilsTests, ClearDirectoryTest)
     ASSERT_EQ(0, symlink(file_in_subdirectory_path.c_str(),
                          symlink_in_subdir.c_str()));
     // stat on a symlink will follow the target.
-    ASSERT_TRUE(FileUtils::is_regular_file(symlink_in_subdir.c_str()));
+    ASSERT_TRUE(FileUtils::isRegularFile(symlink_in_subdir.c_str()));
 
-    ASSERT_FALSE(FileUtils::directory_is_empty(directory.name()));
-    FileUtils::clear_directory(directory.name());
+    ASSERT_FALSE(FileUtils::directoryIsEmpty(directory.name()));
+    FileUtils::clearDirectory(directory.name());
 
     ASSERT_TRUE(buildboxcommontest::TestUtils::pathExists(directory.name()));
-    ASSERT_TRUE(FileUtils::directory_is_empty(directory.name()));
+    ASSERT_TRUE(FileUtils::directoryIsEmpty(directory.name()));
 }
 
 TEST(NormalizePathTest, AlreadyNormalPaths)
 {
-    EXPECT_EQ("test.txt", FileUtils::normalize_path("test.txt"));
-    EXPECT_EQ("subdir/hello", FileUtils::normalize_path("subdir/hello"));
-    EXPECT_EQ("/usr/bin/gcc", FileUtils::normalize_path("/usr/bin/gcc"));
-    EXPECT_EQ(".", FileUtils::normalize_path("."));
+    EXPECT_EQ("test.txt", FileUtils::normalizePath("test.txt"));
+    EXPECT_EQ("subdir/hello", FileUtils::normalizePath("subdir/hello"));
+    EXPECT_EQ("/usr/bin/gcc", FileUtils::normalizePath("/usr/bin/gcc"));
+    EXPECT_EQ(".", FileUtils::normalizePath("."));
 }
 
 TEST(NormalizePathTest, RemoveEmptySegments)
 {
-    EXPECT_EQ("subdir/hello", FileUtils::normalize_path("subdir///hello//"));
-    EXPECT_EQ("/usr/bin/gcc", FileUtils::normalize_path("/usr/bin/./gcc"));
+    EXPECT_EQ("subdir/hello", FileUtils::normalizePath("subdir///hello//"));
+    EXPECT_EQ("/usr/bin/gcc", FileUtils::normalizePath("/usr/bin/./gcc"));
 }
 
 TEST(NormalizePathTest, RemoveUnneededDotDot)
 {
     EXPECT_EQ("subdir/hello",
-              FileUtils::normalize_path("subdir/subsubdir/../hello"));
+              FileUtils::normalizePath("subdir/subsubdir/../hello"));
     EXPECT_EQ("/usr/bin/gcc",
-              FileUtils::normalize_path("/usr/local/lib/../../bin/.//gcc"));
-    EXPECT_EQ("/usr/bin/gcc", FileUtils::normalize_path("/../usr/bin/gcc"));
+              FileUtils::normalizePath("/usr/local/lib/../../bin/.//gcc"));
+    EXPECT_EQ("/usr/bin/gcc", FileUtils::normalizePath("/../usr/bin/gcc"));
     EXPECT_EQ("/usr/bin/gcc",
-              FileUtils::normalize_path("/usr/../../usr/bin/gcc"));
+              FileUtils::normalizePath("/usr/../../usr/bin/gcc"));
 }
 
 TEST(NormalizePathTest, KeepNeededDotDot)
 {
-    EXPECT_EQ("../dir/hello", FileUtils::normalize_path("../dir/hello"));
+    EXPECT_EQ("../dir/hello", FileUtils::normalizePath("../dir/hello"));
     EXPECT_EQ("../dir/hello",
-              FileUtils::normalize_path("subdir/../../dir/hello"));
+              FileUtils::normalizePath("subdir/../../dir/hello"));
     EXPECT_EQ("../../dir/hello",
-              FileUtils::normalize_path("subdir/../../../dir/hello"));
+              FileUtils::normalizePath("subdir/../../../dir/hello"));
 }
 
 TEST(NormalizePathTest, AlwaysRemoveTrailingSlash)
 {
-    EXPECT_EQ("/usr/bin", FileUtils::normalize_path("/usr/bin"));
-    EXPECT_EQ("/usr/bin", FileUtils::normalize_path("/usr/bin/"));
-    EXPECT_EQ(".", FileUtils::normalize_path("./"));
+    EXPECT_EQ("/usr/bin", FileUtils::normalizePath("/usr/bin"));
+    EXPECT_EQ("/usr/bin", FileUtils::normalizePath("/usr/bin/"));
+    EXPECT_EQ(".", FileUtils::normalizePath("./"));
 }
 
 TEST(NormalizePathTest, CurrentDirectory)
 {
-    EXPECT_EQ(".", FileUtils::normalize_path("foo/.."));
-    EXPECT_EQ(".", FileUtils::normalize_path("foo/bar/../.."));
-    EXPECT_EQ(".", FileUtils::normalize_path("foo/../bar/.."));
+    EXPECT_EQ(".", FileUtils::normalizePath("foo/.."));
+    EXPECT_EQ(".", FileUtils::normalizePath("foo/bar/../.."));
+    EXPECT_EQ(".", FileUtils::normalizePath("foo/../bar/.."));
 }
 
 TEST(MakePathAbsoluteTest, CwdNotAbsoluteThrows)
 {
-    EXPECT_THROW(FileUtils::FileUtils::make_path_absolute("a/b/", "a/b"),
+    EXPECT_THROW(FileUtils::FileUtils::makePathAbsolute("a/b/", "a/b"),
                  std::runtime_error);
 
-    EXPECT_THROW(FileUtils::FileUtils::make_path_absolute("/a/b/c", ""),
+    EXPECT_THROW(FileUtils::FileUtils::makePathAbsolute("/a/b/c", ""),
                  std::runtime_error);
 
-    EXPECT_THROW(FileUtils::FileUtils::make_path_absolute("", "a/b"),
+    EXPECT_THROW(FileUtils::FileUtils::makePathAbsolute("", "a/b"),
                  std::runtime_error);
 }
 
 TEST(MakePathAbsoluteTest, SimplePaths)
 {
-    EXPECT_EQ("/a/b/c/d", FileUtils::make_path_absolute("d", "/a/b/c/"));
-    EXPECT_EQ("/a/b/c/d/", FileUtils::make_path_absolute("d/", "/a/b/c/"));
-    EXPECT_EQ("/a/b", FileUtils::make_path_absolute("..", "/a/b/c/"));
-    EXPECT_EQ("/a/b/", FileUtils::make_path_absolute("../", "/a/b/c/"));
-    EXPECT_EQ("/a/b", FileUtils::make_path_absolute("..", "/a/b/c"));
-    EXPECT_EQ("/a/b/", FileUtils::make_path_absolute("../", "/a/b/c"));
+    EXPECT_EQ("/a/b/c/d", FileUtils::makePathAbsolute("d", "/a/b/c/"));
+    EXPECT_EQ("/a/b/c/d/", FileUtils::makePathAbsolute("d/", "/a/b/c/"));
+    EXPECT_EQ("/a/b", FileUtils::makePathAbsolute("..", "/a/b/c/"));
+    EXPECT_EQ("/a/b/", FileUtils::makePathAbsolute("../", "/a/b/c/"));
+    EXPECT_EQ("/a/b", FileUtils::makePathAbsolute("..", "/a/b/c"));
+    EXPECT_EQ("/a/b/", FileUtils::makePathAbsolute("../", "/a/b/c"));
 
-    EXPECT_EQ("/a/b/c", FileUtils::make_path_absolute(".", "/a/b/c/"));
-    EXPECT_EQ("/a/b/c/", FileUtils::make_path_absolute("./", "/a/b/c/"));
-    EXPECT_EQ("/a/b/c", FileUtils::make_path_absolute(".", "/a/b/c"));
-    EXPECT_EQ("/a/b/c/", FileUtils::make_path_absolute("./", "/a/b/c"));
+    EXPECT_EQ("/a/b/c", FileUtils::makePathAbsolute(".", "/a/b/c/"));
+    EXPECT_EQ("/a/b/c/", FileUtils::makePathAbsolute("./", "/a/b/c/"));
+    EXPECT_EQ("/a/b/c", FileUtils::makePathAbsolute(".", "/a/b/c"));
+    EXPECT_EQ("/a/b/c/", FileUtils::makePathAbsolute("./", "/a/b/c"));
 }
 
 TEST(MakePathAbsoluteTest, MoreComplexPaths)
 {
-    EXPECT_EQ("/a/b/d", FileUtils::make_path_absolute("../d", "/a/b/c"));
-    EXPECT_EQ("/a/b/d", FileUtils::make_path_absolute("../d", "/a/b/c/"));
-    EXPECT_EQ("/a/b/d/", FileUtils::make_path_absolute("../d/", "/a/b/c"));
-    EXPECT_EQ("/a/b/d/", FileUtils::make_path_absolute("../d/", "/a/b/c/"));
+    EXPECT_EQ("/a/b/d", FileUtils::makePathAbsolute("../d", "/a/b/c"));
+    EXPECT_EQ("/a/b/d", FileUtils::makePathAbsolute("../d", "/a/b/c/"));
+    EXPECT_EQ("/a/b/d/", FileUtils::makePathAbsolute("../d/", "/a/b/c"));
+    EXPECT_EQ("/a/b/d/", FileUtils::makePathAbsolute("../d/", "/a/b/c/"));
 
-    EXPECT_EQ("/a/b/d", FileUtils::make_path_absolute("./.././d", "/a/b/c"));
-    EXPECT_EQ("/a/b/d", FileUtils::make_path_absolute("./.././d", "/a/b/c/"));
-    EXPECT_EQ("/a/b/d/", FileUtils::make_path_absolute("./.././d/", "/a/b/c"));
-    EXPECT_EQ("/a/b/d/",
-              FileUtils::make_path_absolute("./.././d/", "/a/b/c/"));
+    EXPECT_EQ("/a/b/d", FileUtils::makePathAbsolute("./.././d", "/a/b/c"));
+    EXPECT_EQ("/a/b/d", FileUtils::makePathAbsolute("./.././d", "/a/b/c/"));
+    EXPECT_EQ("/a/b/d/", FileUtils::makePathAbsolute("./.././d/", "/a/b/c"));
+    EXPECT_EQ("/a/b/d/", FileUtils::makePathAbsolute("./.././d/", "/a/b/c/"));
 }
 
 TEST(FileUtilsTests, WriteFileAtomically)
@@ -333,13 +332,13 @@ TEST(FileUtilsTests, WriteFileAtomically)
     const std::string output_path =
         std::string(output_directory.name()) + "/data.txt";
 
-    ASSERT_FALSE(FileUtils::is_regular_file(output_path.c_str()));
+    ASSERT_FALSE(FileUtils::isRegularFile(output_path.c_str()));
 
     std::vector<char> raw_data = {'H', 'e', 'l', 'l', 'o',  '\0', 'W',
                                   'o', 'r', 'l', 'd', '\0', '!'};
     const std::string data_string(raw_data.cbegin(), raw_data.cend());
 
-    ASSERT_EQ(FileUtils::write_file_atomically(output_path, data_string), 0);
+    ASSERT_EQ(FileUtils::writeFileAtomically(output_path, data_string), 0);
 
     // Data is correct:
     std::ifstream file(output_path, std::ifstream::binary);
@@ -366,10 +365,10 @@ TEST(FileUtilsTests, WriteFileAtomicallyReturnsLinkResult)
     const std::string output_path =
         std::string(output_directory.name()) + "/output.txt";
 
-    ASSERT_FALSE(FileUtils::is_regular_file(output_path.c_str()));
+    ASSERT_FALSE(FileUtils::isRegularFile(output_path.c_str()));
 
-    ASSERT_EQ(FileUtils::write_file_atomically(output_path, ""), 0);
-    ASSERT_EQ(FileUtils::write_file_atomically(output_path, ""), EEXIST);
+    ASSERT_EQ(FileUtils::writeFileAtomically(output_path, ""), 0);
+    ASSERT_EQ(FileUtils::writeFileAtomically(output_path, ""), EEXIST);
 }
 
 TEST(FileUtilsTests, WriteFileAtomicallyPermissions)
@@ -379,10 +378,10 @@ TEST(FileUtilsTests, WriteFileAtomicallyPermissions)
     const std::string output_path =
         std::string(output_directory.name()) + "/executable.sh";
 
-    ASSERT_FALSE(FileUtils::is_regular_file(output_path.c_str()));
+    ASSERT_FALSE(FileUtils::isRegularFile(output_path.c_str()));
 
     const std::string data = "#!/bin/bash";
-    ASSERT_EQ(FileUtils::write_file_atomically(output_path, data, 0740), 0);
+    ASSERT_EQ(FileUtils::writeFileAtomically(output_path, data, 0740), 0);
 
     struct stat stat_buf;
     const int stat_status = stat(output_path.c_str(), &stat_buf);
@@ -402,13 +401,13 @@ TEST(FileUtilsTests, WriteFileAtomicallyTemporaryDirectory)
     const std::string output_path =
         std::string(output_directory.name()) + "/test.txt";
 
-    ASSERT_FALSE(FileUtils::is_regular_file(output_path.c_str()));
+    ASSERT_FALSE(FileUtils::isRegularFile(output_path.c_str()));
 
     const auto data = "some data...";
-    FileUtils::write_file_atomically(output_path, data, 0600,
-                                     intermediate_directory.name());
+    FileUtils::writeFileAtomically(output_path, data, 0600,
+                                   intermediate_directory.name());
 
-    ASSERT_TRUE(FileUtils::is_regular_file(output_path.c_str()));
+    ASSERT_TRUE(FileUtils::isRegularFile(output_path.c_str()));
 
     // Data is correct:
     std::ifstream file(output_path, std::ifstream::binary);
@@ -425,25 +424,25 @@ TEST(FileUtilsTests, WriteFileAtomicallyIntermediateFileIsDeleted)
     const auto output_path = test_directory_path + "/out.txt";
 
     const auto intermediate_directory = test_directory_path + "/intermediate";
-    FileUtils::create_directory(intermediate_directory.c_str());
+    FileUtils::createDirectory(intermediate_directory.c_str());
 
-    FileUtils::write_file_atomically(output_path, "data: 12345", 0600,
-                                     intermediate_directory);
-    ASSERT_TRUE(FileUtils::is_regular_file(output_path.c_str()));
+    FileUtils::writeFileAtomically(output_path, "data: 12345", 0600,
+                                   intermediate_directory);
+    ASSERT_TRUE(FileUtils::isRegularFile(output_path.c_str()));
 
     // The intermediate file was deleted:
-    ASSERT_TRUE(FileUtils::directory_is_empty(intermediate_directory.c_str()));
+    ASSERT_TRUE(FileUtils::directoryIsEmpty(intermediate_directory.c_str()));
 }
 
 TEST(FileUtilsTests, PathBasenameTests)
 {
-    EXPECT_EQ("hello", FileUtils::path_basename("a/b/hello"));
-    EXPECT_EQ("hello.txt", FileUtils::path_basename("a/b/hello.txt"));
-    EXPECT_EQ("hello", FileUtils::path_basename("//hello/a/b/hello"));
-    EXPECT_EQ("hello", FileUtils::path_basename("a/b/../../hello"));
-    EXPECT_EQ("hello", FileUtils::path_basename("a/b/hello/"));
-    EXPECT_EQ("hello", FileUtils::path_basename("/a/hello/"));
-    EXPECT_EQ("", FileUtils::path_basename("/"));
+    EXPECT_EQ("hello", FileUtils::pathBasename("a/b/hello"));
+    EXPECT_EQ("hello.txt", FileUtils::pathBasename("a/b/hello.txt"));
+    EXPECT_EQ("hello", FileUtils::pathBasename("//hello/a/b/hello"));
+    EXPECT_EQ("hello", FileUtils::pathBasename("a/b/../../hello"));
+    EXPECT_EQ("hello", FileUtils::pathBasename("a/b/hello/"));
+    EXPECT_EQ("hello", FileUtils::pathBasename("/a/hello/"));
+    EXPECT_EQ("", FileUtils::pathBasename("/"));
 }
 
 TEST(FileUtilsTests, GetFileMtime)
@@ -460,13 +459,13 @@ TEST(FileUtilsTests, GetFileMtime)
     ASSERT_TRUE(buildboxcommontest::TestUtils::pathExists(path));
 
     std::chrono::system_clock::time_point mtime =
-        FileUtils::get_file_mtime(path);
+        FileUtils::getFileMtime(path);
     std::chrono::seconds timediff =
         std::chrono::duration_cast<std::chrono::seconds>(now - mtime);
     ASSERT_EQ(timediff.count(), 0);
 
     const int fd = open(path, O_RDONLY);
-    mtime = FileUtils::get_file_mtime(fd);
+    mtime = FileUtils::getFileMtime(fd);
     timediff = std::chrono::duration_cast<std::chrono::seconds>(now - mtime);
     ASSERT_EQ(timediff.count(), 0);
 }
@@ -484,7 +483,7 @@ TEST(FileUtilsTests, ModifyFileTimestamp)
 
     // try e2e test of file timestamps
     // get the original time
-    auto orig_time = FileUtils::get_file_mtime(path);
+    auto orig_time = FileUtils::getFileMtime(path);
     auto orig_count = std::chrono::duration_cast<std::chrono::microseconds>(
                           orig_time.time_since_epoch())
                           .count();
@@ -500,9 +499,9 @@ TEST(FileUtilsTests, ModifyFileTimestamp)
     ASSERT_EQ(exp_count, new_count);
 
     // try to set file mtime
-    FileUtils::set_file_mtime(path, new_time);
+    FileUtils::setFileMtime(path, new_time);
     // check the file mtime
-    auto mtime = FileUtils::get_file_mtime(path);
+    auto mtime = FileUtils::getFileMtime(path);
     auto count = std::chrono::duration_cast<std::chrono::microseconds>(
                      mtime.time_since_epoch())
                      .count();
@@ -510,8 +509,8 @@ TEST(FileUtilsTests, ModifyFileTimestamp)
 
     // and change it back
     const int fd = open(path, O_RDWR);
-    FileUtils::set_file_mtime(fd, orig_time);
-    mtime = FileUtils::get_file_mtime(fd);
+    FileUtils::setFileMtime(fd, orig_time);
+    mtime = FileUtils::getFileMtime(fd);
     count = std::chrono::duration_cast<std::chrono::microseconds>(
                 mtime.time_since_epoch())
                 .count();
@@ -525,11 +524,11 @@ TEST(FileUtilsTests, CopyFile)
     const std::string output_path =
         std::string(output_directory.name()) + "/executable.sh";
 
-    ASSERT_FALSE(FileUtils::is_regular_file(output_path.c_str()));
+    ASSERT_FALSE(FileUtils::isRegularFile(output_path.c_str()));
 
     const std::string data = "#!/bin/bash";
-    ASSERT_EQ(FileUtils::write_file_atomically(output_path, data, 0744,
-                                               output_directory.name()),
+    ASSERT_EQ(FileUtils::writeFileAtomically(output_path, data, 0744,
+                                             output_directory.name()),
               0);
     ASSERT_TRUE(
         buildboxcommontest::TestUtils::pathExists(output_path.c_str()));
@@ -538,7 +537,7 @@ TEST(FileUtilsTests, CopyFile)
     const std::string copy_path =
         std::string(output_directory.name()) + "/copy.sh";
     ASSERT_FALSE(buildboxcommontest::TestUtils::pathExists(copy_path.c_str()));
-    FileUtils::copy_file(output_path.c_str(), copy_path.c_str());
+    FileUtils::copyFile(output_path.c_str(), copy_path.c_str());
 
     // Data is correct:
     std::ifstream file(copy_path, std::ifstream::binary);

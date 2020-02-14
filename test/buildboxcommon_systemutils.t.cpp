@@ -126,11 +126,11 @@ TEST_F(CommandLookupFixture, CustomCommand)
     const auto command_name = "test-executable";
     const auto path_to_command = std::string(dir.name()) + "/" + command_name;
 
-    FileUtils::write_file_atomically(path_to_command, "");
-    FileUtils::make_executable(path_to_command.c_str());
+    FileUtils::writeFileAtomically(path_to_command, "");
+    FileUtils::makeExecutable(path_to_command.c_str());
 
-    ASSERT_TRUE(FileUtils::is_regular_file(path_to_command.c_str()));
-    ASSERT_TRUE(FileUtils::is_executable(path_to_command.c_str()));
+    ASSERT_TRUE(FileUtils::isRegularFile(path_to_command.c_str()));
+    ASSERT_TRUE(FileUtils::isExecutable(path_to_command.c_str()));
 
     ASSERT_EQ(setenv("PATH", dir.name(), true), 0);
 
@@ -143,10 +143,10 @@ TEST_F(CommandLookupFixture, NonExecutableIgnored)
     const auto command_name = "non-executable";
     const auto path_to_command = std::string(dir.name()) + "/" + command_name;
 
-    FileUtils::write_file_atomically(path_to_command, "");
+    FileUtils::writeFileAtomically(path_to_command, "");
 
-    ASSERT_TRUE(FileUtils::is_regular_file(path_to_command.c_str()));
-    ASSERT_FALSE(FileUtils::is_executable(path_to_command.c_str()));
+    ASSERT_TRUE(FileUtils::isRegularFile(path_to_command.c_str()));
+    ASSERT_FALSE(FileUtils::isExecutable(path_to_command.c_str()));
 
     ASSERT_EQ(setenv("PATH", dir.name(), true), 0);
 
