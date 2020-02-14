@@ -599,7 +599,7 @@ void Client::downloadBlobs(const std::vector<Digest> &digests,
             }
 
             const int write_status =
-                FileUtils::write_file_atomically(path, data, file_permissions);
+                FileUtils::writeFileAtomically(path, data, file_permissions);
             if (write_status != 0 && write_status != EEXIST) {
                 // `EEXIST` means someone beat us to writing the file, which is
                 // not an error assuming the contents are the same.
@@ -824,7 +824,7 @@ Client::batchUpload(const std::vector<UploadRequest> &requests,
             data = requests[d].data;
         }
         else {
-            data = FileUtils::get_file_contents(requests[d].path.c_str());
+            data = FileUtils::getFileContents(requests[d].path.c_str());
         }
 
         auto entry = request.add_requests();
@@ -1002,7 +1002,7 @@ Client::uploadDirectory(const std::string &path, Digest *root_directory_digest,
         }
         else {
             const std::string file_contents =
-                FileUtils::get_file_contents(entry.second.c_str());
+                FileUtils::getFileContents(entry.second.c_str());
             upload_requests.emplace_back(UploadRequest(digest, file_contents));
         }
     }

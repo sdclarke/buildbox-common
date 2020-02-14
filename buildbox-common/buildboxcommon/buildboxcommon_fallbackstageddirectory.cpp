@@ -92,9 +92,9 @@ OutputDirectory FallbackStagedDirectory::captureDirectory(
         &upload_directory_function) const
 {
     const std::string absolute_path =
-        FileUtils::make_path_absolute(relative_path, this->d_path);
+        FileUtils::makePathAbsolute(relative_path, this->d_path);
 
-    if (!buildboxcommon::FileUtils::is_directory(absolute_path.c_str())) {
+    if (!buildboxcommon::FileUtils::isDirectory(absolute_path.c_str())) {
         return OutputDirectory();
     }
 
@@ -148,7 +148,7 @@ OutputFile FallbackStagedDirectory::captureFile(
     OutputFile output_file;
     output_file.set_path(relative_path);
     output_file.mutable_digest()->CopyFrom(digest);
-    output_file.set_is_executable(FileUtils::is_executable(fd));
+    output_file.set_is_executable(FileUtils::isExecutable(fd));
 
     close(fd);
 

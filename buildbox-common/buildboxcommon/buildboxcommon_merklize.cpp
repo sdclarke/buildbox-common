@@ -34,13 +34,12 @@ namespace buildboxcommon {
 File::File(const char *path,
            const std::vector<std::string> &capture_properties)
 {
-    d_executable = FileUtils::is_executable(path);
+    d_executable = FileUtils::isExecutable(path);
     d_digest = CASHash::hashFile(path);
     d_mtime = "";
     for (const std::string &property : capture_properties) {
         if (property == "MTime") {
-            d_mtime =
-                TimeUtils::make_timestamp(FileUtils::get_file_mtime(path));
+            d_mtime = TimeUtils::make_timestamp(FileUtils::getFileMtime(path));
             break;
         }
     }

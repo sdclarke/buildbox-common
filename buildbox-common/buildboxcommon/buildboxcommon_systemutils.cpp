@@ -102,8 +102,8 @@ std::string SystemUtils::getPathToCommand(const std::string &command)
     while (token != nullptr) {
         const std::string path = std::string(token) + "/" + command;
 
-        if (FileUtils::is_regular_file(path.c_str()) &&
-            FileUtils::is_executable(path.c_str())) {
+        if (FileUtils::isRegularFile(path.c_str()) &&
+            FileUtils::isExecutable(path.c_str())) {
             return path;
         }
 

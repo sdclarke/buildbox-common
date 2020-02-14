@@ -51,7 +51,7 @@ void StagedDirectory::captureAllOutputs(
         // that would make them absolute. To simplify handling this later, we
         // add the trailing slash here.
         base_path =
-            FileUtils::normalize_path(command.working_directory().c_str()) +
+            FileUtils::normalizePath(command.working_directory().c_str()) +
             "/";
 
         if (base_path.front() == '/') {
@@ -87,7 +87,7 @@ void StagedDirectory::captureAllOutputs(
     };
 
     const auto path_in_input_root = [&base_path](const std::string &path) {
-        return FileUtils::normalize_path((base_path + path).c_str());
+        return FileUtils::normalizePath((base_path + path).c_str());
     };
 
     const auto assert_path_inside_input_root = [](const std::string

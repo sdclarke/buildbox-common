@@ -64,7 +64,7 @@ std::string TemporaryDirectory::create(const char *path, const char *prefix)
         std::string(path) + "/" + std::string(prefix) + "XXXXXX";
 
     // Normalize the path.
-    name = FileUtils::normalize_path(name.c_str());
+    name = FileUtils::normalizePath(name.c_str());
 
     if (mkdtemp(&name[0]) == nullptr) {
         BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(std::system_error, errno,
@@ -83,7 +83,7 @@ void TemporaryDirectory::setAutoRemove(bool auto_remove)
 TemporaryDirectory::~TemporaryDirectory()
 {
     if (d_auto_remove) {
-        FileUtils::delete_directory(this->d_name.c_str());
+        FileUtils::deleteDirectory(this->d_name.c_str());
     }
 }
 

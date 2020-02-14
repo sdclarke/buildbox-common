@@ -146,21 +146,21 @@ std::shared_ptr<grpc::Channel> ConnectionOptions::createChannel() const
         }
         else if (this->d_serverCertPath) {
             options.pem_root_certs =
-                FileUtils::get_file_contents(this->d_serverCertPath);
+                FileUtils::getFileContents(this->d_serverCertPath);
         }
         if (this->d_clientKey) {
             options.pem_private_key = this->d_clientKey;
         }
         else if (this->d_clientKeyPath) {
             options.pem_private_key =
-                FileUtils::get_file_contents(this->d_clientKeyPath);
+                FileUtils::getFileContents(this->d_clientKeyPath);
         }
         if (this->d_clientCert) {
             options.pem_cert_chain = this->d_clientCert;
         }
         else if (this->d_clientCertPath) {
             options.pem_cert_chain =
-                FileUtils::get_file_contents(this->d_clientCertPath);
+                FileUtils::getFileContents(this->d_clientCertPath);
         }
         target = this->d_url + strlen(HTTPS_PREFIX);
         creds = grpc::SslCredentials(options);

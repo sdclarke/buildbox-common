@@ -38,9 +38,9 @@ OutputFile
 LocalCasStagedDirectory::captureFile(const char *relative_path) const
 {
     const std::string absolute_path =
-        FileUtils::make_path_absolute(relative_path, this->d_path);
+        FileUtils::makePathAbsolute(relative_path, this->d_path);
 
-    if (!FileUtils::is_regular_file(absolute_path.c_str())) {
+    if (!FileUtils::isRegularFile(absolute_path.c_str())) {
         return OutputFile();
     }
 
@@ -67,11 +67,11 @@ LocalCasStagedDirectory::captureFile(const char *relative_path) const
     output_file.set_path(relative_path);
     output_file.mutable_digest()->CopyFrom(captured_file.digest());
     output_file.set_is_executable(
-        FileUtils::is_executable(absolute_path.c_str()));
+        FileUtils::isExecutable(absolute_path.c_str()));
     NodeProperty *property = output_file.add_node_properties();
     property->set_name("MTime");
     std::chrono::system_clock::time_point timepoint =
-        FileUtils::get_file_mtime(absolute_path.c_str());
+        FileUtils::getFileMtime(absolute_path.c_str());
     property->set_value(TimeUtils::make_timestamp(timepoint));
     return output_file;
 }
@@ -81,10 +81,10 @@ LocalCasStagedDirectory::captureDirectory(const char *relative_path) const
 {
 
     const std::string absolute_path =
-        FileUtils::make_path_absolute(relative_path, this->d_path);
+        FileUtils::makePathAbsolute(relative_path, this->d_path);
 
     // If the directory does not exist, we just ignore it:
-    if (!FileUtils::is_directory(absolute_path.c_str())) {
+    if (!FileUtils::isDirectory(absolute_path.c_str())) {
         return OutputDirectory();
     }
 

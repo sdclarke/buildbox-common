@@ -126,7 +126,7 @@ void Runner::recursively_chmod_directories(const char *path, mode_t mode)
                 };
             };
 
-        FileUtils::FileDescriptorTraverseAndApply(&root, chmod_func, nullptr,
+        FileUtils::fileDescriptorTraverseAndApply(&root, chmod_func, nullptr,
                                                   true);
 
         if (encountered_permission_errors) {
@@ -275,7 +275,7 @@ int Runner::main(int argc, char *argv[])
     // At this point, if a signal is thrown, then `execute()` has happened
     // successfully and the results have been written.
     if (getSignalStatus()) {
-        FileUtils::delete_directory(this->d_outputPath.c_str());
+        FileUtils::deleteDirectory(this->d_outputPath.c_str());
         return getSignalStatus();
     }
 
@@ -325,7 +325,7 @@ void Runner::createOutputDirectories(const Command &command,
             std::string directory_location =
                 workingDir + "/" + output.substr(0, output.rfind("/"));
             try {
-                FileUtils::create_directory(directory_location.c_str());
+                FileUtils::createDirectory(directory_location.c_str());
             }
             catch (const std::system_error &e) {
                 BUILDBOX_RUNNER_LOG(ERROR, "Error while creating directory "
