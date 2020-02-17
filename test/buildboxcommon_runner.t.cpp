@@ -28,7 +28,7 @@ using namespace buildboxcommon;
 
 class TestRunner : public Runner {
   public:
-    ActionResult execute(const Command &command, const Digest &inputRoot)
+    ActionResult execute(const Command &, const Digest &)
     {
         return ActionResult();
     }
