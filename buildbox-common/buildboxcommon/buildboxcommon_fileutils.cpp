@@ -405,6 +405,11 @@ void FileUtils::delete_recursively(const char *path,
                 return;
             }
         }
+        else {
+            // The root directory has no parent directory file descriptor,
+            // but it may still be relative to the working directory.
+            fd = AT_FDCWD;
+        }
         // unlinkat will disregard the file descriptor and call
         // rmdir/unlink on the path depending on the entity
         // type(file/directory).
