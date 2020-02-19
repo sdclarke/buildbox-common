@@ -60,7 +60,7 @@ TEST(CasHashTest, FileDescriptor)
 
     // Reading and hashing the contents directly:
     const std::string file_contents =
-        buildboxcommon::FileUtils::get_file_contents("test.txt");
+        buildboxcommon::FileUtils::getFileContents("test.txt");
     const Digest digest_from_string = CASHash::hash(file_contents);
 
     EXPECT_EQ(digest_from_fd, digest_from_string);
@@ -72,7 +72,7 @@ TEST(CasHashTest, PathToFile)
 
     // Reading and hashing the contents directly:
     const std::string file_contents =
-        buildboxcommon::FileUtils::get_file_contents("test.txt");
+        buildboxcommon::FileUtils::getFileContents("test.txt");
     const Digest digest_from_string = CASHash::hash(file_contents);
 
     ASSERT_EQ(digest_from_path, digest_from_string);
@@ -87,7 +87,7 @@ TEST(CasHashTest, InvalidFileDescriptorFileThrows)
 TEST(CasHashTest, PathToNonExistingFileThrows)
 {
     const auto non_existent_path = "this-does-not-exist.txt";
-    ASSERT_FALSE(FileUtils::is_regular_file(non_existent_path));
+    ASSERT_FALSE(FileUtils::isRegularFile(non_existent_path));
     ASSERT_THROW(CASHash::hashFile(non_existent_path), std::runtime_error);
 }
 

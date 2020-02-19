@@ -85,13 +85,13 @@ TEST(TemporaryDirectoryTests, TemporaryDirectoryInPath)
             TemporaryDirectory(directory_path.c_str(), "prefix");
 
         subdirectory_path = std::string(subdirectory.name());
-        EXPECT_TRUE(FileUtils::is_directory(subdirectory_path.c_str()));
+        EXPECT_TRUE(FileUtils::isDirectory(subdirectory_path.c_str()));
 
         EXPECT_EQ(subdirectory_path.substr(0, directory_path.size()),
                   directory_path);
     }
 
-    EXPECT_FALSE(FileUtils::is_directory(subdirectory_path.c_str()));
+    EXPECT_FALSE(FileUtils::isDirectory(subdirectory_path.c_str()));
 }
 
 TEST(TemporaryDirectoryTests, TemporaryDirectoryInPathWithEmptyPrefix)
@@ -107,13 +107,13 @@ TEST(TemporaryDirectoryTests, TemporaryDirectoryInPathWithEmptyPrefix)
             TemporaryDirectory(directory_path.c_str(), "");
 
         subdirectory_path = std::string(subdirectory.name());
-        EXPECT_TRUE(FileUtils::is_directory(subdirectory_path.c_str()));
+        EXPECT_TRUE(FileUtils::isDirectory(subdirectory_path.c_str()));
 
         EXPECT_EQ(subdirectory_path.substr(0, directory_path.size()),
                   directory_path);
     }
 
-    EXPECT_FALSE(FileUtils::is_directory(subdirectory_path.c_str()));
+    EXPECT_FALSE(FileUtils::isDirectory(subdirectory_path.c_str()));
 }
 
 TEST(TemporaryDirectoryTests, TemporaryDirectoryDisableAutoRemove)
@@ -134,7 +134,7 @@ TEST(TemporaryDirectoryTests, TemporaryDirectoryDisableAutoRemove)
     ASSERT_EQ(stat(name.c_str(), &statResult), 0);
     ASSERT_TRUE(S_ISDIR(statResult.st_mode));
 
-    FileUtils::delete_directory(name.c_str());
+    FileUtils::deleteDirectory(name.c_str());
 }
 
 TEST(TemporaryDirectoryTests, CreateDeleteDirectory)
@@ -142,9 +142,9 @@ TEST(TemporaryDirectoryTests, CreateDeleteDirectory)
     TemporaryDirectory tempDir = TemporaryDirectory();
     std::string name = tempDir.name() + std::string("/some/directory/path");
 
-    ASSERT_THROW(FileUtils::delete_directory(name.c_str()), std::exception);
+    ASSERT_THROW(FileUtils::deleteDirectory(name.c_str()), std::exception);
 
-    FileUtils::create_directory(name.c_str());
+    FileUtils::createDirectory(name.c_str());
 
     // Verify that the directory exists and is a directory.
     struct stat statResult;
@@ -153,7 +153,7 @@ TEST(TemporaryDirectoryTests, CreateDeleteDirectory)
 
     name = tempDir.name() + std::string("/some");
 
-    FileUtils::delete_directory(name.c_str());
+    FileUtils::deleteDirectory(name.c_str());
 
     ASSERT_NE(stat(name.c_str(), &statResult), 0);
 }
@@ -163,8 +163,8 @@ TEST(TemporaryDirectoryTests, ExecutableFlag)
     TemporaryDirectory tempDir = TemporaryDirectory();
     std::string name = tempDir.name() + std::string("/test.py");
 
-    EXPECT_FALSE(FileUtils::is_executable(name.c_str()));
-    ASSERT_THROW(FileUtils::make_executable(name.c_str()), std::exception);
+    EXPECT_FALSE(FileUtils::isExecutable(name.c_str()));
+    ASSERT_THROW(FileUtils::makeExecutable(name.c_str()), std::exception);
 
     std::ofstream fileStream(name);
     fileStream << "#!/usr/bin/env python3" << std::endl;
@@ -173,10 +173,10 @@ TEST(TemporaryDirectoryTests, ExecutableFlag)
     // Verify that the file exists and is not executable (yet).
     struct stat statResult;
     ASSERT_EQ(stat(name.c_str(), &statResult), 0);
-    EXPECT_FALSE(FileUtils::is_executable(name.c_str()));
+    EXPECT_FALSE(FileUtils::isExecutable(name.c_str()));
 
-    FileUtils::make_executable(name.c_str());
+    FileUtils::makeExecutable(name.c_str());
 
     // Verify that the file now is executable.
-    EXPECT_TRUE(FileUtils::is_executable(name.c_str()));
+    EXPECT_TRUE(FileUtils::isExecutable(name.c_str()));
 }

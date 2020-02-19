@@ -143,7 +143,7 @@ TEST(RunnerTest, CreateOutputDirectoriesTest)
     for (const auto &dir : expected_directories) {
         std::string full_path = cwd + "/" + dir;
         // directories should not exist
-        EXPECT_FALSE(FileUtils::is_directory(full_path.c_str()));
+        EXPECT_FALSE(FileUtils::isDirectory(full_path.c_str()));
     }
 
     Command command;
@@ -160,9 +160,9 @@ TEST(RunnerTest, CreateOutputDirectoriesTest)
     for (const auto &dir : expected_directories) {
         std::string full_path = cwd + "/" + dir;
         // directories should now exist
-        EXPECT_TRUE(FileUtils::is_directory(full_path.c_str()));
+        EXPECT_TRUE(FileUtils::isDirectory(full_path.c_str()));
         // clean up directory now
-        FileUtils::delete_directory(full_path.c_str());
+        FileUtils::deleteDirectory(full_path.c_str());
     }
 }
 
@@ -173,7 +173,7 @@ TEST(RunnerTest, ChmodDirectory)
 
     mode_t perm = 0555;
     // create subdirectory with restrictive permissions.
-    FileUtils::create_directory(subdirectory_path.c_str(), perm);
+    FileUtils::createDirectory(subdirectory_path.c_str(), perm);
 
     // check permissions of subdirectory
     struct stat sb;

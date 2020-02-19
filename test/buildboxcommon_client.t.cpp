@@ -1139,10 +1139,10 @@ TEST_F(ClientTestFixture, DownloadDirectoryTestActualDownload)
                             download_directory);
 
     // verify that write_dir has the same contents as capture_dir
-    ASSERT_FALSE(FileUtils::directory_is_empty(write_dir.name()));
-    ASSERT_TRUE(FileUtils::is_directory(write_dir.name()));
-    ASSERT_TRUE(FileUtils::is_regular_file(file_in_write_dir.c_str()));
-    ASSERT_TRUE(FileUtils::is_symlink(symlink_in_write_dir.c_str()));
+    ASSERT_FALSE(FileUtils::directoryIsEmpty(write_dir.name()));
+    ASSERT_TRUE(FileUtils::isDirectory(write_dir.name()));
+    ASSERT_TRUE(FileUtils::isRegularFile(file_in_write_dir.c_str()));
+    ASSERT_TRUE(FileUtils::isSymlink(symlink_in_write_dir.c_str()));
 }
 
 TEST_F(TransferDirectoryFixture, DownloadDirectoryMissingDigestThrows)

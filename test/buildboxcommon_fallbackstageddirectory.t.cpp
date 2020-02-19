@@ -129,7 +129,7 @@ TEST_P(CaptureTestFixtureParameter, CaptureDirectoryTest)
     const std::string subdirectory_to_capture = "upload_testx";
     const std::string absolute_path_to_capture =
         staged_path + "/" + subdirectory_to_capture;
-    buildboxcommon::FileUtils::create_directory(
+    buildboxcommon::FileUtils::createDirectory(
         absolute_path_to_capture.c_str());
 
     const OutputDirectory output_dir = fs.captureDirectory(
@@ -153,7 +153,7 @@ TemporaryFile createExecutableTestFile(const std::string &dir_path,
 
     file_digest->CopyFrom(CASHash::hashFile(file.name()));
 
-    FileUtils::make_executable(file.name());
+    FileUtils::makeExecutable(file.name());
 
     return file;
 }

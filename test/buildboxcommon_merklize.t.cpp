@@ -265,7 +265,7 @@ TEST(NestedDirectoryTest, MakeNestedDirectory)
 
     EXPECT_EQ(
         "abc",
-        FileUtils::get_file_contents(
+        FileUtils::getFileContents(
             fileMap[nestedDirectory.d_files["abc.txt"].d_digest].c_str()));
 
     EXPECT_EQ("target", nestedDirectory.d_symlinks["symlink"]);
@@ -275,7 +275,7 @@ TEST(NestedDirectoryTest, MakeNestedDirectory)
     EXPECT_EQ(1, subdirectory->d_files.size());
     EXPECT_EQ(0, subdirectory->d_symlinks.size());
     EXPECT_EQ("abc",
-              FileUtils::get_file_contents(
+              FileUtils::getFileContents(
                   fileMap[subdirectory->d_files["abc.txt"].d_digest].c_str()));
 }
 
