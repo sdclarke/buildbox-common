@@ -24,6 +24,7 @@ namespace buildboxcommonmetrics {
 template <class PublisherType> class ScopedPeriodicPublisherDaemon {
   private:
     std::atomic<bool> d_shutDown;
+    bool d_enabled;
     const size_t d_publishIntervalSeconds;
     std::thread d_publisherThread;
     PublisherType d_publisher;
@@ -39,6 +40,10 @@ template <class PublisherType> class ScopedPeriodicPublisherDaemon {
 
     void startPublisherThread()
     {
+        if (!d_enabled) {
+            return;
+        }
+
         d_publisherThread =
             std::thread(&ScopedPeriodicPublisherDaemon::run, this);
     }
@@ -54,18 +59,28 @@ template <class PublisherType> class ScopedPeriodicPublisherDaemon {
     explicit ScopedPeriodicPublisherDaemon(const bool enabled,
                                            const size_t publishIntervalSeconds,
                                            const PublisherType &publisher)
-        : d_publisher(publisher), d_shutDown(false),
-          d_publishIntervalSeconds(publishIntervalSeconds)
+        : d_enabled(enabled), d_publishIntervalSeconds(publishIntervalSeconds),
+          d_publisher(publisher), d_shutDown(false)
     {
-        if (enabled) {
-            startPublisherThread();
-        }
+        startPublisherThread();
     }
 
-    ~ScopedPeriodicPublisherDaemon() { stop(); }
+    ~ScopedPeriodicPublisherDaemon()
+    {
+        if (!d_enabled) {
+            return;
+        }
+
+        stop();
+        d_publisher.publish();
+    }
 
     void stop()
     {
+        if (!d_enabled) {
+            return;
+        }
+
         d_shutDown = true;
         if (d_publisherThread.joinable()) {
             d_publisherThread.join();
