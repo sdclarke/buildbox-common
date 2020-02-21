@@ -16,6 +16,7 @@
 #define INCLUDED_BUILDBOXCOMMONMETRICS_STATSDPUBLISHER_H
 
 #include <iostream>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -95,11 +96,18 @@ template <class... ValueTypeList> class StatsDPublisher {
         }
     }
 
+    std::string publishPath() const { return d_publishPath; }
+    StatsDPublisherOptions::PublishMethod publishMethod() const
+    {
+        return d_publishMethod;
+    }
+    int publishPort() const { return d_publishPort; }
+
   private:
-    const MetricCollectorFactory *d_metricCollectorFactory;
-    const StatsDPublisherOptions::PublishMethod d_publishMethod;
-    const std::string d_publishPath;
-    const int d_publishPort;
+    MetricCollectorFactory *d_metricCollectorFactory;
+    StatsDPublisherOptions::PublishMethod d_publishMethod;
+    std::string d_publishPath;
+    int d_publishPort;
     std::vector<std::string> d_statsDMetrics;
 
     // For a single ValueType, store all metrics from beginning to end of
