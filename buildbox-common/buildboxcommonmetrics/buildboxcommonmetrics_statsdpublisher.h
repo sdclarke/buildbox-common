@@ -15,6 +15,7 @@
 #ifndef INCLUDED_BUILDBOXCOMMONMETRICS_STATSDPUBLISHER_H
 #define INCLUDED_BUILDBOXCOMMONMETRICS_STATSDPUBLISHER_H
 
+#include <algorithm>
 #include <iomanip>
 #include <iostream>
 #include <memory>
@@ -73,7 +74,8 @@ template <class... ValueTypeList> class StatsDPublisher {
 
     void publish()
     {
-        gatherStatsDFromNextCollectors<ValueTypeList...>();
+        std::vector<std::string> statsDMetrics;
+        gatherStatsDFromNextCollectors<ValueTypeList...>(&statsDMetrics);
 
         // Figure out config
         switch (d_publishMethod) {
@@ -95,19 +97,19 @@ template <class... ValueTypeList> class StatsDPublisher {
                           << now_ms.count() << std::put_time(&localtime, "%z")
                           << " buildbox Metrics:\n";
 
-                for (const std::string &metric : d_statsDMetrics) {
+                for (const std::string &metric : statsDMetrics) {
                     std::cerr << metric << "\n";
                 }
             } break;
             case StatsDPublisherOptions::PublishMethod::File: {
                 FileWriter fileWriter(d_publishPath);
-                for (const std::string &metric : d_statsDMetrics) {
+                for (const std::string &metric : statsDMetrics) {
                     fileWriter.write(metric + "\n");
                 }
             } break;
             case StatsDPublisherOptions::PublishMethod::UDP: {
                 UDPWriter udpWriter(d_publishPort, d_publishPath);
-                for (const std::string &metric : d_statsDMetrics) {
+                for (const std::string &metric : statsDMetrics) {
                     udpWriter.write(metric + "\n");
                 }
             } break;
@@ -126,23 +128,19 @@ template <class... ValueTypeList> class StatsDPublisher {
     StatsDPublisherOptions::PublishMethod d_publishMethod;
     std::string d_publishPath;
     int d_publishPort;
-    std::vector<std::string> d_statsDMetrics;
 
     // For a single ValueType, store all metrics from beginning to end of
     // iterable
     template <class ValueType>
     void
-    gatherStatsDFromValueTypeCollector(MetricCollector<ValueType> *collector)
+    gatherStatsDFromValueTypeCollector(MetricCollector<ValueType> *collector,
+                                       std::vector<std::string> *statsDMetrics)
     {
-        auto collectorContainer = collector->getSnapshot();
-
-        auto from = collectorContainer.begin();
-        const auto to = collectorContainer.end();
-
-        for (; from != to; from++) {
-            const std::string &metricName = from->first;
-            const ValueType &metricValue = from->second;
-            d_statsDMetrics.push_back(metricValue.toStatsD(metricName));
+        const auto snapshot = collector->getSnapshot();
+        for (const auto &entry : snapshot) {
+            const std::string &metricName = entry.first;
+            const ValueType &metricValue = entry.second;
+            statsDMetrics->emplace_back(metricValue.toStatsD(metricName));
         }
     }
 
@@ -150,18 +148,24 @@ template <class... ValueTypeList> class StatsDPublisher {
     //                              for everything in the Parameter Pack
     // Those are recursively expanded by the compiler
     // 1 Template parameter
-    template <class ValueType> void gatherStatsDFromNextCollectors()
+    template <class ValueType>
+    void
+    gatherStatsDFromNextCollectors(std::vector<std::string> *statsDMetrics)
     {
         gatherStatsDFromValueTypeCollector<ValueType>(
-            d_metricCollectorFactory->getCollector<ValueType>());
+            d_metricCollectorFactory->getCollector<ValueType>(),
+            statsDMetrics);
     }
     // >= 2 Template parameters
     template <class ValueType, class NextValueType, class... Rest>
-    void gatherStatsDFromNextCollectors()
+    void
+    gatherStatsDFromNextCollectors(std::vector<std::string> *statsDMetrics)
     {
         gatherStatsDFromValueTypeCollector<ValueType>(
-            d_metricCollectorFactory->getCollector<ValueType>());
-        gatherStatsDFromNextCollectors<NextValueType, Rest...>();
+            d_metricCollectorFactory->getCollector<ValueType>(),
+            statsDMetrics);
+
+        gatherStatsDFromNextCollectors<NextValueType, Rest...>(statsDMetrics);
     }
 };
 

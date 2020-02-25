@@ -70,8 +70,8 @@ TEST(MetricsTest, StatsDPublisherTestRedirectedStdErr)
     MetricCollectorFactoryUtil::store("another-metric", MockValueType());
     // Publish
     myPublisher.publish();
-    // Expect to have those two metrics
-    EXPECT_NE(std::string::npos, redirectedCerr.str().find("my-metric"));
+    // Expect to have only the last metric
+    EXPECT_EQ(std::string::npos, redirectedCerr.str().find("my-metric"));
     EXPECT_NE(std::string::npos, redirectedCerr.str().find("another-metric"));
     // Clear out stringstream
     redirectedCerr.str("");
@@ -114,8 +114,8 @@ TEST(MetricsTest, StatsDPublisherTestRedirectedStdErr2ValueTypes)
                                       AnotherMockValueType2());
     // Publish
     myPublisher.publish();
-    // Expect to have those two metrics
-    EXPECT_NE(std::string::npos, redirectedCerr.str().find("my-metric"));
+    // Expect to have only the last metric
+    EXPECT_EQ(std::string::npos, redirectedCerr.str().find("my-metric"));
     EXPECT_NE(std::string::npos,
               redirectedCerr.str().find("additional-metric"));
     // Clear out stringstream
@@ -126,11 +126,12 @@ TEST(MetricsTest, StatsDPublisherTestRedirectedStdErr2ValueTypes)
                                       AnotherMockValueType1());
     // Publish
     myPublisher.publish();
-    // Expect to have those two metrics
-    EXPECT_NE(std::string::npos, redirectedCerr.str().find("my-metric"));
-    EXPECT_NE(std::string::npos, redirectedCerr.str().find("another-metric"));
-    EXPECT_NE(std::string::npos,
+    // Expect to have only the last metric
+    EXPECT_EQ(std::string::npos, redirectedCerr.str().find("my-metric"));
+    EXPECT_EQ(std::string::npos,
               redirectedCerr.str().find("additional-metric"));
+    EXPECT_NE(std::string::npos, redirectedCerr.str().find("another-metric"));
+
     // Clear out stringstream
     redirectedCerr.str("");
 
