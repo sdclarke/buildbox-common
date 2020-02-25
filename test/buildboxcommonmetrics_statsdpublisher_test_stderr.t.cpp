@@ -50,7 +50,9 @@ TEST(MetricsTest, StatsDPublisherTestRedirectedStdErr)
     // Publish
     myPublisher.publish();
     // Expect only title to be printed since there were no actual metrics
-    EXPECT_EQ("buildbox Metrics:\n", redirectedCerr.str());
+    // (Title contains "[date and time] buildbox Metrics:")
+    EXPECT_NE(redirectedCerr.str().rfind("buildbox Metrics:\n"),
+              std::string::npos);
     // Clear out stringstream
     redirectedCerr.str("");
 
@@ -59,7 +61,8 @@ TEST(MetricsTest, StatsDPublisherTestRedirectedStdErr)
     // Publish
     myPublisher.publish();
     // Expect to have `my-metric` published
-    EXPECT_EQ("buildbox Metrics:\nmy-metric\n", redirectedCerr.str());
+    EXPECT_NE(redirectedCerr.str().rfind("buildbox Metrics:\nmy-metric\n"),
+              std::string::npos);
     // Clear out stringstream
     redirectedCerr.str("");
 
@@ -91,7 +94,8 @@ TEST(MetricsTest, StatsDPublisherTestRedirectedStdErr2ValueTypes)
     // Publish
     myPublisher.publish();
     // Expect only title to be printed since there were no actual metrics
-    EXPECT_EQ("buildbox Metrics:\n", redirectedCerr.str());
+    EXPECT_NE(redirectedCerr.str().rfind("buildbox Metrics:\n"),
+              std::string::npos);
     // Clear out stringstream
     redirectedCerr.str("");
 
@@ -100,7 +104,8 @@ TEST(MetricsTest, StatsDPublisherTestRedirectedStdErr2ValueTypes)
     // Publish
     myPublisher.publish();
     // Expect to have `my-metric` published
-    EXPECT_EQ("buildbox Metrics:\nmy-metric\n", redirectedCerr.str());
+    EXPECT_NE(redirectedCerr.str().rfind("buildbox Metrics:\nmy-metric\n"),
+              std::string::npos);
     // Clear out stringstream
     redirectedCerr.str("");
 

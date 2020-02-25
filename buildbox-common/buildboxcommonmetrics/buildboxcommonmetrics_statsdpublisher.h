@@ -15,10 +15,12 @@
 #ifndef INCLUDED_BUILDBOXCOMMONMETRICS_STATSDPUBLISHER_H
 #define INCLUDED_BUILDBOXCOMMONMETRICS_STATSDPUBLISHER_H
 
+#include <iomanip>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <time.h>
 #include <unordered_map>
 #include <vector>
 
@@ -76,7 +78,23 @@ template <class... ValueTypeList> class StatsDPublisher {
         // Figure out config
         switch (d_publishMethod) {
             case StatsDPublisherOptions::PublishMethod::StdErr: {
-                std::cerr << "buildbox Metrics:\n";
+                const auto now = std::chrono::system_clock::now();
+
+                struct tm localtime;
+                const auto now_time_t =
+                    std::chrono::system_clock::to_time_t(now);
+                localtime_r(&now_time_t, &localtime);
+
+                const auto now_ms =
+                    std::chrono::duration_cast<std::chrono::milliseconds>(
+                        now.time_since_epoch()) %
+                    1000;
+
+                std::cerr << std::put_time(&localtime, "%FT%T") << '.'
+                          << std::setfill('0') << std::setw(3)
+                          << now_ms.count() << std::put_time(&localtime, "%z")
+                          << " buildbox Metrics:\n";
+
                 for (const std::string &metric : d_statsDMetrics) {
                     std::cerr << metric << "\n";
                 }
