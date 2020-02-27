@@ -22,6 +22,7 @@
 
 #include <buildboxcommonmetrics_countingmetricvalue.h>
 #include <buildboxcommonmetrics_durationmetricvalue.h>
+#include <buildboxcommonmetrics_gaugemetricvalue.h>
 #include <buildboxcommonmetrics_totaldurationmetricvalue.h>
 
 namespace buildboxcommon {
@@ -62,7 +63,8 @@ class MetricsConfigurator {
     using publisherTypeOfAllValueTypes = publisherTypeOfValueTypes<
         PublisherType, buildboxcommonmetrics::CountingMetricValue,
         buildboxcommonmetrics::DurationMetricValue,
-        buildboxcommonmetrics::TotalDurationMetricValue>;
+        buildboxcommonmetrics::TotalDurationMetricValue,
+        buildboxcommonmetrics::GaugeMetricValue>;
 
     // Sets-up the MetricCollectorFactory and creates a PublisherType
     // with the config given.
