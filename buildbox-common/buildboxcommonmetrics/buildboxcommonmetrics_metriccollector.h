@@ -55,7 +55,14 @@ template <class ValueType> class MetricCollector {
     {
         static_assert(sizeof...(D) == 0, "Do not specify template arguments!");
         std::lock_guard<std::mutex> lock(d_metrics_mutex);
-        d_metrics[name] += value;
+
+        auto entry = d_metrics.find(name);
+        if (entry != d_metrics.end()) {
+            entry->second += value;
+        }
+        else {
+            d_metrics[name] = value;
+        }
     }
 
     // Template function for ValueTypes that are NOT Aggregatable
