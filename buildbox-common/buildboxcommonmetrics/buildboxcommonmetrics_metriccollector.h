@@ -61,7 +61,7 @@ template <class ValueType> class MetricCollector {
             entry->second += value;
         }
         else {
-            d_metrics[name] = value;
+            d_metrics.emplace(name, value);
         }
     }
 
@@ -72,7 +72,7 @@ template <class ValueType> class MetricCollector {
     {
         static_assert(sizeof...(D) == 0, "Do not specify template arguments!");
         std::lock_guard<std::mutex> lock(d_metrics_mutex);
-        d_metrics[name] = value;
+        d_metrics.emplace(name, value);
     }
 
     MetricsMap getSnapshot()
