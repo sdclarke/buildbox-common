@@ -17,6 +17,9 @@
 
 #include <buildboxcommonmetrics_metriccollectorfactory.h>
 
+#include <string>
+#include <vector>
+
 namespace buildboxcommon {
 namespace buildboxcommonmetrics {
 
