@@ -57,6 +57,7 @@ class MetricCollectorFactory {
     // These manipulators and accessors are not thread-safe: the enablement and
     // disablement of metrics should be done at process start time.
     // MANIPULATORS
+    void setMetricsEnabled(const bool enabled);
     void enableMetrics();
     void disableMetrics();
 

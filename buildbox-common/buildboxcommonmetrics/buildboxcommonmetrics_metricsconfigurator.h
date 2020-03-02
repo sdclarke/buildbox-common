@@ -17,8 +17,12 @@
 
 #include <iostream>
 
-#include <buildboxcommonmetrics_durationmetricvalue.h>
+#include <buildboxcommonmetrics_metriccollectorfactory.h>
 #include <buildboxcommonmetrics_metricsconfigtype.h>
+
+#include <buildboxcommonmetrics_countingmetricvalue.h>
+#include <buildboxcommonmetrics_durationmetricvalue.h>
+#include <buildboxcommonmetrics_totaldurationmetricvalue.h>
 
 namespace buildboxcommon {
 
@@ -35,19 +39,57 @@ class MetricsConfigurator {
                         const size_t interval =
                             buildboxcommonmetrics::DEFAULT_PUBLISH_INTERVAL);
 
-    // Returns true if the string contains "metric-*"
-    static bool isMetricsOption(const std::string &option);
+    // Alias template-to-Template type of the given PublisherType that
+    // receives (from the MetricCollectorFactory) and submits the given
+    // ValueTypes.
+    // Usage with `typedef`:
+    //    #typedef publisherTypeOf<MyPublisherType, ValueType1, ValueType2....>
+    //    MyPublisher
+    // Usage with `using`:
+    //    using MyPublisher = publisherTypeOf<MyPublisherType, ValueType1,
+    //    ValueType2....>
+    template <template <class...> class PublisherType, class... ValueTypes>
+    using publisherTypeOfValueTypes = PublisherType<ValueTypes...>;
 
-    // Populates the relevant field in config.
-    // Argument should be first checked with isMetricOption
-    // If the argument doesn't match the hardcoded strings,
-    // A RuntimeError is thrown.
-    static void metricsParser(const std::string &argument,
+    // Alias Template to generate the Template type of the given PublisherType
+    // that receives (from the MetricCollectorFactory) and submits all
+    // ValueTypes.
+    // Usage with `typedef`:
+    //    #typedef allMetricTypesPublisherType<MyPublisherType> MyPublisher
+    // Usage with `using`:
+    //    using MyPublisher = allMetricTypesPublisherType<MyPublisherType>
+    template <template <class...> class PublisherType>
+    using publisherTypeOfAllValueTypes = publisherTypeOfValueTypes<
+        PublisherType, buildboxcommonmetrics::CountingMetricValue,
+        buildboxcommonmetrics::DurationMetricValue,
+        buildboxcommonmetrics::TotalDurationMetricValue>;
+
+    // Sets-up the MetricCollectorFactory and creates a PublisherType
+    // with the config given.
+    template <class PublisherType>
+    static std::shared_ptr<PublisherType>
+    createMetricsPublisherWithConfig(const MetricsConfigType &config)
+    {
+        // Apply settings to MetricCollectorFactory
+        MetricCollectorFactory::getInstance()->setMetricsEnabled(
+            config.enable());
+
+        // Create and return the requested publisher with the
+        // given config
+        return PublisherType::fromConfig(config);
+    }
+
+    // DEPRECATED
+    // The following convenience methods were moved to `metricsconfigutil`
+    // and will be permanently removed from `metricsconfigurator` in the near
+    // future. They kept here as alias functions for backwards compatibility.
+    static bool isMetricsOption(const std::string &option);
+    static void metricsParser(const std::string &argument_name,
                               const std::string &value,
                               MetricsConfigType *config);
-
-    // Prints usage strings to std::clog.
     static void usage(std::ostream &out = std::clog);
+    static void parseHostPortString(const std::string &inputString,
+                                    std::string *serverRet, uint16_t *portRet);
 };
 
 } // namespace buildboxcommonmetrics

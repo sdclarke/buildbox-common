@@ -15,22 +15,17 @@
 #ifndef BUILDBOXCOMMONMETRICS_STATSDPUBLISHERCREATOR_H
 #define BUILDBOXCOMMONMETRICS_STATSDPUBLISHERCREATOR_H
 
-#include <buildboxcommonmetrics_durationmetricvalue.h>
-#include <buildboxcommonmetrics_metricsconfigtype.h>
-#include <buildboxcommonmetrics_publisherguard.h>
+#include <memory>
+
+#include <buildboxcommonmetrics_metricsconfigurator.h>
 #include <buildboxcommonmetrics_statsdpublisher.h>
-#include <buildboxcommonmetrics_totaldurationmetricvalue.h>
-#include <memory.h>
 
 namespace buildboxcommon {
 
 namespace buildboxcommonmetrics {
 
-// This typedef here specifies the Metric ValueTypes
-// we want the publisher to publish
-typedef decltype(
-    StatsDPublisher<DurationMetricValue, TotalDurationMetricValue>())
-    StatsDPublisherType;
+using StatsDPublisherType =
+    MetricsConfigurator::publisherTypeOfAllValueTypes<StatsDPublisher>;
 
 class StatsdPublisherCreator {
   public:
@@ -39,14 +34,11 @@ class StatsdPublisherCreator {
     // If 'metricsConfig' specifies a udpServer, the parsing of the port
     // may throw std::invalid_argument or std::range_error exceptions
     static std::shared_ptr<StatsDPublisherType>
-    createStatsdPublisher(const MetricsConfigType &metricsConfig);
-
-    // Given a host:port, store host in serverRet and port in portRet.
-    //
-    // While parsing the port, this function can throw std::invalid_argument
-    // or std::range_error exceptions
-    static void parseHostPortString(const std::string &inputString,
-                                    std::string *serverRet, uint16_t *portRet);
+    createStatsdPublisher(const MetricsConfigType &metricsConfig)
+    {
+        return MetricsConfigurator::createMetricsPublisherWithConfig<
+            StatsDPublisherType>(metricsConfig);
+    }
 
     StatsdPublisherCreator() = delete;
 };

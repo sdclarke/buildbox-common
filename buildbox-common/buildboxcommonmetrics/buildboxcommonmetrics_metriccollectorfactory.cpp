@@ -23,9 +23,14 @@ MetricCollectorFactory *MetricCollectorFactory::getInstance()
     return &instance;
 }
 
-void MetricCollectorFactory::enableMetrics() { d_metricsEnabled = true; }
+void MetricCollectorFactory::enableMetrics() { setMetricsEnabled(true); }
 
-void MetricCollectorFactory::disableMetrics() { d_metricsEnabled = false; }
+void MetricCollectorFactory::disableMetrics() { setMetricsEnabled(false); }
+
+void MetricCollectorFactory::setMetricsEnabled(const bool enabled)
+{
+    d_metricsEnabled = enabled;
+}
 
 bool MetricCollectorFactory::metricsEnabled() const
 {

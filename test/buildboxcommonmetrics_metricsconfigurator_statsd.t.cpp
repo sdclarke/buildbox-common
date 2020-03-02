@@ -13,12 +13,6 @@
 // limitations under the License.
 
 #include <buildboxcommonmetrics_metricsconfigurator.h>
-
-#include <gtest/gtest.h>
-
-using namespace buildboxcommon;
-
-#include <buildboxcommonmetrics_metricsconfigurator.h>
 #include <buildboxcommonmetrics_statsdpublisher.h>
 
 #include <gtest/gtest.h>
@@ -28,7 +22,7 @@ using namespace buildboxcommon::buildboxcommonmetrics;
 using StatsDAllMetricsPublisher =
     MetricsConfigurator::publisherTypeOfAllValueTypes<StatsDPublisher>;
 
-TEST(MetricsConfigTest, CreateMetricsConfigs)
+TEST(MetricsConfigStatsDTest, CreateStatsDPublisherFromConfig)
 {
     EXPECT_THROW(MetricsConfigurator::createMetricsConfig(
                      "/tmp/metrics", "localhost:3000", true),
@@ -36,6 +30,27 @@ TEST(MetricsConfigTest, CreateMetricsConfigs)
 
     auto config = MetricsConfigurator::createMetricsConfig("", "", true);
 
+    EXPECT_NO_THROW(MetricsConfigurator::createMetricsPublisherWithConfig<
+                        StatsDAllMetricsPublisher>(config););
+
     config.setUdpServer("");
     config.setFile("/tmp/metrics");
+
+    auto publisherType = MetricsConfigurator::createMetricsPublisherWithConfig<
+        StatsDAllMetricsPublisher>(config);
+
+    ASSERT_EQ(publisherType->publishPath(), config.file());
+    ASSERT_EQ(publisherType->publishMethod(),
+              StatsDPublisherOptions::PublishMethod::File);
+
+    config.setUdpServer("localhost:3000");
+    config.setFile("");
+
+    auto publisherType2 =
+        MetricsConfigurator::createMetricsPublisherWithConfig<
+            StatsDAllMetricsPublisher>(config);
+
+    ASSERT_EQ(publisherType2->publishPort(), 3000);
+    ASSERT_EQ(publisherType2->publishMethod(),
+              StatsDPublisherOptions::PublishMethod::UDP);
 }

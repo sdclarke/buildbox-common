@@ -25,8 +25,12 @@
 #include <unordered_map>
 #include <vector>
 
-#include <buildboxcommonmetrics_filewriter.h>
 #include <buildboxcommonmetrics_metriccollectorfactory.h>
+
+#include <buildboxcommonmetrics_metricsconfigtype.h>
+#include <buildboxcommonmetrics_metricsconfigutil.h>
+
+#include <buildboxcommonmetrics_filewriter.h>
 #include <buildboxcommonmetrics_statsdpublisheroptions.h>
 #include <buildboxcommonmetrics_udpwriter.h>
 
@@ -71,6 +75,32 @@ template <class... ValueTypeList> class StatsDPublisher {
                 break;
         }
     }
+
+    // Construct a StatsDPublisher with the given config
+    static std::shared_ptr<StatsDPublisher>
+    fromConfig(const MetricsConfigType &metricsConfig)
+    {
+        auto publishMethod = buildboxcommonmetrics::StatsDPublisherOptions::
+            PublishMethod::StdErr;
+
+        std::string publishPath = "";
+        uint16_t publishPort = 0;
+
+        if (!metricsConfig.udp_server().empty()) {
+            publishMethod = buildboxcommonmetrics::StatsDPublisherOptions::
+                PublishMethod::UDP;
+            buildboxcommonmetrics::MetricsConfigUtil::parseHostPortString(
+                metricsConfig.udp_server(), &publishPath, &publishPort);
+        }
+        else if (!metricsConfig.file().empty()) {
+            publishMethod = buildboxcommonmetrics::StatsDPublisherOptions::
+                PublishMethod::File;
+            publishPath = metricsConfig.file();
+        }
+
+        return std::make_shared<StatsDPublisher>(
+            StatsDPublisher(publishMethod, publishPath, publishPort));
+    };
 
     void publish()
     {
