@@ -22,31 +22,49 @@ namespace buildboxcommon {
 namespace buildboxcommonmetrics {
 
 UDPWriter::UDPWriter(int server_port, const std::string &server_name)
-    : d_sockfd(0)
+    : d_sockfd(-1), d_server_port(std::to_string(server_port)),
+      d_server_name(server_name)
 {
-    // Initialize sockaddr_in struct
-    memset(&d_server_address, 0, sizeof(d_server_address));
-    d_server_address.sin_family = AF_INET;
-    inet_pton(AF_INET, server_name.c_str(), &d_server_address.sin_addr);
-    d_server_address.sin_port = htons(static_cast<uint16_t>(server_port));
+    // setup hints
+    d_hints.ai_family = AF_INET;
+    d_hints.ai_socktype = SOCK_DGRAM;
+    d_hints.ai_protocol = IPPROTO_UDP;
 
     connect();
 }
 
 void UDPWriter::connect()
 {
-    if ((d_sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+    struct addrinfo *address_info = nullptr;
+
+    const int return_code = getaddrinfo(
+        d_server_name.c_str(), d_server_port.c_str(), &d_hints, &address_info);
+    if (return_code != 0) {
+        std::string error_msg = "Failed to get address info: " +
+                                std::string(gai_strerror(return_code));
+        if (return_code == EAI_SYSTEM) {
+            error_msg += "\nSystem Error: " + std::string(strerror(errno));
+        }
+        throw std::runtime_error(error_msg);
+    }
+
+    d_sockfd = socket(address_info->ai_family, address_info->ai_socktype,
+                      address_info->ai_protocol);
+    if (d_sockfd < 0) {
+        freeaddrinfo(address_info);
         const std::string error_msg =
             "Could not create UDP Socket to publish metrics: " +
             std::string(strerror(errno));
         throw std::runtime_error(error_msg);
     }
+
+    memcpy(&d_server_address, address_info->ai_addr, address_info->ai_addrlen);
+    freeaddrinfo(address_info);
 }
 
 void UDPWriter::write(const std::string &buffer)
 {
-    sendto(d_sockfd, buffer.c_str(), buffer.size(), 0,
-           reinterpret_cast<struct sockaddr *>(&d_server_address),
+    sendto(d_sockfd, buffer.c_str(), buffer.size(), 0, &d_server_address,
            sizeof(d_server_address));
 }
 

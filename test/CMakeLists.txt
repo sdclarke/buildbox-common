@@ -202,3 +202,7 @@ add_test(NAME metrics_metricsconfigurator_statsd_test COMMAND metrics_metricscon
 add_executable(metrics_statsdpublishercreator_test buildboxcommonmetrics_statsdpublishercreator.t.cpp buildboxcommon_tests.m.cpp)
 target_link_libraries(metrics_statsdpublishercreator_test ${GTEST_TARGET} buildboxcommon)
 add_test(NAME metrics_statsdpublishercreator_test COMMAND metrics_statsdpublishercreator_test)
+
+add_executable(metrics_udpwriter_test buildboxcommonmetrics_udpwriter_test.t.cpp buildboxcommon_tests.m.cpp)
+target_link_libraries(metrics_udpwriter_test ${GTEST_TARGET} buildboxcommon)
+add_test(NAME metrics_udpwriter_test COMMAND metrics_udpwriter_test)

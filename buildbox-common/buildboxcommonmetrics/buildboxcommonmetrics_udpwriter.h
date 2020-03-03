@@ -16,6 +16,7 @@
 #define INCLUDED_BUILDBOXCOMMONMETRICS_UDPWRITER_H
 
 #include <arpa/inet.h>
+#include <netdb.h>
 #include <string>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -27,8 +28,11 @@ namespace buildboxcommonmetrics {
  */
 class UDPWriter {
   private:
-    struct sockaddr_in d_server_address;
+    struct sockaddr d_server_address;
+    struct addrinfo d_hints = {};
     int d_sockfd;
+    const std::string d_server_port;
+    const std::string d_server_name;
 
     void connect();
 
