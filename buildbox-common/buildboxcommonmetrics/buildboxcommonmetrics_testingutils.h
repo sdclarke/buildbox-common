@@ -33,6 +33,17 @@ bool validateMetricCollection(const std::string &metric)
     return metrics_map.count(metric);
 }
 
+template <typename ValueType>
+bool validateMetricCollection(const std::string &name, const ValueType &value)
+{
+    MetricCollector<ValueType> *collector =
+        MetricCollectorFactory::getCollector<ValueType>();
+    const auto metrics_map = collector->getSnapshot();
+    const auto entry = metrics_map.find(name);
+
+    return entry != metrics_map.cend() && entry->second == value;
+}
+
 template <typename MetricType>
 bool validateMetricCollection(const std::vector<std::string> &metrics)
 {
