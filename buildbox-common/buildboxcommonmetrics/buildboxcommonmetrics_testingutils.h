@@ -18,6 +18,7 @@
 #include <buildboxcommonmetrics_metriccollectorfactory.h>
 
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace buildboxcommon {
@@ -50,9 +51,28 @@ bool validateMetricCollection(const std::vector<std::string> &metrics)
     typedef decltype(std::declval<MetricType>().value()) ValueType;
     MetricCollector<ValueType> *collector =
         MetricCollectorFactory::getCollector<ValueType>();
-    auto metrics_map = collector->getSnapshot();
-    for (auto &metric : metrics) {
+    const auto metrics_map = collector->getSnapshot();
+    for (const auto &metric : metrics) {
         if (metrics_map.find(metric) == metrics_map.end()) {
+            return false;
+        }
+    }
+    return true;
+}
+
+template <typename ValueType>
+bool validateMetricCollection(
+    const std::vector<std::pair<std::string, ValueType>> &name_values)
+{
+    MetricCollector<ValueType> *collector =
+        MetricCollectorFactory::getCollector<ValueType>();
+    const auto metrics_map = collector->getSnapshot();
+    for (const auto &metric : name_values) {
+        const auto entry = metrics_map.find(metric.first);
+        if (entry == metrics_map.cend()) {
+            return false;
+        }
+        if (entry->second != metric.second) {
             return false;
         }
     }
