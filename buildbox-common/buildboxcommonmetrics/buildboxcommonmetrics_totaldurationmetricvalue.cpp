@@ -51,5 +51,16 @@ operator+=(const TotalDurationMetricValue &other)
     setValue(value() + other.value());
     return *this;
 }
+bool TotalDurationMetricValue::
+operator==(const TotalDurationMetricValue &other) const
+{
+    return this->value() == other.value();
+}
+
+bool TotalDurationMetricValue::
+operator!=(const TotalDurationMetricValue &other) const
+{
+    return !(*this == other);
+}
 } // namespace buildboxcommonmetrics
 } // namespace buildboxcommon

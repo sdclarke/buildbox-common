@@ -64,5 +64,15 @@ CountingMetricValue &CountingMetricValue::operator+(const Count value)
     this->d_value += value;
     return *this;
 }
+
+bool CountingMetricValue::operator==(const CountingMetricValue &other) const
+{
+    return this->value() == other.value();
+}
+
+bool CountingMetricValue::operator!=(const CountingMetricValue &other) const
+{
+    return !(*this == other);
+}
 } // namespace buildboxcommonmetrics
 } // namespace buildboxcommon

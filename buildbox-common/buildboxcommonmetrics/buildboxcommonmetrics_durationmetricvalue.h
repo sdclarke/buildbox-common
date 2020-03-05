@@ -42,10 +42,12 @@ class DurationMetricValue {
 
     const std::string toStatsD(const std::string &myName) const;
 
+    bool operator==(const DurationMetricValue &other) const;
+    bool operator!=(const DurationMetricValue &other) const;
+
   private:
     TimeDenomination d_value;
 };
-
 } // namespace buildboxcommonmetrics
 } // namespace buildboxcommon
 #endif

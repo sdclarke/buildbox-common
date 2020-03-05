@@ -46,6 +46,8 @@ class CountingMetricValue {
     CountingMetricValue &operator++(int);
     CountingMetricValue &operator+(CountingMetricValue other);
     CountingMetricValue &operator+(Count other);
+    bool operator==(const CountingMetricValue &other) const;
+    bool operator!=(const CountingMetricValue &other) const;
 
   private:
     // DATA MEMBERS

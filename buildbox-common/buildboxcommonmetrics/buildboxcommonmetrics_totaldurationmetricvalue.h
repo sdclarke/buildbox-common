@@ -43,6 +43,9 @@ class TotalDurationMetricValue {
 
     const std::string toStatsD(const std::string &myName) const;
 
+    bool operator==(const TotalDurationMetricValue &other) const;
+    bool operator!=(const TotalDurationMetricValue &other) const;
+
   private:
     TimeDenomination d_value;
 };

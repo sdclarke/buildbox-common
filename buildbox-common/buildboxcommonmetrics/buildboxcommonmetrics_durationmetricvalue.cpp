@@ -40,5 +40,16 @@ DurationMetricValue::toStatsD(const std::string &myName) const
                 .count()) +
         "|ms");
 }
+
+bool DurationMetricValue::operator==(const DurationMetricValue &other) const
+{
+    return this->value() == other.value();
+}
+
+bool DurationMetricValue::operator!=(const DurationMetricValue &other) const
+{
+    return !(*this == other);
+}
+
 } // namespace buildboxcommonmetrics
 } // namespace buildboxcommon
