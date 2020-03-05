@@ -44,3 +44,19 @@ TEST(MetricsTest, DurationMetricValueAdd)
     myValue += anotherValue;
     EXPECT_EQ(myValue.value(), std::chrono::microseconds(15));
 }
+
+TEST(MetricsTest, TotalDurationMetricValueEquality)
+{
+    EXPECT_TRUE(TotalDurationMetricValue(std::chrono::microseconds(2000)) ==
+                TotalDurationMetricValue(std::chrono::microseconds(2000)));
+    EXPECT_FALSE(TotalDurationMetricValue(std::chrono::microseconds(2000)) !=
+                 TotalDurationMetricValue(std::chrono::microseconds(2000)));
+}
+
+TEST(MetricsTest, TotalDurationMetricValueInequality)
+{
+    EXPECT_FALSE(TotalDurationMetricValue(std::chrono::microseconds(2000)) ==
+                 TotalDurationMetricValue(std::chrono::microseconds(2)));
+    EXPECT_TRUE(TotalDurationMetricValue(std::chrono::microseconds(2000)) !=
+                TotalDurationMetricValue(std::chrono::microseconds(2)));
+}

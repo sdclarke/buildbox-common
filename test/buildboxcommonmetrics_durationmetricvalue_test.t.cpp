@@ -35,3 +35,19 @@ TEST(MetricsTest, DurationMetricValueSetGetStatsD)
     DurationMetricValue myValue(std::chrono::microseconds(2000));
     EXPECT_EQ(myValue.toStatsD("my-metric"), "my-metric:2|ms");
 }
+
+TEST(MetricsTest, DurationMetricValueEquality)
+{
+    EXPECT_TRUE(DurationMetricValue(std::chrono::microseconds(2000)) ==
+                DurationMetricValue(std::chrono::microseconds(2000)));
+    EXPECT_FALSE(DurationMetricValue(std::chrono::microseconds(2000)) !=
+                 DurationMetricValue(std::chrono::microseconds(2000)));
+}
+
+TEST(MetricsTest, DurationMetricValueInequality)
+{
+    EXPECT_FALSE(DurationMetricValue(std::chrono::microseconds(2000)) ==
+                 DurationMetricValue(std::chrono::microseconds(2030)));
+    EXPECT_TRUE(DurationMetricValue(std::chrono::microseconds(2000)) !=
+                DurationMetricValue(std::chrono::microseconds(2030)));
+}

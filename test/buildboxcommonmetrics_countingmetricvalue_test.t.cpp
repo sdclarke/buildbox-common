@@ -49,3 +49,15 @@ TEST(MetricsTest, CountingMetricValueIncrement)
     myValue++;
     EXPECT_EQ(myValue.value(), 43);
 }
+
+TEST(MetricsTest, CountingMetricValueEquality)
+{
+    EXPECT_TRUE(CountingMetricValue(2) == CountingMetricValue(2));
+    EXPECT_FALSE(CountingMetricValue(2) != CountingMetricValue(2));
+}
+
+TEST(MetricsTest, CountingMetricValueInequality)
+{
+    EXPECT_FALSE(CountingMetricValue(2) == CountingMetricValue(3));
+    EXPECT_TRUE(CountingMetricValue(2) != CountingMetricValue(3));
+}
