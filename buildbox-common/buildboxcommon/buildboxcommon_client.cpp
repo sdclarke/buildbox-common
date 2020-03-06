@@ -184,9 +184,12 @@ std::string Client::fetchString(const Digest &digest)
 
         auto reader = this->d_bytestreamClient->Read(&context, request);
 
+        std::string downloaded_data;
+        downloaded_data.reserve(digest.size_bytes());
+
         ReadResponse response;
         while (reader->Read(&response)) {
-            result += response.data();
+            downloaded_data += response.data();
         }
 
         const auto read_status = reader->Finish();
@@ -198,7 +201,7 @@ std::string Client::fetchString(const Digest &digest)
         }
 
         const auto bytes_downloaded =
-            static_cast<google::protobuf::int64>(result.size());
+            static_cast<google::protobuf::int64>(downloaded_data.size());
         if (bytes_downloaded != digest.size_bytes()) {
             BUILDBOXCOMMON_THROW_EXCEPTION(
                 std::runtime_error, "Expected "
@@ -209,6 +212,7 @@ std::string Client::fetchString(const Digest &digest)
 
         BUILDBOX_LOG_TRACE(resourceName << ": " << bytes_downloaded
                                         << " bytes retrieved");
+        result = std::move(downloaded_data);
         return read_status;
     };
 
