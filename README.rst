@@ -9,6 +9,9 @@ Currently, ``buildbox-common`` contains all the Protocol Buffer definitions
 used by BuildBox, as well as code to connect to and interact with
 Content-Addressable Storage servers.
 
+It also contains a metrics library ``buildboxcommonmetrics``, the details of
+which can be found in it's own dedicated `README <buildbox-common/buildboxcommonmetrics/README.md>`_.
+
 Writing tests for dependent projects
 ------------------------------------
 
