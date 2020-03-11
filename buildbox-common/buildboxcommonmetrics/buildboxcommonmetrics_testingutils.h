@@ -17,6 +17,7 @@
 
 #include <buildboxcommonmetrics_metriccollectorfactory.h>
 
+#include <algorithm>
 #include <string>
 #include <utility>
 #include <vector>
@@ -72,7 +73,34 @@ bool validateMetricCollection(
         if (entry == metrics_map.cend()) {
             return false;
         }
-        if (entry->second != metric.second) {
+        else if (entry->second != metric.second) {
+            return false;
+        }
+    }
+    return true;
+}
+
+template <typename ValueType>
+bool validateMetricCollection(
+    const std::vector<std::pair<std::string, ValueType>> &expectedMetrics,
+    const std::vector<std::string> &expectedMissingMetrics)
+{
+    MetricCollector<ValueType> *collector =
+        MetricCollectorFactory::getCollector<ValueType>();
+    const auto metrics_map = collector->getSnapshot();
+    // First verify that none of the expected missing metrics are there.
+    for (const std::string &metric : expectedMissingMetrics) {
+        if (metrics_map.count(metric)) {
+            return false;
+        }
+    }
+
+    for (const auto &metric : expectedMetrics) {
+        const auto entry = metrics_map.find(metric.first);
+        if (entry == metrics_map.cend()) {
+            return false;
+        }
+        else if (entry->second != metric.second) {
             return false;
         }
     }

@@ -137,3 +137,22 @@ TEST_F(MetricTestingUtilsTest, ValidateMetricValuesPositiveNegative)
          {"metric500", MockMetricValue(500)}}));
     // (This version takes the metric's `ValueType` directly)
 }
+
+TEST_F(MetricTestingUtilsTest, ValidateMetricValuesMissing)
+{
+    d_collector->store("metric400", MockMetricValue(400));
+
+    // this returns true now because metric500 was not collected
+    ASSERT_TRUE(validateMetricCollection<MockMetricValue>(
+        {{"metric400", MockMetricValue(400)}}, {"metric500"}));
+}
+
+TEST_F(MetricTestingUtilsTest, ValidateMetricValuesMissingFail)
+{
+    d_collector->store("metric400", MockMetricValue(400));
+    d_collector->store("metric500", MockMetricValue(500));
+
+    // this returns false because metric500 does appear.
+    ASSERT_FALSE(validateMetricCollection<MockMetricValue>(
+        {{"metric400", MockMetricValue(400)}}, {"metric500"}));
+}
