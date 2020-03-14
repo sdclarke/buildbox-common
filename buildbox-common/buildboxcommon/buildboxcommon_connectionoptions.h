@@ -54,6 +54,9 @@ struct ConnectionOptions {
      */
     bool parseArg(const char *arg, const char *prefix = nullptr);
 
+    void setUrl(const std::string &url);
+    void setInstanceName(const std::string &instanceName);
+
     /**
      * Add arguments corresponding to this struct's settings to the given
      * vector. If a prefix is passed, it's added to the name of each

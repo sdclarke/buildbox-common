@@ -70,6 +70,7 @@ add_buildboxcommon_test(metrics_metricsconfigutil_test buildboxcommonmetrics_met
 add_buildboxcommon_test(metrics_metricsconfigurator_statsd_test buildboxcommonmetrics_metricsconfigurator_statsd.t.cpp)
 add_buildboxcommon_test(metrics_testingutils_test buildboxcommonmetrics_testingutils.t.cpp)
 add_buildboxcommon_test(metrics_udpwriter_test buildboxcommonmetrics_udpwriter_test.t.cpp)
+add_buildboxcommon_test(commandline_test buildboxcommon_commandline.t.cpp)
 
 # These tests use a different cwd.
 add_buildboxcommon_test(cashash_tests buildboxcommon_cashash.t.cpp ${CMAKE_CURRENT_SOURCE_DIR}/data/)

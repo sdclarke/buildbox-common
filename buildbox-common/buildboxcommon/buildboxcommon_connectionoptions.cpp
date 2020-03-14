@@ -48,6 +48,15 @@ static void printPadded(int padWidth, const std::string &str)
 }
 } // namespace
 
+void ConnectionOptions::setUrl(const std::string &url)
+{
+    this->d_url = url.c_str();
+}
+void ConnectionOptions::setInstanceName(const std::string &instanceName)
+{
+    this->d_instanceName = instanceName.c_str();
+}
+
 bool ConnectionOptions::parseArg(const char *arg, const char *prefix)
 {
     if (arg == nullptr || arg[0] != '-' || arg[1] != '-') {
