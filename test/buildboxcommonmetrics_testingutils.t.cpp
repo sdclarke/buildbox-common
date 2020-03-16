@@ -12,8 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <buildboxcommonmetrics_countingmetricutil.h>
+#include <buildboxcommonmetrics_durationmetrictimer.h>
+#include <buildboxcommonmetrics_gaugemetricutil.h>
 #include <buildboxcommonmetrics_metriccollector.h>
+#include <buildboxcommonmetrics_metriccollectorfactoryutil.h>
 #include <buildboxcommonmetrics_testingutils.h>
+#include <buildboxcommonmetrics_totaldurationmetrictimer.h>
+
 #include <gtest/gtest.h>
 
 using namespace buildboxcommon::buildboxcommonmetrics;
@@ -155,4 +161,88 @@ TEST_F(MetricTestingUtilsTest, ValidateMetricValuesMissingFail)
     // this returns false because metric500 does appear.
     ASSERT_FALSE(validateMetricCollection<MockMetricValue>(
         {{"metric400", MockMetricValue(400)}}, {"metric500"}));
+}
+
+TEST_F(MetricTestingUtilsTest, ClearMetricValues)
+{
+
+    const auto metric_name = "metric123";
+    const auto metric_value = MockMetricValue(123);
+
+    d_collector->store(metric_name, metric_value);
+    clearMetricCollection<MockMetricValue>();
+
+    ASSERT_FALSE(
+        validateMetricCollection<MockMetricValue>(metric_name, metric_value));
+}
+
+TEST_F(MetricTestingUtilsTest, AddMetricsAfterClearing)
+{
+
+    const auto metric_name = "metric123";
+    const auto metric_value = MockMetricValue(123);
+
+    clearMetricCollection<MockMetricValue>();
+    d_collector->store(metric_name, metric_value);
+
+    ASSERT_TRUE(
+        validateMetricCollection<MockMetricValue>(metric_name, metric_value));
+}
+
+TEST_F(MetricTestingUtilsTest, ClearAllMetricsTest)
+{
+
+    const auto gauge_metric_name = "metricGauge";
+    const auto count_metric_name = "metricCount";
+    const auto duration_metric_name = "metricDuration";
+    const auto total_duration_metric_name = "metricTotalDuration";
+    const int metric_value = 123;
+
+    // insert metrics
+    CountingMetricUtil::recordCounterMetric(count_metric_name, metric_value);
+    MetricCollectorFactoryUtil::store(duration_metric_name,
+                                      DurationMetricValue());
+    MetricCollectorFactoryUtil::store(total_duration_metric_name,
+                                      TotalDurationMetricValue());
+    GaugeMetricUtil::setGauge(gauge_metric_name, metric_value);
+
+    // clear all metrics
+    clearAllMetricCollection();
+
+    // verify all metrics have been cleared
+    EXPECT_FALSE(validateMetricCollection<CountingMetric>(count_metric_name));
+    EXPECT_FALSE(
+        validateMetricCollection<DurationMetricTimer>(duration_metric_name));
+    EXPECT_FALSE(validateMetricCollection<TotalDurationMetricTimer>(
+        total_duration_metric_name));
+    EXPECT_FALSE(validateMetricCollection<GaugeMetric>(gauge_metric_name));
+}
+
+TEST_F(MetricTestingUtilsTest, ClearAllMetricsTestBeforeInserts)
+{
+
+    const auto gauge_metric_name = "metricGauge";
+    const auto count_metric_name = "metricCount";
+    const auto duration_metric_name = "metricDuration";
+    const auto total_duration_metric_name = "metricTotalDuration";
+    const int metric_value = 123;
+
+    // clear all metrics
+    clearAllMetricCollection();
+
+    // insert metrics
+    CountingMetricUtil::recordCounterMetric(count_metric_name, metric_value);
+    MetricCollectorFactoryUtil::store(duration_metric_name,
+                                      DurationMetricValue());
+    MetricCollectorFactoryUtil::store(total_duration_metric_name,
+                                      TotalDurationMetricValue());
+    GaugeMetricUtil::setGauge(gauge_metric_name, metric_value);
+
+    // verify recently inserted metrics have not been cleared
+    EXPECT_TRUE(validateMetricCollection<CountingMetric>(count_metric_name));
+    EXPECT_TRUE(
+        validateMetricCollection<DurationMetricTimer>(duration_metric_name));
+    EXPECT_TRUE(validateMetricCollection<TotalDurationMetricTimer>(
+        total_duration_metric_name));
+    EXPECT_TRUE(validateMetricCollection<GaugeMetric>(gauge_metric_name));
 }

@@ -16,14 +16,61 @@
 #define INCLUDED_BUILDBOXCOMMONMETRICS_TESTINGUTILS_H
 
 #include <buildboxcommonmetrics_metriccollectorfactory.h>
+#include <buildboxcommonmetrics_metricsconfigurator.h>
 
 #include <algorithm>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
 namespace buildboxcommon {
 namespace buildboxcommonmetrics {
+
+/**
+ * Helper methods used to implement `clearAllMetricCollection`.
+ * Should not be used outside this file.
+ */
+struct InternalTemplatedMethods {
+
+    /**
+     * Tuple containing all publisher value types.
+     */
+    using PublishedValueTypesTuple =
+        MetricsConfigurator::publisherTypeOfAllValueTypes<std::tuple>;
+
+    /**
+     * Base case for templated function call.
+     * Once the index of the tuple exceeds or equals its size,
+     * this method will be called to terminate the recursive call.
+     */
+    template <std::size_t index,
+              typename std::enable_if<(
+                  index >= std::tuple_size<PublishedValueTypesTuple>::value)>::
+                  type * = nullptr>
+    static void clearAllMetricValueTypes()
+    {
+    }
+
+    /**
+     * Recursive templated function.
+     * Will clear container for metric value type associated with index.
+     * Will then recurse, calling method for index +1.
+     */
+    template <std::size_t index,
+              typename std::enable_if<
+                  (index < std::tuple_size<PublishedValueTypesTuple>::value)>::
+                  type * = nullptr>
+    static void clearAllMetricValueTypes()
+    {
+        const auto collector =
+            MetricCollectorFactory::getCollector<typename std::tuple_element<
+                index, PublishedValueTypesTuple>::type>();
+        collector->getSnapshot();
+
+        clearAllMetricValueTypes<index + 1>();
+    }
+};
 
 template <typename MetricType>
 bool validateMetricCollection(const std::string &metric)
@@ -105,6 +152,18 @@ bool validateMetricCollection(
         }
     }
     return true;
+}
+
+template <typename ValueType> void clearMetricCollection()
+{
+    MetricCollector<ValueType> *collector =
+        MetricCollectorFactory::getCollector<ValueType>();
+    collector->getSnapshot();
+}
+
+void clearAllMetricCollection()
+{
+    InternalTemplatedMethods::clearAllMetricValueTypes<0>();
 }
 
 } // namespace buildboxcommonmetrics
