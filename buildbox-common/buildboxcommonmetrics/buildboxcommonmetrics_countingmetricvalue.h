@@ -30,7 +30,7 @@ class CountingMetricValue {
 
   public:
     // TYPES
-    typedef int Count;
+    typedef int64_t Count;
 
     // CREATORS
     explicit CountingMetricValue(Count value = 0);
