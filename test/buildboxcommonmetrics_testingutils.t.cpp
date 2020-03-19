@@ -246,3 +246,37 @@ TEST_F(MetricTestingUtilsTest, ClearAllMetricsTestBeforeInserts)
         total_duration_metric_name));
     EXPECT_TRUE(validateMetricCollection<GaugeMetric>(gauge_metric_name));
 }
+
+TEST_F(MetricTestingUtilsTest, ValidateSingleMetricMultipleValuesPositive)
+{
+    const std::vector<std::pair<std::string, MockMetricValue>> metrics = {
+        std::make_pair("metric1", MockMetricValue(1)),
+        std::make_pair("metric1", MockMetricValue(2)),
+    };
+
+    for (const auto &metric_pair : metrics) {
+        d_collector->store(metric_pair.first, metric_pair.second);
+    }
+
+    ASSERT_TRUE(validateMetricCollection<MockMetricValue>(metrics));
+}
+
+TEST_F(MetricTestingUtilsTest, ValidateSingleMetricMultipleValuesNegative)
+{
+    const std::vector<std::pair<std::string, MockMetricValue>> metrics = {
+        std::make_pair("metric2", MockMetricValue(3)),
+        std::make_pair("metric2", MockMetricValue(4)),
+    };
+
+    for (const auto &metric_pair : metrics) {
+        d_collector->store(metric_pair.first, metric_pair.second);
+    }
+
+    const std::vector<std::pair<std::string, MockMetricValue>> wrong_metrics =
+        {
+            std::make_pair("metric2", MockMetricValue(3)),
+            std::make_pair("metric2", MockMetricValue(5)),
+        };
+
+    ASSERT_FALSE(validateMetricCollection<MockMetricValue>(wrong_metrics));
+}

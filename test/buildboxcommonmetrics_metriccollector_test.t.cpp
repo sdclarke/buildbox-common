@@ -34,30 +34,42 @@ TEST(MetricsTest, DurationMetricValueCollectorMultiTest)
     ASSERT_EQ(1, durationMetricCollector.getSnapshot().size());
 }
 
-TEST(MetricsTest, DurationMetricValueCollectorUpdateTest)
+TEST(MetricsTest, DurationMetricValueCollectorMultipleNonAggregatableEntries)
 {
+    const bool isAggregatableType = DurationMetricValue::isAggregatable;
+    const std::string metric_name = "metric";
+    ASSERT_FALSE(isAggregatableType);
+
     MetricCollector<DurationMetricValue> durationMetricCollector;
 
     DurationMetricValue myValue1(std::chrono::microseconds(2));
-    durationMetricCollector.store("metric", myValue1);
+    durationMetricCollector.store(metric_name, myValue1);
 
-    // We should only have 1 metric, with the value we instantiated it with
-    // above
-    auto metrics = durationMetricCollector.getSnapshot();
-    ASSERT_EQ(1, metrics.size());
-    ASSERT_EQ(std::chrono::microseconds(2),
-              metrics.find("metric")->second.value());
-
-    // Since DurationMetricValue is non-aggregatable,
-    // storing the metric with the same name should *replace* it with the new
-    // value
+    // Since `DurationMetricValue` is non-aggregatable, storing the metric with
+    // the same name should produce two entries.
     DurationMetricValue myValue2(std::chrono::microseconds(5));
-    durationMetricCollector.store("metric", myValue2);
+    durationMetricCollector.store(metric_name, myValue2);
 
-    metrics = durationMetricCollector.getSnapshot();
-    ASSERT_EQ(1, metrics.size());
-    ASSERT_EQ(std::chrono::microseconds(5),
-              metrics.find("metric")->second.value());
+    const auto snapshot = durationMetricCollector.getSnapshot();
+    ASSERT_EQ(2, snapshot.size());
+
+    const auto first_metric = std::find_if(
+        snapshot.begin(), snapshot.end(),
+        [&metric_name](const std::pair<std::string, DurationMetricValue>
+                           &metric_key_value_pair) {
+            return metric_key_value_pair.first == metric_name;
+        });
+    ASSERT_NE(first_metric, snapshot.cend());
+    ASSERT_EQ(std::chrono::microseconds(2), first_metric->second.value());
+
+    const auto second_metric = std::find_if(
+        first_metric + 1, snapshot.end(),
+        [&metric_name](const std::pair<std::string, DurationMetricValue>
+                           &metric_key_value_pair) {
+            return metric_key_value_pair.first == metric_name;
+        });
+    ASSERT_NE(second_metric, snapshot.cend());
+    ASSERT_EQ(second_metric->second.value(), std::chrono::microseconds(5));
 }
 
 TEST(MetricsTest, TotalDurationMetricValueCollectorMultiTest)
@@ -67,57 +79,81 @@ TEST(MetricsTest, TotalDurationMetricValueCollectorMultiTest)
     TotalDurationMetricValue myValue1;
     totalDurationMetricCollector.store("metric-1", myValue1);
 
-    ASSERT_EQ(1, totalDurationMetricCollector.getSnapshot().size());
-
     TotalDurationMetricValue myValue2;
     totalDurationMetricCollector.store("metric-2", myValue1);
 
-    ASSERT_EQ(1, totalDurationMetricCollector.getSnapshot().size());
+    ASSERT_EQ(2, totalDurationMetricCollector.getSnapshot().size());
 }
 
 TEST(MetricsTest, TotalDurationMetricValueCollectorAggregateTest)
 {
+    const bool isAggregatableType = TotalDurationMetricValue::isAggregatable;
+    ASSERT_TRUE(isAggregatableType);
+
     MetricCollector<TotalDurationMetricValue> totalDurationMetricCollector;
+    const std::string metric_name = "metric";
 
     // add 2 seconds to a metric named 'metric'
     TotalDurationMetricValue myValue1(std::chrono::microseconds(2));
-    totalDurationMetricCollector.store("metric", myValue1);
+    totalDurationMetricCollector.store(metric_name, myValue1);
 
     // add 5 seconds to a metric named 'metric'
     TotalDurationMetricValue myValue2(std::chrono::microseconds(5));
-    totalDurationMetricCollector.store("metric", myValue2);
+    totalDurationMetricCollector.store(metric_name, myValue2);
 
     auto metrics = totalDurationMetricCollector.getSnapshot();
-    ASSERT_EQ(1, metrics.size());
-    ASSERT_EQ(std::chrono::microseconds(7),
-              metrics.find("metric")->second.value());
+    ASSERT_EQ(metrics.size(), 1);
+
+    const auto collected_metric =
+        metrics.begin(); // should be the first and only metric
+
+    ASSERT_EQ(collected_metric->first, metric_name);
+    ASSERT_EQ(collected_metric->second.value(), std::chrono::microseconds(7));
 }
 
 TEST(MetricsTest, TotalDurationMetricValueCollectorMultiAggregateTest)
 {
     MetricCollector<TotalDurationMetricValue> totalDurationMetricCollector;
 
+    const std::string metric_name = "metric";
+    const std::string metric_name_other = "metric-other";
+
     // add 2 seconds to a metric named 'metric'
     TotalDurationMetricValue myValue1(std::chrono::microseconds(2));
-    totalDurationMetricCollector.store("metric", myValue1);
+    totalDurationMetricCollector.store(metric_name, myValue1);
 
     // add 4 seconds to a metric named 'metric-other'
     TotalDurationMetricValue myValueOther1(std::chrono::microseconds(4));
-    totalDurationMetricCollector.store("metric-other", myValueOther1);
+    totalDurationMetricCollector.store(metric_name_other, myValueOther1);
 
     // add 5 seconds to a metric named 'metric'
     TotalDurationMetricValue myValue2(std::chrono::microseconds(5));
-    totalDurationMetricCollector.store("metric", myValue2);
+    totalDurationMetricCollector.store(metric_name, myValue2);
 
     // add 9 seconds to a metric named 'metric-other'
     TotalDurationMetricValue myValueOther2(std::chrono::microseconds(9));
-    totalDurationMetricCollector.store("metric-other", myValueOther2);
+    totalDurationMetricCollector.store(metric_name_other, myValueOther2);
 
     // confirm that we have 2 entries --> 'metric' and 'metric-other'
-    auto metrics = totalDurationMetricCollector.getSnapshot();
-    ASSERT_EQ(2, metrics.size());
-    ASSERT_EQ(std::chrono::microseconds(7),
-              metrics.find("metric")->second.value());
-    ASSERT_EQ(std::chrono::microseconds(13),
-              metrics.find("metric-other")->second.value());
+    const auto metrics = totalDurationMetricCollector.getSnapshot();
+    ASSERT_EQ(metrics.size(), 2);
+
+    const auto first_metric = std::find_if(
+        metrics.begin(), metrics.end(),
+        [&metric_name](const std::pair<std::string, TotalDurationMetricValue>
+                           &metric_key_value_pair) {
+            return metric_key_value_pair.first == metric_name;
+        });
+    ASSERT_NE(first_metric, metrics.cend());
+    ASSERT_EQ(first_metric->second.value(), std::chrono::microseconds(7));
+
+    const auto second_metric = std::find_if(
+        metrics.begin(), metrics.end(),
+        [&metric_name_other](
+            const std::pair<std::string, TotalDurationMetricValue>
+                &metric_key_value_pair) {
+            return metric_key_value_pair.first == metric_name_other;
+        });
+    ASSERT_NE(second_metric, metrics.cend());
+    ASSERT_EQ(second_metric->second.value(), std::chrono::microseconds(13));
 }

@@ -22,7 +22,7 @@
 namespace buildboxcommon {
 namespace buildboxcommonmetrics {
 
-template <class ValueType> class MetricCollector;
+template <class ValueType, typename> class MetricCollector;
 
 /**
  * MetricGuard is the Metric Guard class

@@ -78,8 +78,13 @@ bool validateMetricCollection(const std::string &metric)
     typedef decltype(std::declval<MetricType>().value()) ValueType;
     MetricCollector<ValueType> *collector =
         MetricCollectorFactory::getCollector<ValueType>();
-    auto metrics_map = collector->getSnapshot();
-    return metrics_map.count(metric);
+    const auto metrics_container = collector->getSnapshot();
+    return std::count_if(
+        metrics_container.begin(), metrics_container.end(),
+        [&metric](
+            const std::pair<std::string, ValueType> &metric_key_value_pair) {
+            return metric_key_value_pair.first == metric;
+        });
 }
 
 template <typename ValueType>
@@ -87,10 +92,17 @@ bool validateMetricCollection(const std::string &name, const ValueType &value)
 {
     MetricCollector<ValueType> *collector =
         MetricCollectorFactory::getCollector<ValueType>();
-    const auto metrics_map = collector->getSnapshot();
-    const auto entry = metrics_map.find(name);
+    const auto metrics_container = collector->getSnapshot();
+    const auto entry_iterator = std::find_if(
+        metrics_container.begin(), metrics_container.end(),
+        [&name, &value](
+            const std::pair<std::string, ValueType> &metric_key_value_pair) {
+            return metric_key_value_pair.first == name &&
+                   metric_key_value_pair.second == value;
+        });
 
-    return entry != metrics_map.cend() && entry->second == value;
+    return entry_iterator != metrics_container.cend() &&
+           entry_iterator->second == value;
 }
 
 template <typename MetricType>
@@ -99,9 +111,15 @@ bool validateMetricCollection(const std::vector<std::string> &metrics)
     typedef decltype(std::declval<MetricType>().value()) ValueType;
     MetricCollector<ValueType> *collector =
         MetricCollectorFactory::getCollector<ValueType>();
-    const auto metrics_map = collector->getSnapshot();
+    const auto metrics_container = collector->getSnapshot();
     for (const auto &metric : metrics) {
-        if (metrics_map.find(metric) == metrics_map.end()) {
+        const auto entry_iterator =
+            std::find_if(metrics_container.begin(), metrics_container.end(),
+                         [&metric](const std::pair<std::string, ValueType>
+                                       &metric_key_value_pair) {
+                             return metric_key_value_pair.first == metric;
+                         });
+        if (entry_iterator == metrics_container.cend()) {
             return false;
         }
     }
@@ -114,13 +132,19 @@ bool validateMetricCollection(
 {
     MetricCollector<ValueType> *collector =
         MetricCollectorFactory::getCollector<ValueType>();
-    const auto metrics_map = collector->getSnapshot();
+    const auto metrics_container = collector->getSnapshot();
     for (const auto &metric : name_values) {
-        const auto entry = metrics_map.find(metric.first);
-        if (entry == metrics_map.cend()) {
+        const auto entry_iterator = std::find_if(
+            metrics_container.begin(), metrics_container.end(),
+            [&metric](const std::pair<std::string, ValueType>
+                          &metric_key_value_pair) {
+                return metric_key_value_pair.first == metric.first &&
+                       metric_key_value_pair.second == metric.second;
+            });
+        if (entry_iterator == metrics_container.cend()) {
             return false;
         }
-        else if (entry->second != metric.second) {
+        else if (entry_iterator->second != metric.second) {
             return false;
         }
     }
@@ -134,20 +158,28 @@ bool validateMetricCollection(
 {
     MetricCollector<ValueType> *collector =
         MetricCollectorFactory::getCollector<ValueType>();
-    const auto metrics_map = collector->getSnapshot();
+    const auto metrics_container = collector->getSnapshot();
     // First verify that none of the expected missing metrics are there.
-    for (const std::string &metric : expectedMissingMetrics) {
-        if (metrics_map.count(metric)) {
+    for (const std::string &metric_name : expectedMissingMetrics) {
+        if (std::count_if(
+                metrics_container.begin(), metrics_container.end(),
+                [&metric_name](const std::pair<std::string, ValueType>
+                                   &metric_key_value_pair) {
+                    return metric_key_value_pair.first == metric_name;
+                })) {
             return false;
         }
     }
 
     for (const auto &metric : expectedMetrics) {
-        const auto entry = metrics_map.find(metric.first);
-        if (entry == metrics_map.cend()) {
-            return false;
-        }
-        else if (entry->second != metric.second) {
+        const auto entry_iterator = std::find_if(
+            metrics_container.begin(), metrics_container.end(),
+            [&metric](const std::pair<std::string, ValueType>
+                          &metric_key_value_pair) {
+                return metric_key_value_pair.first == metric.first &&
+                       metric_key_value_pair.second == metric.second;
+            });
+        if (entry_iterator == metrics_container.cend()) {
             return false;
         }
     }

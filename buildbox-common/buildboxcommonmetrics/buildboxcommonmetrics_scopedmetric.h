@@ -21,7 +21,7 @@
 namespace buildboxcommon {
 namespace buildboxcommonmetrics {
 
-template <class ValueType> class MetricCollector;
+template <class ValueType, typename> class MetricCollector;
 
 template <class MetricType> class ScopedMetric {
   public:
