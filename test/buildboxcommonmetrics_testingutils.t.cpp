@@ -85,6 +85,14 @@ TEST_F(MetricTestingUtilsTest, ValidateSingleMetric)
     ASSERT_FALSE(validateMetricCollection<MockMetric>("metric10"));
 }
 
+TEST_F(MetricTestingUtilsTest, ValidateTwoMetricsInitializerList)
+{
+    d_collector->store("metric1", MockMetricValue(1));
+    d_collector->store("metric2", MockMetricValue(2));
+
+    ASSERT_TRUE(validateMetricCollection<MockMetric>({"metric1", "metric2"}));
+}
+
 TEST_F(MetricTestingUtilsTest, ValidateMultipleMetricsPositive)
 {
     d_collector->store("metric1", MockMetricValue(1));

@@ -19,6 +19,7 @@
 #include <buildboxcommonmetrics_metricsconfigurator.h>
 
 #include <algorithm>
+#include <initializer_list>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -124,6 +125,14 @@ bool validateMetricCollection(const std::vector<std::string> &metrics)
         }
     }
     return true;
+}
+
+template <typename MetricType>
+bool validateMetricCollection(
+    const std::initializer_list<std::string> &metrics)
+{
+    const std::vector<std::string> vecMetrics(metrics.begin(), metrics.end());
+    return validateMetricCollection<MetricType>(vecMetrics);
 }
 
 template <typename ValueType>
