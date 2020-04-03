@@ -471,7 +471,13 @@ std::string FileUtils::makePathAbsolute(const std::string &path,
                                            << cwd << "]");
     }
 
-    const std::string full_path = cwd + '/' + path;
+    std::string full_path;
+    if (path.front() != '/') {
+        full_path = cwd + '/' + path;
+    }
+    else {
+        full_path = path;
+    }
     std::string normalized_path = FileUtils::normalizePath(full_path.c_str());
 
     // normalize_path removes trailing slashes, so let's preserve them here

@@ -325,6 +325,15 @@ TEST(MakePathAbsoluteTest, MoreComplexPaths)
     EXPECT_EQ("/a/b/d/", FileUtils::makePathAbsolute("./.././d/", "/a/b/c/"));
 }
 
+TEST(MakePathAbsoluteTest, AbsolutePaths)
+{
+    EXPECT_EQ("/x/y/z", FileUtils::makePathAbsolute("/x/y/z", "/a/b/c"));
+
+    // verify that the path still gets normalized
+    EXPECT_EQ("/x/y/m",
+              FileUtils::makePathAbsolute("/x/y/z/.././m", "/a/b/c"));
+}
+
 TEST(FileUtilsTests, WriteFileAtomically)
 {
     TemporaryDirectory output_directory;
