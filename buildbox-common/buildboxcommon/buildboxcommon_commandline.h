@@ -90,8 +90,8 @@
 #ifndef INCLUDED_BUILDBOXCOMMON_COMMANDLINE
 #define INCLUDED_BUILDBOXCOMMON_COMMANDLINE
 
-#if __cplusplus > 201402L
-#define BUILDBOXCOMMON_COMMANDLINE_USECXX17
+#if BUILDBOXCOMMON_CXX_STANDARD == 17
+#define BUILDBOXCOMMON_COMMANDLINE_USES_CXX17
 #endif
 
 #include <buildboxcommon_commandlinetypes.h>
@@ -100,7 +100,7 @@
 #include <sstream>
 #include <map>
 #include <string>
-#ifdef BUILDBOXCOMMON_COMMANDLINE_USECXX17
+#ifdef BUILDBOXCOMMON_COMMANDLINE_USES_CXX17
 #include <variant>
 #endif
 #include <vector>
@@ -109,7 +109,7 @@ namespace buildboxcommon {
 
 class CommandLine {
   public:
-#ifdef BUILDBOXCOMMON_COMMANDLINE_USECXX17
+#ifdef BUILDBOXCOMMON_COMMANDLINE_USES_CXX17
     typedef std::variant<std::string, int, double, bool,
                          CommandLineTypes::TypeInfo::VectorOfString,
                          CommandLineTypes::TypeInfo::VectorOfPairOfString>
@@ -159,7 +159,7 @@ class CommandLine {
         return (d_parsedArgs.find(name) != d_parsedArgs.end());
     }
 
-#ifdef BUILDBOXCOMMON_COMMANDLINE_USECXX17
+#ifdef BUILDBOXCOMMON_COMMANDLINE_USES_CXX17
     template <typename T> const T &get(const std::string &name) const;
 #endif
 

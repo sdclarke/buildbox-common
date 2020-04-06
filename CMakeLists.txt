@@ -123,7 +123,10 @@ else()
             "${BUILDBOXCOMMON_DIGEST_FUNCTION_VALUE}")
 endif()
 
-target_compile_definitions(buildboxcommon PUBLIC BUILDBOXCOMMON_DIGEST_FUNCTION_VALUE=${BUILDBOXCOMMON_DIGEST_FUNCTION_VALUE})
+target_compile_definitions(buildboxcommon PUBLIC
+    BUILDBOXCOMMON_DIGEST_FUNCTION_VALUE=${BUILDBOXCOMMON_DIGEST_FUNCTION_VALUE}
+    BUILDBOXCOMMON_CXX_STANDARD=${CMAKE_CXX_STANDARD}
+)
 
 file(GLOB BUILDBOXCOMMON_H "buildbox-common/buildboxcommon/*.h")
 file(GLOB BUILDBOXCOMMONMETRICS_H "buildbox-common/buildboxcommonmetrics/*.h")

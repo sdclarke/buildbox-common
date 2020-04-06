@@ -161,7 +161,7 @@ bool CommandLine::buildArgumentValue(const std::string &optionValue,
                     *argumentValue = vs;
                 }
                 else {
-#ifdef BUILDBOXCOMMON_COMMANDLINE_USECXX17
+#ifdef BUILDBOXCOMMON_COMMANDLINE_USES_CXX17
                     std::get<TypeInfo::VectorOfString>(
                         it->second.d_argumentValue)
                         .emplace_back(optionValue);
@@ -185,7 +185,7 @@ bool CommandLine::buildArgumentValue(const std::string &optionValue,
                     *argumentValue = vps;
                 }
                 else {
-#ifdef BUILDBOXCOMMON_COMMANDLINE_USECXX17
+#ifdef BUILDBOXCOMMON_COMMANDLINE_USES_CXX17
                     std::get<TypeInfo::VectorOfPairOfString>(
                         it->second.d_argumentValue)
                         .emplace_back(TypeInfo::PairOfString{key, value});
@@ -518,7 +518,7 @@ void CommandLine::usage(std::ostream &out)
     out << std::endl;
 }
 
-#ifdef BUILDBOXCOMMON_COMMANDLINE_USECXX17
+#ifdef BUILDBOXCOMMON_COMMANDLINE_USES_CXX17
 template <typename T> const T &CommandLine::get(const std::string &name) const
 {
     const auto it = d_parsedArgs.find(name);
@@ -548,7 +548,7 @@ CommandLine::get<TypeInfo::VectorOfPairOfString>(
 
 const std::string &CommandLine::getString(const std::string &name) const
 {
-#ifdef BUILDBOXCOMMON_COMMANDLINE_USECXX17
+#ifdef BUILDBOXCOMMON_COMMANDLINE_USES_CXX17
     return this->get<std::string>(name);
 #else
     const auto it = d_parsedArgs.find(name);
@@ -561,7 +561,7 @@ const std::string &CommandLine::getString(const std::string &name) const
 
 int CommandLine::getInt(const std::string &name) const
 {
-#ifdef BUILDBOXCOMMON_COMMANDLINE_USECXX17
+#ifdef BUILDBOXCOMMON_COMMANDLINE_USES_CXX17
     return this->get<int>(name);
 #else
     const auto it = d_parsedArgs.find(name);
@@ -574,7 +574,7 @@ int CommandLine::getInt(const std::string &name) const
 
 bool CommandLine::getBool(const std::string &name) const
 {
-#ifdef BUILDBOXCOMMON_COMMANDLINE_USECXX17
+#ifdef BUILDBOXCOMMON_COMMANDLINE_USES_CXX17
     return this->get<double>(name);
 #else
     const auto it = d_parsedArgs.find(name);
@@ -587,7 +587,7 @@ bool CommandLine::getBool(const std::string &name) const
 
 double CommandLine::getDouble(const std::string &name) const
 {
-#ifdef BUILDBOXCOMMON_COMMANDLINE_USECXX17
+#ifdef BUILDBOXCOMMON_COMMANDLINE_USES_CXX17
     return this->get<bool>(name);
 #else
     const auto it = d_parsedArgs.find(name);
@@ -601,7 +601,7 @@ double CommandLine::getDouble(const std::string &name) const
 const TypeInfo::VectorOfString &
 CommandLine::getVS(const std::string &name) const
 {
-#ifdef BUILDBOXCOMMON_COMMANDLINE_USECXX17
+#ifdef BUILDBOXCOMMON_COMMANDLINE_USES_CXX17
     return this->get<TypeInfo::VectorOfString>(name);
 #else
     const auto it = d_parsedArgs.find(name);
@@ -615,7 +615,7 @@ CommandLine::getVS(const std::string &name) const
 const TypeInfo::VectorOfPairOfString &
 CommandLine::getVPS(const std::string &name) const
 {
-#ifdef BUILDBOXCOMMON_COMMANDLINE_USECXX17
+#ifdef BUILDBOXCOMMON_COMMANDLINE_USES_CXX17
     return this->get<TypeInfo::VectorOfPairOfString>(name);
 #else
     const auto it = d_parsedArgs.find(name);
@@ -626,7 +626,7 @@ CommandLine::getVPS(const std::string &name) const
 #endif
 }
 
-#ifndef BUILDBOXCOMMON_COMMANDLINE_USECXX17
+#ifndef BUILDBOXCOMMON_COMMANDLINE_USES_CXX17
 CommandLine::ArgumentValue &CommandLine::ArgumentValue::
 operator=(const std::string &rhs)
 {
