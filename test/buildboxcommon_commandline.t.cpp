@@ -92,6 +92,30 @@ ArgumentSpec positionalOnlySpec[] = {
     {"", "Positional 3", TypeInfo(&positional3), ArgumentSpec::O_REQUIRED}
 };
 
+ArgumentSpec booleanSpecWithArgs[] = {
+    {"use-sockets", "include on CML to enable networked logging", TypeInfo(TypeInfo::DT_BOOL), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"use-file", "Set to 'true' to use file logging", TypeInfo(TypeInfo::DT_BOOL), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"verbose", "Set to 'true' to enable DEBUG level logging", TypeInfo(TypeInfo::DT_BOOL), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+};
+
+ArgumentSpec booleanSpecWithoutArgs[] = {
+    {"use-sockets", "include on CML to enable networked logging", TypeInfo(TypeInfo::DT_BOOL), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITHOUT_ARG},
+    {"use-file", "Set to 'true' to use file logging", TypeInfo(TypeInfo::DT_BOOL), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITHOUT_ARG},
+    {"verbose", "Set to 'true' to enable DEBUG level logging", TypeInfo(TypeInfo::DT_BOOL), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITHOUT_ARG},
+};
+
+ArgumentSpec booleanSpecWithoutArgsOptional[] = {
+    {"use-sockets", "include on CML to enable networked logging", TypeInfo(TypeInfo::DT_BOOL), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITHOUT_ARG},
+    {"use-file", "Set to 'true' to use file logging", TypeInfo(TypeInfo::DT_BOOL), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITHOUT_ARG},
+    {"verbose", "Set to 'true' to enable DEBUG level logging", TypeInfo(TypeInfo::DT_BOOL), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITHOUT_ARG},
+};
+
+ArgumentSpec booleanSpecMixed[] = {
+    {"use-sockets", "include on CML to enable networked logging", TypeInfo(TypeInfo::DT_BOOL), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITHOUT_ARG},
+    {"use-file", "Set to 'true' to use file logging", TypeInfo(TypeInfo::DT_BOOL), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"verbose", "Set to 'true' to enable DEBUG level logging", TypeInfo(TypeInfo::DT_BOOL), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITHOUT_ARG},
+};
+
 // format "--option=value"
 const char *argvOptionEqualsValue[] = {
     "/some/path/to/some_program.tsk",
@@ -344,6 +368,36 @@ const char *argvPositionalOnly[] = {
     "42.2"
 };
 
+const char *argvBooleanWithArgs[] = {
+    "/some/path/to/some_program.tsk",
+    "--use-sockets",
+    "true",
+    "--use-file",
+    "false",
+    "--verbose",
+    "false"
+};
+
+const char *argvBooleanWithoutArgs[] = {
+    "/some/path/to/some_program.tsk",
+    "--use-sockets",
+    "--use-file",
+    "--verbose"
+};
+
+const char *argvBooleanWithoutArgsOptional[] = {
+    "/some/path/to/some_program.tsk",
+    "--use-sockets",
+    "--use-file"
+};
+
+const char *argvBooleanMixed[] = {
+    "/some/path/to/some_program.tsk",
+    "--use-file",
+    "true",
+    "--verbose"
+};
+
 const std::string expected(
     "Usage: \n"
     "   --help                         Display usage and exit [optional]\n"
@@ -370,39 +424,39 @@ const std::string expected(
 void validate(const CommandLine &cml)
 {
     // primitive types
-    ASSERT_EQ("dev", cml.getString("instance"));
-    ASSERT_EQ("http://127.0.0.1:50011", cml.getString("cas-remote"));
-    ASSERT_EQ("http://distributedbuild-bgd-dev-ob.bdns.bloomberg.com:50051",
+    EXPECT_EQ("dev", cml.getString("instance"));
+    EXPECT_EQ("http://127.0.0.1:50011", cml.getString("cas-remote"));
+    EXPECT_EQ("http://distributedbuild-bgd-dev-ob.bdns.bloomberg.com:50051",
               cml.getString("bots-remote"));
-    ASSERT_EQ("debug", cml.getString("log-level"));
-    ASSERT_EQ(30, cml.getInt("request-timeout"));
-    ASSERT_EQ("/opt/bb/bin/buildbox-run-userchroot",
+    EXPECT_EQ("debug", cml.getString("log-level"));
+    EXPECT_EQ(30, cml.getInt("request-timeout"));
+    EXPECT_EQ("/opt/bb/bin/buildbox-run-userchroot",
               cml.getString("buildbox-run"));
-    ASSERT_EQ("udp://127.0.0.1:8125", cml.getString("metrics-mode"));
-    ASSERT_EQ(10, cml.getInt("metrics-publish-interval"));
-    ASSERT_EQ("/bb/data/dbldwr-config/buildboxworker.conf",
+    EXPECT_EQ("udp://127.0.0.1:8125", cml.getString("metrics-mode"));
+    EXPECT_EQ(10, cml.getInt("metrics-publish-interval"));
+    EXPECT_EQ("/bb/data/dbldwr-config/buildboxworker.conf",
               cml.getString("config-file"));
 
     // more complex types
     const TypeInfo::VectorOfString &vs = cml.getVS("runner-arg");
-    ASSERT_EQ(2, vs.size());
-    ASSERT_EQ("--use-localcas", vs[0]);
-    ASSERT_EQ("--userchroot-bin=/bb/dbldroot/bin/userchroot", vs[1]);
+    EXPECT_EQ(2, vs.size());
+    EXPECT_EQ("--use-localcas", vs[0]);
+    EXPECT_EQ("--userchroot-bin=/bb/dbldroot/bin/userchroot", vs[1]);
 
     const TypeInfo::VectorOfPairOfString &vps = cml.getVPS("platform");
-    ASSERT_EQ(3, vps.size());
-    ASSERT_EQ("OSFamily", vps[0].first);
-    ASSERT_EQ("linux", vps[0].second);
+    EXPECT_EQ(3, vps.size());
+    EXPECT_EQ("OSFamily", vps[0].first);
+    EXPECT_EQ("linux", vps[0].second);
 
-    ASSERT_EQ("ISA", vps[1].first);
-    ASSERT_EQ("x86-64", vps[1].second);
+    EXPECT_EQ("ISA", vps[1].first);
+    EXPECT_EQ("x86-64", vps[1].second);
 
-    ASSERT_EQ("chrootRootDigest", vps[2].first);
-    ASSERT_EQ(
+    EXPECT_EQ("chrootRootDigest", vps[2].first);
+    EXPECT_EQ(
         "8533ec9ba7494cc8295ccd0bfdca08457421a28b4e92c8eb18e7178fb400f5d4/930",
         vps[2].second);
 
-    ASSERT_EQ("wrldev-ob-623-buildboxworker-20", botId);
+    EXPECT_EQ("wrldev-ob-623-buildboxworker-20", botId);
 }
 
 // test "--foo=bar" option formatting
@@ -411,7 +465,7 @@ TEST(CommandLineTests, Format1)
     const int argc = sizeof(argvOptionEqualsValue) / sizeof(const char *);
     CommandLine commandLine(defaultSpec);
     const bool success = commandLine.parse(argc, argvOptionEqualsValue);
-    ASSERT_TRUE(success);
+    EXPECT_TRUE(success);
     validate(commandLine);
 }
 
@@ -421,7 +475,7 @@ TEST(CommandLineTests, Format2)
     const int argc = sizeof(argvOptionSpaceValue) / sizeof(const char *);
     CommandLine commandLine(defaultSpec);
     const bool success = commandLine.parse(argc, argvOptionSpaceValue);
-    ASSERT_TRUE(success);
+    EXPECT_TRUE(success);
     validate(commandLine);
 }
 
@@ -429,7 +483,7 @@ TEST(CommandLineTests, EmptyArgs)
 {
     const char *argv[] = {"/some/path/to/some_program.tsk"};
     CommandLine commandLine(defaultSpec);
-    ASSERT_FALSE(commandLine.parse(1, argv));
+    EXPECT_FALSE(commandLine.parse(1, argv));
 }
 
 TEST(CommandLineTests, MissingRequired)
@@ -438,7 +492,7 @@ TEST(CommandLineTests, MissingRequired)
     CommandLine commandLine(defaultSpec);
     std::ostringstream oss;
     const bool success = commandLine.parse(argc, argvMissingRequired, oss);
-    ASSERT_FALSE(success);
+    EXPECT_FALSE(success);
 }
 
 // test "--foo bar" option with binding variables
@@ -447,22 +501,22 @@ TEST(CommandLineTests, Binding)
     const int argc = sizeof(argvOptionSpaceValue) / sizeof(const char *);
     CommandLine commandLine(bindSpec);
     const bool success = commandLine.parse(argc, argvOptionSpaceValue);
-    ASSERT_TRUE(success);
+    EXPECT_TRUE(success);
     validate(commandLine);
 
-    ASSERT_EQ(2, runnerArgs.size());
-    ASSERT_EQ("--use-localcas", runnerArgs[0]);
-    ASSERT_EQ("--userchroot-bin=/bb/dbldroot/bin/userchroot", runnerArgs[1]);
+    EXPECT_EQ(2, runnerArgs.size());
+    EXPECT_EQ("--use-localcas", runnerArgs[0]);
+    EXPECT_EQ("--userchroot-bin=/bb/dbldroot/bin/userchroot", runnerArgs[1]);
 
-    ASSERT_EQ(3, platformProperties.size());
-    ASSERT_EQ("OSFamily", platformProperties[0].first);
-    ASSERT_EQ("linux", platformProperties[0].second);
+    EXPECT_EQ(3, platformProperties.size());
+    EXPECT_EQ("OSFamily", platformProperties[0].first);
+    EXPECT_EQ("linux", platformProperties[0].second);
 
-    ASSERT_EQ("ISA", platformProperties[1].first);
-    ASSERT_EQ("x86-64", platformProperties[1].second);
+    EXPECT_EQ("ISA", platformProperties[1].first);
+    EXPECT_EQ("x86-64", platformProperties[1].second);
 
-    ASSERT_EQ("chrootRootDigest", platformProperties[2].first);
-    ASSERT_EQ(
+    EXPECT_EQ("chrootRootDigest", platformProperties[2].first);
+    EXPECT_EQ(
         "8533ec9ba7494cc8295ccd0bfdca08457421a28b4e92c8eb18e7178fb400f5d4/930",
         platformProperties[2].second);
 }
@@ -472,7 +526,7 @@ TEST(CommandLineTests, TestUsage)
     CommandLine commandLine(defaultSpec);
     std::ostringstream oss;
     commandLine.usage(oss);
-    ASSERT_EQ(oss.str(), expected);
+    EXPECT_EQ(oss.str(), expected);
 }
 
 TEST(CommandLineTests, NoSuchOptionException)
@@ -480,7 +534,7 @@ TEST(CommandLineTests, NoSuchOptionException)
     const int argc = sizeof(argvOptionEqualsValue) / sizeof(const char *);
     CommandLine commandLine(defaultSpec);
     const bool success = commandLine.parse(argc, argvOptionEqualsValue);
-    ASSERT_TRUE(success);
+    EXPECT_TRUE(success);
     validate(commandLine);
 
     EXPECT_THROW(commandLine.getString("nosuchoption"), std::runtime_error);
@@ -491,50 +545,96 @@ TEST(CommandLineTests, BadStringToIntegerException)
     const int argc = sizeof(argvNotANumber) / sizeof(const char *);
     CommandLine commandLine(defaultSpec);
     const bool success = commandLine.parse(argc, argvNotANumber);
-    ASSERT_FALSE(success);
+    EXPECT_FALSE(success);
 }
 
 TEST(CommandLineTests, HelpOnly)
 {
     const int argc = sizeof(argvHelpOnly) / sizeof(const char *);
     CommandLine commandLine(defaultSpec);
-    ASSERT_TRUE(commandLine.parse(argc, argvHelpOnly));
+    EXPECT_TRUE(commandLine.parse(argc, argvHelpOnly));
 }
 
 TEST(CommandLineTests, MissingRequiredValue)
 {
     const int argc = sizeof(argvMissingRequiredValue) / sizeof(const char *);
     CommandLine commandLine(defaultSpec);
-    ASSERT_FALSE(commandLine.parse(argc, argvMissingRequiredValue));
+    EXPECT_FALSE(commandLine.parse(argc, argvMissingRequiredValue));
 }
 
 TEST(CommandLineTests, MisplacedPositional)
 {
     const int argc = sizeof(argvMisplacedPositional) / sizeof(const char *);
     CommandLine commandLine(defaultSpec);
-    ASSERT_FALSE(commandLine.parse(argc, argvMisplacedPositional));
+    EXPECT_FALSE(commandLine.parse(argc, argvMisplacedPositional));
 }
 
 TEST(CommandLineTests, PositionalOnly)
 {
     const int argc = sizeof(argvPositionalOnly) / sizeof(const char *);
     CommandLine commandLine(positionalOnlySpec);
-    ASSERT_TRUE(commandLine.parse(argc, argvPositionalOnly));
-    ASSERT_EQ(positional1, "first-postional-arg");
-    ASSERT_EQ(positional2, 42);
-    ASSERT_EQ(positional3, 42.2);
+    EXPECT_TRUE(commandLine.parse(argc, argvPositionalOnly));
+    EXPECT_EQ(positional1, "first-postional-arg");
+    EXPECT_EQ(positional2, 42);
+    EXPECT_EQ(positional3, 42.2);
 }
 
 TEST(CommandLineTests, MissingPositional1)
 {
     const int argc = sizeof(argvMissingPositional1) / sizeof(const char *);
     CommandLine commandLine(defaultSpec);
-    ASSERT_FALSE(commandLine.parse(argc, argvMissingPositional1));
+    EXPECT_FALSE(commandLine.parse(argc, argvMissingPositional1));
 }
 
 TEST(CommandLineTests, MissingPositional2)
 {
     const int argc = sizeof(argvMissingPositional2) / sizeof(const char *);
     CommandLine commandLine(twoPositionalSpec);
-    ASSERT_FALSE(commandLine.parse(argc, argvMissingPositional2));
+    EXPECT_FALSE(commandLine.parse(argc, argvMissingPositional2));
+}
+
+TEST(CommandLineTests, TestBooleanWithArgs)
+{
+    const int argc = sizeof(argvBooleanWithArgs) / sizeof(const char *);
+    CommandLine commandLine(booleanSpecWithArgs);
+    EXPECT_TRUE(commandLine.parse(argc, argvBooleanWithArgs));
+
+    EXPECT_TRUE(commandLine.getBool("use-sockets"));
+    EXPECT_FALSE(commandLine.getBool("use-file"));
+    EXPECT_FALSE(commandLine.getBool("verbose"));
+}
+
+TEST(CommandLineTests, TestBooleanWithoutArgs)
+{
+    const int argc = sizeof(argvBooleanWithoutArgs) / sizeof(const char *);
+    CommandLine commandLine(booleanSpecWithoutArgs);
+    EXPECT_TRUE(commandLine.parse(argc, argvBooleanWithoutArgs));
+
+    EXPECT_TRUE(commandLine.getBool("use-sockets"));
+    EXPECT_TRUE(commandLine.getBool("use-file"));
+    EXPECT_TRUE(commandLine.getBool("verbose"));
+}
+
+TEST(CommandLineTests, TestBooleanWithoutArgsOptional)
+{
+    const int argc =
+        sizeof(argvBooleanWithoutArgsOptional) / sizeof(const char *);
+    CommandLine commandLine(booleanSpecWithoutArgsOptional);
+    EXPECT_TRUE(commandLine.parse(argc, argvBooleanWithoutArgsOptional));
+
+    EXPECT_TRUE(commandLine.getBool("use-sockets"));
+    EXPECT_TRUE(commandLine.getBool("use-file"));
+    EXPECT_FALSE(commandLine.exists("verbose"));
+    EXPECT_THROW(commandLine.getBool("verbose"), std::runtime_error);
+}
+
+TEST(CommandLineTests, TestBooleanMixed)
+{
+    const int argc = sizeof(argvBooleanMixed) / sizeof(const char *);
+    CommandLine commandLine(booleanSpecMixed);
+    EXPECT_TRUE(commandLine.parse(argc, argvBooleanMixed));
+
+    EXPECT_FALSE(commandLine.exists("use-sockets"));
+    EXPECT_TRUE(commandLine.getBool("use-file"));
+    EXPECT_TRUE(commandLine.getBool("verbose"));
 }

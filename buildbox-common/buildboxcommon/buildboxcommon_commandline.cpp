@@ -147,7 +147,12 @@ bool CommandLine::buildArgumentValue(const std::string &optionValue,
                 break;
             }
             case TypeInfo::DT_BOOL: {
-                const bool val = (optionValue == "true");
+                std::string tmpVal(optionValue);
+                if (tmpVal.empty() &&
+                    spec.d_constraint == ArgumentSpec::C_WITHOUT_ARG) {
+                    tmpVal = "true";
+                }
+                const bool val = (tmpVal == "true");
                 *argumentValue = val;
                 if (spec.d_type.isBindable()) {
                     *(static_cast<bool *>(spec.d_type.getBindable())) = val;
@@ -257,7 +262,8 @@ bool CommandLine::parseOptions(std::ostream &out)
             optionName.erase(pos);
         }
 
-        // find the spec
+        // find the spec now so we can deterministically know if
+        // we need to look at the next argv to find the option value
         const ArgumentSpec *spec = nullptr;
         const bool found = findOptionSpecByName(optionName, &spec);
         if (!found) {
@@ -267,7 +273,7 @@ bool CommandLine::parseOptions(std::ostream &out)
             return false;
         }
 
-        // for format "--foo bar", we must grab the next arg to get the value
+        // format "--foo bar"
         if (spec->hasArgument() && std::string::npos == pos) {
             // sanity check if we're at the end of the supplied args
             if (d_rawArgv.size() == (d_argIdx + 1)) {
@@ -291,12 +297,6 @@ bool CommandLine::parseOptions(std::ostream &out)
                     << std::endl;
                 return false;
             }
-        }
-
-        // boolean options with no arguments
-        if (spec->d_type.type() == TypeInfo::DT_BOOL &&
-            spec->d_constraint == ArgumentSpec::C_WITHOUT_ARG) {
-            optionValue = "true";
         }
 
         // populate 'argumentValue' based on it's specified data type
@@ -335,12 +335,6 @@ bool CommandLine::parsePositionals(std::ostream &out)
                 << "unexpected positional argument \"" << positional
                 << "\" found, but not defined in specification" << std::endl;
             return false;
-        }
-
-        // minor hack for boolean options that have no arguments
-        if (spec->d_type.type() == TypeInfo::DT_BOOL &&
-            spec->d_constraint == ArgumentSpec::C_WITHOUT_ARG) {
-            positional = "true";
         }
 
         // add everything to the container
