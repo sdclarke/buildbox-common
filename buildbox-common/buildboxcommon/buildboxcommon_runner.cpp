@@ -144,7 +144,7 @@ void Runner::registerSignals() const
     struct sigaction sa;
     sa.sa_handler = handleSignal;
     sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_SIGINFO;
+    sa.sa_flags = 0;
 
     if (sigaction(SIGINT, &sa, nullptr) == -1) {
         BUILDBOX_RUNNER_LOG(ERROR,
