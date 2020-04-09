@@ -133,6 +133,8 @@ const char *argvOptionEqualsValue[] = {
     "ISA=x86-64",
     "--platform",
     "chrootRootDigest=8533ec9ba7494cc8295ccd0bfdca08457421a28b4e92c8eb18e7178fb400f5d4/930",
+    "--platform",
+    "chrootRootDigest=1e7088e7aca9e8713a84122218a89c8908b39b5797d32170f1afa6e474b9ade6/930",
     "--metrics-mode=udp://127.0.0.1:8125",
     "--metrics-publish-interval=10",
     "--config-file=/bb/data/dbldwr-config/buildboxworker.conf",
@@ -162,6 +164,8 @@ const char *argvOptionSpaceValue[] = {
     "ISA=x86-64",
     "--platform",
     "chrootRootDigest=8533ec9ba7494cc8295ccd0bfdca08457421a28b4e92c8eb18e7178fb400f5d4/930",
+    "--platform",
+    "chrootRootDigest=1e7088e7aca9e8713a84122218a89c8908b39b5797d32170f1afa6e474b9ade6/930",
     "--metrics-mode",
     "udp://127.0.0.1:8125",
     "--metrics-publish-interval",
@@ -444,7 +448,7 @@ void validate(const CommandLine &cml)
     EXPECT_EQ("--userchroot-bin=/bb/dbldroot/bin/userchroot", vs[1]);
 
     const TypeInfo::VectorOfPairOfString &vps = cml.getVPS("platform");
-    EXPECT_EQ(3, vps.size());
+    EXPECT_EQ(4, vps.size());
     EXPECT_EQ("OSFamily", vps[0].first);
     EXPECT_EQ("linux", vps[0].second);
 
@@ -455,6 +459,11 @@ void validate(const CommandLine &cml)
     EXPECT_EQ(
         "8533ec9ba7494cc8295ccd0bfdca08457421a28b4e92c8eb18e7178fb400f5d4/930",
         vps[2].second);
+
+    EXPECT_EQ("chrootRootDigest", vps[3].first);
+    EXPECT_EQ(
+        "1e7088e7aca9e8713a84122218a89c8908b39b5797d32170f1afa6e474b9ade6/930",
+        vps[3].second);
 
     EXPECT_EQ("wrldev-ob-623-buildboxworker-20", botId);
 }
@@ -508,7 +517,7 @@ TEST(CommandLineTests, Binding)
     EXPECT_EQ("--use-localcas", runnerArgs[0]);
     EXPECT_EQ("--userchroot-bin=/bb/dbldroot/bin/userchroot", runnerArgs[1]);
 
-    EXPECT_EQ(3, platformProperties.size());
+    EXPECT_EQ(4, platformProperties.size());
     EXPECT_EQ("OSFamily", platformProperties[0].first);
     EXPECT_EQ("linux", platformProperties[0].second);
 
@@ -519,6 +528,11 @@ TEST(CommandLineTests, Binding)
     EXPECT_EQ(
         "8533ec9ba7494cc8295ccd0bfdca08457421a28b4e92c8eb18e7178fb400f5d4/930",
         platformProperties[2].second);
+
+    EXPECT_EQ("chrootRootDigest", platformProperties[3].first);
+    EXPECT_EQ(
+        "1e7088e7aca9e8713a84122218a89c8908b39b5797d32170f1afa6e474b9ade6/930",
+        platformProperties[3].second);
 }
 
 TEST(CommandLineTests, TestUsage)
