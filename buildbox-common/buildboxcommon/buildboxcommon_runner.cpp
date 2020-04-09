@@ -273,14 +273,7 @@ int Runner::main(int argc, char *argv[])
         writeActionResult(result, this->d_outputPath);
     }
 
-    // At this point, if a signal is thrown, then `execute()` has happened
-    // successfully and the results have been written.
-    if (getSignalStatus()) {
-        FileUtils::deleteDirectory(this->d_outputPath.c_str());
-        return getSignalStatus();
-    }
-
-    return 0;
+    return getSignalStatus();
 }
 
 std::unique_ptr<StagedDirectory> Runner::stage(const Digest &digest,
