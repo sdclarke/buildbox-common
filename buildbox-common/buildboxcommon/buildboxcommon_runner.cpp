@@ -392,7 +392,18 @@ Runner::readStandardOutputs(const int stdout_read_fd, const int stderr_read_fd)
            FD_ISSET(stderr_read_fd, &fds_to_read)) {
 
         fd_set fdsSuccessfullyRead = fds_to_read;
-        select(FD_SETSIZE, &fdsSuccessfullyRead, nullptr, nullptr, nullptr);
+        if (select(FD_SETSIZE, &fdsSuccessfullyRead, nullptr, nullptr,
+                   nullptr) < 0) {
+            if (errno == EINTR && getSignalStatus()) {
+                // Caught SIGINT or SIGTERM
+                break;
+            }
+            else {
+                BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(std::system_error, errno,
+                                                      std::system_category,
+                                                      "Error in select()");
+            }
+        }
 
         if (FD_ISSET(stdout_read_fd, &fdsSuccessfullyRead)) {
             writeStreamContents(stdout_read_fd, STDOUT_FILENO,
@@ -469,26 +480,39 @@ void Runner::executeAndStore(
     // Read `stdout` and `stderr`:
     const auto standard_outputs =
         readStandardOutputs(stdout_pipe[0], stderr_pipe[0]);
-    const std::string &stdout_contents = standard_outputs.first;
-    const std::string &stderr_contents = standard_outputs.second;
-
-    BUILDBOX_RUNNER_LOG(DEBUG, "Finished reading commands's stdout/err");
     close(stdout_pipe[0]);
     close(stderr_pipe[0]);
 
-    Digest stdout_digest, stderr_digest;
-    std::tie(stdout_digest, stderr_digest) =
-        upload_outputs_function(stdout_contents, stderr_contents);
+    if (!getSignalStatus()) {
+        const std::string &stdout_contents = standard_outputs.first;
+        const std::string &stderr_contents = standard_outputs.second;
 
-    result->mutable_stdout_digest()->CopyFrom(stdout_digest);
-    result->mutable_stderr_digest()->CopyFrom(stderr_digest);
+        BUILDBOX_RUNNER_LOG(DEBUG, "Finished reading commands's stdout/err");
 
-    const int exit_code = SystemUtils::waitPid(pid);
+        Digest stdout_digest, stderr_digest;
+        std::tie(stdout_digest, stderr_digest) =
+            upload_outputs_function(stdout_contents, stderr_contents);
 
-    // -- Execution ended --
-    result_metadata->mutable_execution_completed_timestamp()->CopyFrom(
-        TimeUtils::now());
-    result->set_exit_code(exit_code);
+        result->mutable_stdout_digest()->CopyFrom(stdout_digest);
+        result->mutable_stderr_digest()->CopyFrom(stderr_digest);
+    }
+
+    while (!getSignalStatus()) {
+        const int exit_code = SystemUtils::waitPidOrSignal(pid);
+        if (exit_code >= 0) {
+            // -- Execution ended --
+            result_metadata->mutable_execution_completed_timestamp()->CopyFrom(
+                TimeUtils::now());
+            result->set_exit_code(exit_code);
+            return;
+        }
+    }
+
+    // We've received either SIGINT or SIGTERM before execution completed.
+    // Immediately terminate action command.
+    BUILDBOX_RUNNER_LOG(INFO, "Caught signal");
+    kill(pid, SIGKILL);
+    SystemUtils::waitPid(pid);
 }
 
 void Runner::executeAndStore(const std::vector<std::string> &command,
