@@ -39,6 +39,12 @@ struct SystemUtils {
     static int waitPid(const pid_t pid);
 
     /*
+     * Equivalent to `waitPid()` except that it returns `-EINTR` if a signal
+     * was caught.
+     */
+    static int waitPidOrSignal(const pid_t pid);
+
+    /*
      * Get current working directory. Uses getcwd()
      *
      * On error, throws as 'std::runtime_error` exception

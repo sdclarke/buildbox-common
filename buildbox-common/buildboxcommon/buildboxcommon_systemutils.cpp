@@ -117,47 +117,59 @@ std::string SystemUtils::getPathToCommand(const std::string &command)
 int SystemUtils::waitPid(const pid_t pid)
 {
     while (true) {
-        int status;
-        const pid_t child_pid = waitpid(pid, &status, 0);
-
-        if (child_pid == -1) { // `waitpid()` failed
-            const auto waitpid_error = errno;
-
-            if (waitpid_error == EINTR) {
-                // The child can still run, keep waiting for it.
-                continue;
-            }
-
-            BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(std::system_error, errno,
-                                                  std::system_category,
-                                                  "Error in waitpid()");
+        const int exit_code = waitPidOrSignal(pid);
+        if (exit_code == -EINTR) {
+            // The child can still run, keep waiting for it.
+            continue;
         }
-
-        if (WIFEXITED(status)) {
-            return WEXITSTATUS(status);
+        else {
+            return exit_code;
         }
-
-        if (WIFSIGNALED(status)) {
-            return 128 + WTERMSIG(status);
-            // Exit code as returned by Bash.
-            // (https://gnu.org/software/bash/manual/html_node/Exit-Status.html)
-        }
-
-        /* According to the documentation for `waitpid(2)` we should never get
-         * here:
-         *
-         * "If the information pointed to by stat_loc was stored by a call to
-         * waitpid() that did not specify the WUNTRACED  or
-         * CONTINUED flags, or by a call to the wait() function,
-         * exactly one of the macros WIFEXITED(*stat_loc) and
-         * WIFSIGNALED(*stat_loc) shall evaluate to a non-zero value."
-         *
-         * (https://pubs.opengroup.org/onlinepubs/009695399/functions/wait.html)
-         */
-        BUILDBOXCOMMON_THROW_EXCEPTION(
-            std::runtime_error,
-            "`waitpid()` returned an unexpected status: " << status);
     }
+}
+
+int SystemUtils::waitPidOrSignal(const pid_t pid)
+{
+    int status;
+    const pid_t child_pid = waitpid(pid, &status, 0);
+
+    if (child_pid == -1) { // `waitpid()` failed
+        const auto waitpid_error = errno;
+
+        if (waitpid_error == EINTR) {
+            // Signal caught before child terminated.
+            return -EINTR;
+        }
+
+        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(std::system_error, errno,
+                                              std::system_category,
+                                              "Error in waitpid()");
+    }
+
+    if (WIFEXITED(status)) {
+        return WEXITSTATUS(status);
+    }
+
+    if (WIFSIGNALED(status)) {
+        return 128 + WTERMSIG(status);
+        // Exit code as returned by Bash.
+        // (https://gnu.org/software/bash/manual/html_node/Exit-Status.html)
+    }
+
+    /* According to the documentation for `waitpid(2)` we should never get
+     * here:
+     *
+     * "If the information pointed to by stat_loc was stored by a call to
+     * waitpid() that did not specify the WUNTRACED  or
+     * CONTINUED flags, or by a call to the wait() function,
+     * exactly one of the macros WIFEXITED(*stat_loc) and
+     * WIFSIGNALED(*stat_loc) shall evaluate to a non-zero value."
+     *
+     * (https://pubs.opengroup.org/onlinepubs/009695399/functions/wait.html)
+     */
+    BUILDBOXCOMMON_THROW_EXCEPTION(
+        std::runtime_error,
+        "`waitpid()` returned an unexpected status: " << status);
 }
 
 std::string SystemUtils::get_current_working_directory()
