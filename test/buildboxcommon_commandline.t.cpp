@@ -50,6 +50,23 @@ ArgumentSpec defaultSpec[] = {
     {"", "BOT Id", TypeInfo(&botId), ArgumentSpec::O_REQUIRED}
 };
 
+ArgumentSpec noPositionalsSpec[] = {
+    {"help", "Display usage and exit", TypeInfo(TypeInfo::DT_BOOL)},
+    {"instance", "Name of instance", TypeInfo(TypeInfo::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"cas-remote", "IP/port of remote CAS server", TypeInfo(TypeInfo::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"bots-remote", "IP/port of remote BOTS server", TypeInfo(TypeInfo::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"log-level", "Log verbosity level", TypeInfo(TypeInfo::DT_STRING), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG},
+    {"request-timeout", "Request timeout", TypeInfo(TypeInfo::DT_INT), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"buildbox-run", "Absolute path to runner exectuable", TypeInfo(TypeInfo::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"platform", "Set a platform property(repeated):\n--platform KEY=VALUE\n--platform KEY=VALUE", TypeInfo(TypeInfo::DT_STRING_PAIR_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"runner-arg", "Args to pass to the runner", TypeInfo(TypeInfo::DT_STRING_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"metrics-mode", "Metrics Mode: --metrics-mode=MODE - options for MODE are\n"
+     "udp://<hostname>:<port>\nfile:///path/to/file\nstderr", TypeInfo(TypeInfo::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"metrics-publish-interval", "Metrics publishing interval", TypeInfo(TypeInfo::DT_INT), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"config-file", "Absolute path to config file", TypeInfo(TypeInfo::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"verbose", "Adjust log verbosity", TypeInfo(TypeInfo::DT_BOOL)}
+};
+
 ArgumentSpec positionalNotRequiredSpec[] = {
     {"help", "Display usage and exit", TypeInfo(TypeInfo::DT_BOOL)},
     {"instance", "Name of instance", TypeInfo(TypeInfo::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
@@ -101,7 +118,7 @@ ArgumentSpec twoPositionalSpec[] = {
     {"config-file", "Absolute path to config file", TypeInfo(TypeInfo::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
     {"verbose", "Adjust log verbosity", TypeInfo(TypeInfo::DT_BOOL)},
     {"", "Positional1", TypeInfo(&positional1), ArgumentSpec::O_REQUIRED},
-    {"", "Positional2", TypeInfo(&positional2), ArgumentSpec::O_REQUIRED},
+    {"", "Positional2", TypeInfo(&positional2), ArgumentSpec::O_REQUIRED}
 };
 
 ArgumentSpec positionalOnlySpec[] = {
@@ -113,25 +130,25 @@ ArgumentSpec positionalOnlySpec[] = {
 ArgumentSpec booleanSpecWithArgs[] = {
     {"use-sockets", "include on CML to enable networked logging", TypeInfo(TypeInfo::DT_BOOL), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
     {"use-file", "Set to 'true' to use file logging", TypeInfo(TypeInfo::DT_BOOL), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"verbose", "Set to 'true' to enable DEBUG level logging", TypeInfo(TypeInfo::DT_BOOL), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"verbose", "Set to 'true' to enable DEBUG level logging", TypeInfo(TypeInfo::DT_BOOL), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG}
 };
 
 ArgumentSpec booleanSpecWithoutArgs[] = {
     {"use-sockets", "include on CML to enable networked logging", TypeInfo(TypeInfo::DT_BOOL), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITHOUT_ARG},
     {"use-file", "Set to 'true' to use file logging", TypeInfo(TypeInfo::DT_BOOL), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITHOUT_ARG},
-    {"verbose", "Set to 'true' to enable DEBUG level logging", TypeInfo(TypeInfo::DT_BOOL), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITHOUT_ARG},
+    {"verbose", "Set to 'true' to enable DEBUG level logging", TypeInfo(TypeInfo::DT_BOOL), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITHOUT_ARG}
 };
 
 ArgumentSpec booleanSpecWithoutArgsOptional[] = {
     {"use-sockets", "include on CML to enable networked logging", TypeInfo(TypeInfo::DT_BOOL), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITHOUT_ARG},
     {"use-file", "Set to 'true' to use file logging", TypeInfo(TypeInfo::DT_BOOL), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITHOUT_ARG},
-    {"verbose", "Set to 'true' to enable DEBUG level logging", TypeInfo(TypeInfo::DT_BOOL), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITHOUT_ARG},
+    {"verbose", "Set to 'true' to enable DEBUG level logging", TypeInfo(TypeInfo::DT_BOOL), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITHOUT_ARG}
 };
 
 ArgumentSpec booleanSpecMixed[] = {
     {"use-sockets", "include on CML to enable networked logging", TypeInfo(TypeInfo::DT_BOOL), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITHOUT_ARG},
     {"use-file", "Set to 'true' to use file logging", TypeInfo(TypeInfo::DT_BOOL), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"verbose", "Set to 'true' to enable DEBUG level logging", TypeInfo(TypeInfo::DT_BOOL), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITHOUT_ARG},
+    {"verbose", "Set to 'true' to enable DEBUG level logging", TypeInfo(TypeInfo::DT_BOOL), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITHOUT_ARG}
 };
 
 // format "--option=value"
@@ -378,7 +395,30 @@ const char *argvMissingPositional2[] = {
     "wrldev-ob-623-buildboxworker-20"
 };
 
-const char *argvMissingOptionalPositional[] = {
+const char *argvOptionEqualsValueNoPositional[] = {
+    "/some/path/to/some_program.tsk",
+    "--instance=dev",
+    "--cas-remote=http://127.0.0.1:50011",
+    "--bots-remote=http://distributedbuild-bgd-dev-ob.bdns.bloomberg.com:50051",
+    "--log-level=debug",
+    "--request-timeout=30",
+    "--buildbox-run=/opt/bb/bin/buildbox-run-userchroot",
+    "--runner-arg=--use-localcas",
+    "--runner-arg=--userchroot-bin=/bb/dbldroot/bin/userchroot",
+    "--platform",
+    "OSFamily=linux",
+    "--platform",
+    "ISA=x86-64",
+    "--platform",
+    "chrootRootDigest=8533ec9ba7494cc8295ccd0bfdca08457421a28b4e92c8eb18e7178fb400f5d4/930",
+    "--platform",
+    "chrootRootDigest=1e7088e7aca9e8713a84122218a89c8908b39b5797d32170f1afa6e474b9ade6/930",
+    "--metrics-mode=udp://127.0.0.1:8125",
+    "--metrics-publish-interval=10",
+    "--config-file=/bb/data/dbldwr-config/buildboxworker.conf"
+};
+
+const char *argvOptionSpaceValueNoPositional[] = {
     "/some/path/to/some_program.tsk",
     "--instance",
     "dev",
@@ -389,7 +429,7 @@ const char *argvMissingOptionalPositional[] = {
     "--log-level",
     "debug",
     "--request-timeout",
-    "10",
+    "30",
     "--buildbox-run",
     "/opt/bb/bin/buildbox-run-userchroot",
     "--runner-arg=--use-localcas",
@@ -400,6 +440,8 @@ const char *argvMissingOptionalPositional[] = {
     "ISA=x86-64",
     "--platform",
     "chrootRootDigest=8533ec9ba7494cc8295ccd0bfdca08457421a28b4e92c8eb18e7178fb400f5d4/930",
+    "--platform",
+    "chrootRootDigest=1e7088e7aca9e8713a84122218a89c8908b39b5797d32170f1afa6e474b9ade6/930",
     "--metrics-mode",
     "udp://127.0.0.1:8125",
     "--metrics-publish-interval",
@@ -704,7 +746,23 @@ TEST(CommandLineTests, TestBooleanMixed)
 TEST(CommandLineTests, TestMissingOptionalPositional)
 {
     const int argc =
-        sizeof(argvMissingOptionalPositional) / sizeof(const char *);
+        sizeof(argvOptionSpaceValueNoPositional) / sizeof(const char *);
     CommandLine commandLine(positionalNotRequiredSpec);
-    EXPECT_TRUE(commandLine.parse(argc, argvMissingOptionalPositional));
+    EXPECT_TRUE(commandLine.parse(argc, argvOptionSpaceValueNoPositional));
+}
+
+TEST(CommandLineTests, TestNoPositionals1)
+{
+    const int argc =
+        sizeof(argvOptionEqualsValueNoPositional) / sizeof(const char *);
+    CommandLine commandLine(noPositionalsSpec);
+    EXPECT_TRUE(commandLine.parse(argc, argvOptionEqualsValueNoPositional));
+}
+
+TEST(CommandLineTests, TestNoPositionals2)
+{
+    const int argc =
+        sizeof(argvOptionSpaceValueNoPositional) / sizeof(const char *);
+    CommandLine commandLine(noPositionalsSpec);
+    EXPECT_TRUE(commandLine.parse(argc, argvOptionSpaceValueNoPositional));
 }

@@ -50,7 +50,7 @@ std::string padString(const std::string &str, const int fill)
     return oss.str();
 }
 
-bool isPositionalAndRequired(const ArgumentSpec &spec)
+bool isRequiredPositional(const ArgumentSpec &spec)
 {
     return (spec.isPositional() && spec.isRequired());
 }
@@ -319,9 +319,9 @@ bool CommandLine::parseOptions(std::ostream &out)
 bool CommandLine::parsePositionals(std::ostream &out)
 {
     // sanity check for missing positionals
-    const size_t numPositionals =
-        std::count_if(d_spec, d_spec + d_specSize, isPositionalAndRequired);
-    if (d_rawArgv.size() < (d_argIdx + numPositionals)) {
+    const size_t numRequiredSpecPositionals =
+        std::count_if(d_spec, d_spec + d_specSize, isRequiredPositional);
+    if (d_rawArgv.size() < (d_argIdx + numRequiredSpecPositionals)) {
         out << prefix(__LINE__) << ": parse error: "
             << "required positional argument(s) missing from command line"
             << std::endl;
@@ -332,12 +332,11 @@ bool CommandLine::parsePositionals(std::ostream &out)
         // grab an option name and find it's specification
         std::string positional = d_rawArgv.at(d_argIdx);
         const ArgumentSpec *spec = nullptr;
-        const bool found = findNextPositionalSpec(&spec);
-        if (!found && numPositionals > 0) {
-            out << prefix(__LINE__) << ": parse error: "
+        if (!findNextPositionalSpec(&spec)) {
+            out << prefix(__LINE__) << ": parse warning: "
                 << "unexpected positional argument \"" << positional
                 << "\" found, but not defined in specification" << std::endl;
-            return false;
+            continue;
         }
 
         // add everything to the container

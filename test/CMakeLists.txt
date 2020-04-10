@@ -30,7 +30,6 @@ endmacro()
 
 add_buildboxcommon_test(client_test buildboxcommon_client.t.cpp)
 add_buildboxcommon_test(stageddirectory_tests buildboxcommon_stageddirectory.t.cpp)
-
 add_buildboxcommon_test(localcasstageddirectory_tests buildboxcommon_localcasstageddirectory.t.cpp)
 add_buildboxcommon_test(connectionoptions_tests buildboxcommon_connectionoptions.t.cpp)
 add_buildboxcommon_test(fileutils_tests buildboxcommon_fileutils.t.cpp)
