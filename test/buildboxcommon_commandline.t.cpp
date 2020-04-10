@@ -50,6 +50,24 @@ ArgumentSpec defaultSpec[] = {
     {"", "BOT Id", TypeInfo(&botId), ArgumentSpec::O_REQUIRED}
 };
 
+ArgumentSpec positionalNotRequiredSpec[] = {
+    {"help", "Display usage and exit", TypeInfo(TypeInfo::DT_BOOL)},
+    {"instance", "Name of instance", TypeInfo(TypeInfo::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"cas-remote", "IP/port of remote CAS server", TypeInfo(TypeInfo::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"bots-remote", "IP/port of remote BOTS server", TypeInfo(TypeInfo::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"log-level", "Log verbosity level", TypeInfo(TypeInfo::DT_STRING), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG},
+    {"request-timeout", "Request timeout", TypeInfo(TypeInfo::DT_INT), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"buildbox-run", "Absolute path to runner exectuable", TypeInfo(TypeInfo::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"platform", "Set a platform property(repeated):\n--platform KEY=VALUE\n--platform KEY=VALUE", TypeInfo(TypeInfo::DT_STRING_PAIR_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"runner-arg", "Args to pass to the runner", TypeInfo(TypeInfo::DT_STRING_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"metrics-mode", "Metrics Mode: --metrics-mode=MODE - options for MODE are\n"
+     "udp://<hostname>:<port>\nfile:///path/to/file\nstderr", TypeInfo(TypeInfo::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"metrics-publish-interval", "Metrics publishing interval", TypeInfo(TypeInfo::DT_INT), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"config-file", "Absolute path to config file", TypeInfo(TypeInfo::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"verbose", "Adjust log verbosity", TypeInfo(TypeInfo::DT_BOOL)},
+    {"", "BOT Id", TypeInfo(&botId), ArgumentSpec::O_OPTIONAL}
+};
+
 ArgumentSpec bindSpec[] = {
     {"help", "Display usage and exit", TypeInfo(TypeInfo::DT_BOOL)},
     {"instance", "Name of instance", TypeInfo(TypeInfo::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
@@ -360,6 +378,36 @@ const char *argvMissingPositional2[] = {
     "wrldev-ob-623-buildboxworker-20"
 };
 
+const char *argvMissingOptionalPositional[] = {
+    "/some/path/to/some_program.tsk",
+    "--instance",
+    "dev",
+    "--cas-remote",
+    "http://127.0.0.1:50011",
+    "--bots-remote",
+    "http://distributedbuild-bgd-dev-ob.bdns.bloomberg.com:50051",
+    "--log-level",
+    "debug",
+    "--request-timeout",
+    "10",
+    "--buildbox-run",
+    "/opt/bb/bin/buildbox-run-userchroot",
+    "--runner-arg=--use-localcas",
+    "--runner-arg=--userchroot-bin=/bb/dbldroot/bin/userchroot",
+    "--platform",
+    "OSFamily=linux",
+    "--platform",
+    "ISA=x86-64",
+    "--platform",
+    "chrootRootDigest=8533ec9ba7494cc8295ccd0bfdca08457421a28b4e92c8eb18e7178fb400f5d4/930",
+    "--metrics-mode",
+    "udp://127.0.0.1:8125",
+    "--metrics-publish-interval",
+    "10",
+    "--config-file",
+    "/bb/data/dbldwr-config/buildboxworker.conf"
+};
+
 const char *argvHelpOnly[] = {
     "/some/path/to/some_program.tsk",
     "--help"
@@ -651,4 +699,12 @@ TEST(CommandLineTests, TestBooleanMixed)
     EXPECT_FALSE(commandLine.exists("use-sockets"));
     EXPECT_TRUE(commandLine.getBool("use-file"));
     EXPECT_TRUE(commandLine.getBool("verbose"));
+}
+
+TEST(CommandLineTests, TestMissingOptionalPositional)
+{
+    const int argc =
+        sizeof(argvMissingOptionalPositional) / sizeof(const char *);
+    CommandLine commandLine(positionalNotRequiredSpec);
+    EXPECT_TRUE(commandLine.parse(argc, argvMissingOptionalPositional));
 }

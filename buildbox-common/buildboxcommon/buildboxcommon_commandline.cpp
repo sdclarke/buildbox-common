@@ -50,7 +50,10 @@ std::string padString(const std::string &str, const int fill)
     return oss.str();
 }
 
-bool isPositional(const ArgumentSpec &spec) { return spec.isPositional(); }
+bool isPositionalAndRequired(const ArgumentSpec &spec)
+{
+    return (spec.isPositional() && spec.isRequired());
+}
 
 bool split(const std::string &str, std::string *s1, std::string *s2,
            const char delim = '=')
@@ -317,7 +320,7 @@ bool CommandLine::parsePositionals(std::ostream &out)
 {
     // sanity check for missing positionals
     const size_t numPositionals =
-        std::count_if(d_spec, d_spec + d_specSize, isPositional);
+        std::count_if(d_spec, d_spec + d_specSize, isPositionalAndRequired);
     if (d_rawArgv.size() < (d_argIdx + numPositionals)) {
         out << prefix(__LINE__) << ": parse error: "
             << "required positional argument(s) missing from command line"
