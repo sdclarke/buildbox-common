@@ -260,6 +260,8 @@ TEST(NormalizePathTest, RemoveUnneededDotDot)
     EXPECT_EQ("/usr/bin/gcc", FileUtils::normalizePath("/../usr/bin/gcc"));
     EXPECT_EQ("/usr/bin/gcc",
               FileUtils::normalizePath("/usr/../../usr/bin/gcc"));
+    EXPECT_EQ("/b/c", FileUtils::normalizePath("/a/../b/c/"));
+    EXPECT_EQ("b/c", FileUtils::normalizePath("a/../b/c/"));
 }
 
 TEST(NormalizePathTest, KeepNeededDotDot)
@@ -332,6 +334,564 @@ TEST(MakePathAbsoluteTest, AbsolutePaths)
     // verify that the path still gets normalized
     EXPECT_EQ("/x/y/m",
               FileUtils::makePathAbsolute("/x/y/z/.././m", "/a/b/c"));
+}
+
+TEST(JoinPathSegmentsTest, JoinPaths)
+{
+    // Relative path first segment
+    EXPECT_EQ("/b", FileUtils::joinPathSegments("a", "/b"));
+    EXPECT_EQ("/b", FileUtils::joinPathSegments("a/", "/b"));
+    EXPECT_EQ("a/b", FileUtils::joinPathSegments("a", "b"));
+    EXPECT_EQ("a/b", FileUtils::joinPathSegments("a/", "b"));
+
+    EXPECT_EQ("/b", FileUtils::joinPathSegments("a", "/b/"));
+    EXPECT_EQ("/b", FileUtils::joinPathSegments("a/", "/b/"));
+    EXPECT_EQ("a/b", FileUtils::joinPathSegments("a", "b/"));
+    EXPECT_EQ("a/b", FileUtils::joinPathSegments("a/", "b/"));
+
+    EXPECT_EQ("/c", FileUtils::joinPathSegments("a/b", "/c"));
+    EXPECT_EQ("/c", FileUtils::joinPathSegments("a/b/", "/c"));
+    EXPECT_EQ("a/b/c", FileUtils::joinPathSegments("a/b", "c"));
+    EXPECT_EQ("a/b/c", FileUtils::joinPathSegments("a/b/", "c"));
+
+    EXPECT_EQ("/b/c", FileUtils::joinPathSegments("a", "/b/c"));
+    EXPECT_EQ("/b/c", FileUtils::joinPathSegments("a/", "/b/c"));
+    EXPECT_EQ("a/b/c", FileUtils::joinPathSegments("a", "b/c"));
+    EXPECT_EQ("a/b/c", FileUtils::joinPathSegments("a/", "b/c"));
+
+    // Absolute path first segment
+    EXPECT_EQ("/a/b", FileUtils::joinPathSegments("/a", "b"));
+    EXPECT_EQ("/a/b", FileUtils::joinPathSegments("/a/", "b"));
+    EXPECT_EQ("/b", FileUtils::joinPathSegments("/a", "/b"));
+    EXPECT_EQ("/b", FileUtils::joinPathSegments("/a/", "/b"));
+
+    EXPECT_EQ("/a/b", FileUtils::joinPathSegments("/a", "b/"));
+    EXPECT_EQ("/a/b", FileUtils::joinPathSegments("/a/", "b/"));
+    EXPECT_EQ("/b", FileUtils::joinPathSegments("/a", "/b/"));
+    EXPECT_EQ("/b", FileUtils::joinPathSegments("/a/", "/b/"));
+
+    EXPECT_EQ("/a/b/c", FileUtils::joinPathSegments("/a/b", "c"));
+    EXPECT_EQ("/a/b/c", FileUtils::joinPathSegments("/a/b/", "c"));
+    EXPECT_EQ("/c", FileUtils::joinPathSegments("/a/b", "/c"));
+    EXPECT_EQ("/c", FileUtils::joinPathSegments("/a/b/", "/c"));
+
+    EXPECT_EQ("/a/b/c", FileUtils::joinPathSegments("/a", "b/c"));
+    EXPECT_EQ("/a/b/c", FileUtils::joinPathSegments("/a/", "b/c"));
+    ;
+    EXPECT_EQ("/b/c", FileUtils::joinPathSegments("/a/", "/b/c"));
+
+    // paths containing '.'
+    EXPECT_EQ("/a", FileUtils::joinPathSegments("/a", "."));
+    EXPECT_EQ("/a", FileUtils::joinPathSegments("/a/", "."));
+    EXPECT_EQ("a", FileUtils::joinPathSegments("a", "."));
+    EXPECT_EQ("a", FileUtils::joinPathSegments("a/", "."));
+
+    EXPECT_EQ("/a", FileUtils::joinPathSegments("/a", "./"));
+    EXPECT_EQ("/a", FileUtils::joinPathSegments("/a/", "./"));
+    EXPECT_EQ("a", FileUtils::joinPathSegments("a", "./"));
+    EXPECT_EQ("a", FileUtils::joinPathSegments("a/", "./"));
+
+    EXPECT_EQ("/b", FileUtils::joinPathSegments("/./a/.", "/./b"));
+    EXPECT_EQ("/b", FileUtils::joinPathSegments("/a/.", "/./b"));
+    EXPECT_EQ("a/b", FileUtils::joinPathSegments("./a", "./b"));
+    EXPECT_EQ("a/b", FileUtils::joinPathSegments("a/./", "./b"));
+
+    EXPECT_EQ("/b", FileUtils::joinPathSegments("a", "/./b"));
+    EXPECT_EQ("/b", FileUtils::joinPathSegments("a/", "/./b"));
+    EXPECT_EQ("a/b", FileUtils::joinPathSegments("a", "./b"));
+    EXPECT_EQ("a/b", FileUtils::joinPathSegments("a/", "./b"));
+
+    EXPECT_EQ("/b", FileUtils::joinPathSegments("a/.", "/./b"));
+    EXPECT_EQ("a/b", FileUtils::joinPathSegments("./a/", "./b"));
+
+    // paths containing '..' (Escapes allowed)
+    EXPECT_EQ("/a/c/d/e/f", FileUtils::joinPathSegments("/a/b/../c", "d/e/f"));
+    EXPECT_EQ("/b/c", FileUtils::joinPathSegments("/a", "../b/c"));
+    EXPECT_EQ("/c", FileUtils::joinPathSegments("/a", "/b/../c"));
+}
+
+TEST(JoinPathSegmentsTest, JoinPathsForceSecondSegmentRelative)
+{
+    // Relative path first segment
+    EXPECT_EQ("a/b", FileUtils::joinPathSegments("a", "/b", true));
+    EXPECT_EQ("a/b", FileUtils::joinPathSegments("a/", "/b", true));
+    EXPECT_EQ("a/b", FileUtils::joinPathSegments("a", "b", true));
+    EXPECT_EQ("a/b", FileUtils::joinPathSegments("a/", "b", true));
+
+    EXPECT_EQ("a/b", FileUtils::joinPathSegments("a", "/b/", true));
+    EXPECT_EQ("a/b", FileUtils::joinPathSegments("a/", "/b/", true));
+    EXPECT_EQ("a/b", FileUtils::joinPathSegments("a", "b/", true));
+    EXPECT_EQ("a/b", FileUtils::joinPathSegments("a/", "b/", true));
+
+    EXPECT_EQ("a/b/c", FileUtils::joinPathSegments("a/b", "/c", true));
+    EXPECT_EQ("a/b/c", FileUtils::joinPathSegments("a/b/", "/c", true));
+    EXPECT_EQ("a/b/c", FileUtils::joinPathSegments("a/b", "c", true));
+    EXPECT_EQ("a/b/c", FileUtils::joinPathSegments("a/b/", "c", true));
+
+    EXPECT_EQ("a/b/c", FileUtils::joinPathSegments("a", "/b/c", true));
+    EXPECT_EQ("a/b/c", FileUtils::joinPathSegments("a/", "/b/c", true));
+    EXPECT_EQ("a/b/c", FileUtils::joinPathSegments("a", "b/c", true));
+    EXPECT_EQ("a/b/c", FileUtils::joinPathSegments("a/", "b/c", true));
+
+    // Absolute path first segment
+    EXPECT_EQ("/a/b", FileUtils::joinPathSegments("/a", "b", true));
+    EXPECT_EQ("/a/b", FileUtils::joinPathSegments("/a/", "b", true));
+    EXPECT_EQ("/a/b", FileUtils::joinPathSegments("/a", "/b", true));
+    EXPECT_EQ("/a/b", FileUtils::joinPathSegments("/a/", "/b", true));
+
+    EXPECT_EQ("/a/b", FileUtils::joinPathSegments("/a", "b/", true));
+    EXPECT_EQ("/a/b", FileUtils::joinPathSegments("/a/", "b/", true));
+    EXPECT_EQ("/a/b", FileUtils::joinPathSegments("/a", "/b/", true));
+    EXPECT_EQ("/a/b", FileUtils::joinPathSegments("/a/", "/b/", true));
+
+    EXPECT_EQ("/a/b/c", FileUtils::joinPathSegments("/a/b", "c", true));
+    EXPECT_EQ("/a/b/c", FileUtils::joinPathSegments("/a/b/", "c", true));
+    EXPECT_EQ("/a/b/c", FileUtils::joinPathSegments("/a/b", "/c", true));
+    EXPECT_EQ("/a/b/c", FileUtils::joinPathSegments("/a/b/", "/c", true));
+
+    EXPECT_EQ("/a/b/c", FileUtils::joinPathSegments("/a", "b/c", true));
+    EXPECT_EQ("/a/b/c", FileUtils::joinPathSegments("/a/", "b/c", true));
+    ;
+    EXPECT_EQ("/a/b/c", FileUtils::joinPathSegments("/a/", "/b/c", true));
+
+    // paths containing '.'
+    EXPECT_EQ("/a", FileUtils::joinPathSegments("/a", ".", true));
+    EXPECT_EQ("/a", FileUtils::joinPathSegments("/a/", ".", true));
+    EXPECT_EQ("a", FileUtils::joinPathSegments("a", ".", true));
+    EXPECT_EQ("a", FileUtils::joinPathSegments("a/", ".", true));
+
+    EXPECT_EQ("/a", FileUtils::joinPathSegments("/a", "./", true));
+    EXPECT_EQ("/a", FileUtils::joinPathSegments("/a/", "./", true));
+    EXPECT_EQ("a", FileUtils::joinPathSegments("a", "./", true));
+    EXPECT_EQ("a", FileUtils::joinPathSegments("a/", "./", true));
+
+    EXPECT_EQ("/a/b", FileUtils::joinPathSegments("/./a/.", "/./b", true));
+    EXPECT_EQ("/a/b", FileUtils::joinPathSegments("/a/.", "/./b", true));
+    EXPECT_EQ("a/b", FileUtils::joinPathSegments("./a", "./b", true));
+    EXPECT_EQ("a/b", FileUtils::joinPathSegments("a/./", "./b", true));
+
+    EXPECT_EQ("a/b", FileUtils::joinPathSegments("a", "/./b", true));
+    EXPECT_EQ("a/b", FileUtils::joinPathSegments("a/", "/./b", true));
+    EXPECT_EQ("a/b", FileUtils::joinPathSegments("a", "./b", true));
+    EXPECT_EQ("a/b", FileUtils::joinPathSegments("a/", "./b", true));
+
+    EXPECT_EQ("a/b", FileUtils::joinPathSegments("a/.", "/./b", true));
+    EXPECT_EQ("a/b", FileUtils::joinPathSegments("./a/", "./b", true));
+
+    // paths containing '..' (Escapes allowed)
+    EXPECT_EQ("/a/c/d/e/f",
+              FileUtils::joinPathSegments("/a/b/../c", "d/e/f", true));
+    EXPECT_EQ("/b/c", FileUtils::joinPathSegments("/a", "../b/c", true));
+    EXPECT_EQ("/a/c", FileUtils::joinPathSegments("/a", "/b/../c", true));
+}
+
+TEST(JoinPathSegmentsTestInvalidArgs, JoinPaths)
+{
+    EXPECT_THROW(FileUtils::FileUtils::joinPathSegments("", ""),
+                 std::runtime_error);
+    EXPECT_THROW(FileUtils::FileUtils::joinPathSegments("a/b", ""),
+                 std::runtime_error);
+    EXPECT_THROW(FileUtils::FileUtils::joinPathSegments("", "a/b"),
+                 std::runtime_error);
+}
+
+TEST(JoinPathSegmentsNoEscapeTest, JoinPathsNoEscape)
+{
+    // Relative path first segment
+    EXPECT_EQ("a/b", FileUtils::joinPathSegmentsNoEscape("a", "b"));
+    EXPECT_EQ("a/b", FileUtils::joinPathSegmentsNoEscape("a/", "b"));
+
+    EXPECT_EQ("a/b", FileUtils::joinPathSegmentsNoEscape("a", "b/"));
+    EXPECT_EQ("a/b", FileUtils::joinPathSegmentsNoEscape("a/", "b/"));
+
+    EXPECT_EQ("a/b/c", FileUtils::joinPathSegmentsNoEscape("a/b", "c"));
+    EXPECT_EQ("a/b/c", FileUtils::joinPathSegmentsNoEscape("a/b/", "c"));
+
+    EXPECT_EQ("a/b/c", FileUtils::joinPathSegmentsNoEscape("a", "b/c"));
+    EXPECT_EQ("a/b/c", FileUtils::joinPathSegmentsNoEscape("a/", "b/c"));
+
+    // Absolute path first segment
+    EXPECT_EQ("/a/b", FileUtils::joinPathSegmentsNoEscape("/a", "b"));
+    EXPECT_EQ("/a/b", FileUtils::joinPathSegmentsNoEscape("/a/", "b"));
+
+    EXPECT_EQ("/a/b", FileUtils::joinPathSegmentsNoEscape("/a", "b/"));
+    EXPECT_EQ("/a/b", FileUtils::joinPathSegmentsNoEscape("/a/", "b/"));
+
+    EXPECT_EQ("/a/b/c", FileUtils::joinPathSegmentsNoEscape("/a/b", "c"));
+    EXPECT_EQ("/a/b/c", FileUtils::joinPathSegmentsNoEscape("/a/b/", "c"));
+
+    EXPECT_EQ("/a/b/c", FileUtils::joinPathSegmentsNoEscape("/a", "b/c"));
+    EXPECT_EQ("/a/b/c", FileUtils::joinPathSegmentsNoEscape("/a/", "b/c"));
+
+    // paths containing '.'
+    EXPECT_EQ("/a", FileUtils::joinPathSegmentsNoEscape("/a", "."));
+    EXPECT_EQ("/a", FileUtils::joinPathSegmentsNoEscape("/a/", "."));
+    EXPECT_EQ("a", FileUtils::joinPathSegmentsNoEscape("a", "."));
+    EXPECT_EQ("a", FileUtils::joinPathSegmentsNoEscape("a/", "."));
+
+    EXPECT_EQ("/a", FileUtils::joinPathSegmentsNoEscape("/a", "./"));
+    EXPECT_EQ("/a", FileUtils::joinPathSegmentsNoEscape("/a/", "./"));
+    EXPECT_EQ("a", FileUtils::joinPathSegmentsNoEscape("a", "./"));
+    EXPECT_EQ("a", FileUtils::joinPathSegmentsNoEscape("a/", "./"));
+
+    EXPECT_EQ("a/b", FileUtils::joinPathSegmentsNoEscape("./a", "./b"));
+    EXPECT_EQ("a/b", FileUtils::joinPathSegmentsNoEscape("a/./", "./b"));
+
+    EXPECT_EQ("a/b", FileUtils::joinPathSegmentsNoEscape("a", "./b"));
+    EXPECT_EQ("a/b", FileUtils::joinPathSegmentsNoEscape("a/", "./b"));
+
+    EXPECT_EQ("a/b", FileUtils::joinPathSegmentsNoEscape("./a/", "./b"));
+
+    // paths containing '..' (Escapes outside first dir NOT allowed)
+    EXPECT_EQ("/a", FileUtils::joinPathSegmentsNoEscape("/a", "b/c/../../"));
+    ;
+    EXPECT_EQ("/a/b/f",
+              FileUtils::joinPathSegmentsNoEscape("/a", "b/c/../d/../e/../f"));
+    EXPECT_EQ("/a/c/d/e/f",
+              FileUtils::joinPathSegmentsNoEscape("/a/b/../c", "d/e/f"));
+    EXPECT_EQ("/c/d/e",
+              FileUtils::joinPathSegmentsNoEscape("/a/../", "c/d/e"));
+}
+
+TEST(JoinPathSegmentsNoEscapeTest,
+     JoinPathsNoEscapeForceRelativePathWithinBaseDir)
+{
+    // Relative path first segment
+    EXPECT_EQ("a/b", FileUtils::joinPathSegmentsNoEscape("a", "b", true));
+    EXPECT_EQ("a/b", FileUtils::joinPathSegmentsNoEscape("a/", "b", true));
+
+    EXPECT_EQ("a/b", FileUtils::joinPathSegmentsNoEscape("a", "b/", true));
+    EXPECT_EQ("a/b", FileUtils::joinPathSegmentsNoEscape("a/", "b/", true));
+
+    EXPECT_EQ("a/b/c", FileUtils::joinPathSegmentsNoEscape("a/b", "c", true));
+    EXPECT_EQ("a/b/c", FileUtils::joinPathSegmentsNoEscape("a/b/", "c", true));
+
+    EXPECT_EQ("a/b/c", FileUtils::joinPathSegmentsNoEscape("a", "b/c", true));
+    EXPECT_EQ("a/b/c", FileUtils::joinPathSegmentsNoEscape("a/", "b/c", true));
+
+    // Absolute path first segment
+    EXPECT_EQ("/a/b", FileUtils::joinPathSegmentsNoEscape("/a", "b", true));
+    EXPECT_EQ("/a/b", FileUtils::joinPathSegmentsNoEscape("/a/", "b", true));
+
+    EXPECT_EQ("/a/b", FileUtils::joinPathSegmentsNoEscape("/a", "b/", true));
+    EXPECT_EQ("/a/b", FileUtils::joinPathSegmentsNoEscape("/a/", "b/", true));
+
+    EXPECT_EQ("/a/b/c",
+              FileUtils::joinPathSegmentsNoEscape("/a/b", "c", true));
+    EXPECT_EQ("/a/b/c",
+              FileUtils::joinPathSegmentsNoEscape("/a/b/", "c", true));
+
+    EXPECT_EQ("/a/b/c",
+              FileUtils::joinPathSegmentsNoEscape("/a", "b/c", true));
+    EXPECT_EQ("/a/b/c",
+              FileUtils::joinPathSegmentsNoEscape("/a/", "b/c", true));
+
+    // paths containing '.'
+    EXPECT_EQ("/a", FileUtils::joinPathSegmentsNoEscape("/a", ".", true));
+    EXPECT_EQ("/a", FileUtils::joinPathSegmentsNoEscape("/a/", ".", true));
+    EXPECT_EQ("a", FileUtils::joinPathSegmentsNoEscape("a", ".", true));
+    EXPECT_EQ("a", FileUtils::joinPathSegmentsNoEscape("a/", ".", true));
+
+    EXPECT_EQ("/a", FileUtils::joinPathSegmentsNoEscape("/a", "./", true));
+    EXPECT_EQ("/a", FileUtils::joinPathSegmentsNoEscape("/a/", "./", true));
+    EXPECT_EQ("a", FileUtils::joinPathSegmentsNoEscape("a", "./", true));
+    EXPECT_EQ("a", FileUtils::joinPathSegmentsNoEscape("a/", "./", true));
+
+    EXPECT_EQ("a/b", FileUtils::joinPathSegmentsNoEscape("./a", "./b", true));
+    EXPECT_EQ("a/b", FileUtils::joinPathSegmentsNoEscape("a/./", "./b", true));
+
+    EXPECT_EQ("a/b", FileUtils::joinPathSegmentsNoEscape("a", "./b", true));
+    EXPECT_EQ("a/b", FileUtils::joinPathSegmentsNoEscape("a/", "./b", true));
+
+    EXPECT_EQ("a/b", FileUtils::joinPathSegmentsNoEscape("./a/", "./b", true));
+
+    // paths containing '..' (Escapes outside first dir NOT allowed)
+    EXPECT_EQ("/a",
+              FileUtils::joinPathSegmentsNoEscape("/a", "b/c/../../", true));
+    ;
+    EXPECT_EQ("/a/b/f", FileUtils::joinPathSegmentsNoEscape(
+                            "/a", "b/c/../d/../e/../f", true));
+    EXPECT_EQ("/a/c/d/e/f",
+              FileUtils::joinPathSegmentsNoEscape("/a/b/../c", "d/e/f", true));
+    EXPECT_EQ("/c/d/e",
+              FileUtils::joinPathSegmentsNoEscape("/a/../", "c/d/e", true));
+
+    // Not escaping due to forceRelativePathWithinBaseDir
+    EXPECT_EQ("a/b", FileUtils::joinPathSegmentsNoEscape("a", "/b", true));
+    EXPECT_EQ("a/b", FileUtils::joinPathSegmentsNoEscape("a", "/b/", true));
+    EXPECT_EQ("a/b", FileUtils::joinPathSegmentsNoEscape("a/", "/b/", true));
+    EXPECT_EQ("/a/b", FileUtils::joinPathSegmentsNoEscape("/a/", "/b", true));
+    EXPECT_EQ("/a/b", FileUtils::joinPathSegmentsNoEscape("/a/", "/b/", true));
+
+    EXPECT_EQ("a/b/c", FileUtils::joinPathSegmentsNoEscape("a/b", "/c", true));
+    EXPECT_EQ("a/b/c",
+              FileUtils::joinPathSegmentsNoEscape("a/b/", "/c", true));
+
+    EXPECT_EQ("a/b/c", FileUtils::joinPathSegmentsNoEscape("a", "/b/c", true));
+    EXPECT_EQ("a/b/c",
+              FileUtils::joinPathSegmentsNoEscape("a/", "/b/c", true));
+
+    EXPECT_EQ("/a/b", FileUtils::joinPathSegmentsNoEscape("/a", "/b", true));
+    EXPECT_EQ("/a/b", FileUtils::joinPathSegmentsNoEscape("/a/", "/b", true));
+
+    EXPECT_EQ("/a/b/c",
+              FileUtils::joinPathSegmentsNoEscape("/a/b", "/c", true));
+    EXPECT_EQ("/a/b/c",
+              FileUtils::joinPathSegmentsNoEscape("/a/b/", "/c", true));
+
+    EXPECT_EQ("/a/b/c",
+              FileUtils::joinPathSegmentsNoEscape("/a", "/b/c", true));
+    EXPECT_EQ("/a/b/c",
+              FileUtils::joinPathSegmentsNoEscape("/a/", "/b/c", true));
+
+    EXPECT_EQ("/a/b",
+              FileUtils::joinPathSegmentsNoEscape("/./a/.", "/./b", true));
+    EXPECT_EQ("/a/b",
+              FileUtils::joinPathSegmentsNoEscape("/a/.", "/./b", true));
+
+    EXPECT_EQ("a/b", FileUtils::joinPathSegmentsNoEscape("a", "/./b", true));
+    EXPECT_EQ("a/b", FileUtils::joinPathSegmentsNoEscape("a/", "/./b", true));
+
+    EXPECT_EQ("a/b", FileUtils::joinPathSegmentsNoEscape("a/.", "/./b", true));
+    EXPECT_EQ("/a/c",
+              FileUtils::joinPathSegmentsNoEscape("/a", "/b/../c", true));
+}
+
+TEST(JoinPathSegmentsNoEscapeTestEscapesThrow, JoinPathsNoEscape)
+{
+    // Base dir escapes
+    EXPECT_THROW(
+        FileUtils::FileUtils::joinPathSegmentsNoEscape("a/../..", "/b"),
+        std::runtime_error);
+    EXPECT_THROW(
+        FileUtils::FileUtils::joinPathSegmentsNoEscape("a/../..", "b"),
+        std::runtime_error);
+    EXPECT_THROW(
+        FileUtils::FileUtils::joinPathSegmentsNoEscape("a/b/../../..", "/b"),
+        std::runtime_error);
+    EXPECT_THROW(
+        FileUtils::FileUtils::joinPathSegmentsNoEscape("a/b/../../..", "b"),
+        std::runtime_error);
+    EXPECT_THROW(FileUtils::joinPathSegmentsNoEscape("a/../", "c/d/e"),
+                 std::runtime_error);
+
+    // Path within basedir escapes
+    EXPECT_THROW(FileUtils::FileUtils::joinPathSegmentsNoEscape("/a", "../b"),
+                 std::runtime_error);
+    EXPECT_THROW(FileUtils::FileUtils::joinPathSegmentsNoEscape("/a", "/../b"),
+                 std::runtime_error);
+    EXPECT_THROW(FileUtils::FileUtils::joinPathSegmentsNoEscape("/a", "/b"),
+                 std::runtime_error);
+    EXPECT_THROW(
+        FileUtils::FileUtils::joinPathSegmentsNoEscape("/a", "b/c/../../../"),
+        std::runtime_error);
+    EXPECT_THROW(FileUtils::FileUtils::joinPathSegmentsNoEscape("/a/", "../b"),
+                 std::runtime_error);
+    EXPECT_THROW(FileUtils::FileUtils::joinPathSegmentsNoEscape("/a/", "/b"),
+                 std::runtime_error);
+    EXPECT_THROW(FileUtils::FileUtils::joinPathSegmentsNoEscape("/a/b/c/",
+                                                                "d/../../e/f"),
+                 std::runtime_error);
+    EXPECT_THROW(FileUtils::FileUtils::joinPathSegmentsNoEscape("a", "/b"),
+                 std::runtime_error);
+    EXPECT_THROW(FileUtils::joinPathSegmentsNoEscape("/a", "../b/c"),
+                 std::runtime_error);
+    EXPECT_THROW(FileUtils::joinPathSegmentsNoEscape("/a", "/b/../c"),
+                 std::runtime_error);
+
+    // Escaping due to absolue paths
+    EXPECT_THROW(FileUtils::joinPathSegmentsNoEscape("a", "/b/"),
+                 std::runtime_error);
+    EXPECT_THROW(FileUtils::joinPathSegmentsNoEscape("a/", "/b/"),
+                 std::runtime_error);
+
+    EXPECT_THROW(FileUtils::joinPathSegmentsNoEscape("a/b", "/c"),
+                 std::runtime_error);
+    EXPECT_THROW(FileUtils::joinPathSegmentsNoEscape("a/b/", "/c"),
+                 std::runtime_error);
+
+    EXPECT_THROW(FileUtils::joinPathSegmentsNoEscape("a", "/b/c"),
+                 std::runtime_error);
+    EXPECT_THROW(FileUtils::joinPathSegmentsNoEscape("a/", "/b/c"),
+                 std::runtime_error);
+
+    EXPECT_THROW(FileUtils::joinPathSegmentsNoEscape("/a", "/b"),
+                 std::runtime_error);
+    EXPECT_THROW(FileUtils::joinPathSegmentsNoEscape("/a/", "/b"),
+                 std::runtime_error);
+
+    EXPECT_THROW(FileUtils::joinPathSegmentsNoEscape("/a/b", "/c"),
+                 std::runtime_error);
+    EXPECT_THROW(FileUtils::joinPathSegmentsNoEscape("/a/b/", "/c"),
+                 std::runtime_error);
+
+    EXPECT_THROW(FileUtils::joinPathSegmentsNoEscape("/a", "/b/c"),
+                 std::runtime_error);
+    EXPECT_THROW(FileUtils::joinPathSegmentsNoEscape("/a/", "/b/c"),
+                 std::runtime_error);
+
+    EXPECT_THROW(FileUtils::joinPathSegmentsNoEscape("/./a/.", "/./b"),
+                 std::runtime_error);
+    EXPECT_THROW(FileUtils::joinPathSegmentsNoEscape("/a/.", "/./b"),
+                 std::runtime_error);
+
+    EXPECT_THROW(FileUtils::joinPathSegmentsNoEscape("a", "/./b"),
+                 std::runtime_error);
+    EXPECT_THROW(FileUtils::joinPathSegmentsNoEscape("a/", "/./b"),
+                 std::runtime_error);
+
+    EXPECT_THROW(FileUtils::joinPathSegmentsNoEscape("a/.", "/./b"),
+                 std::runtime_error);
+}
+
+TEST(JoinPathSegmentsNoEscapeTestForceRelativePathWithinBaseDirEscapesThrow,
+     JoinPathsNoEscape)
+{
+    // Base dir escapes
+    EXPECT_THROW(
+        FileUtils::FileUtils::joinPathSegmentsNoEscape("a/../..", "/b", true),
+        std::runtime_error);
+    EXPECT_THROW(
+        FileUtils::FileUtils::joinPathSegmentsNoEscape("a/../..", "b", true),
+        std::runtime_error);
+    EXPECT_THROW(FileUtils::FileUtils::joinPathSegmentsNoEscape("a/b/../../..",
+                                                                "/b", true),
+                 std::runtime_error);
+    EXPECT_THROW(FileUtils::FileUtils::joinPathSegmentsNoEscape("a/b/../../..",
+                                                                "b", true),
+                 std::runtime_error);
+    EXPECT_THROW(FileUtils::joinPathSegmentsNoEscape("a/../", "c/d/e", true),
+                 std::runtime_error);
+
+    // Path within basedir escapes
+    EXPECT_THROW(
+        FileUtils::FileUtils::joinPathSegmentsNoEscape("/a", "../b", true),
+        std::runtime_error);
+
+    EXPECT_THROW(FileUtils::FileUtils::joinPathSegmentsNoEscape(
+                     "/a", "b/c/../../../", true),
+                 std::runtime_error);
+    EXPECT_THROW(
+        FileUtils::FileUtils::joinPathSegmentsNoEscape("/a/", "../b", true),
+        std::runtime_error);
+    EXPECT_THROW(FileUtils::FileUtils::joinPathSegmentsNoEscape(
+                     "/a/b/c/", "d/../../e/f", true),
+                 std::runtime_error);
+    EXPECT_THROW(FileUtils::joinPathSegmentsNoEscape("/a", "../b/c", true),
+                 std::runtime_error);
+}
+
+TEST(MakePathRelativeTest, ReturnNonAbsolutePathsUnmodified)
+{
+    EXPECT_EQ("", FileUtils::makePathRelative("", "/some/working/directory"));
+    EXPECT_EQ("../a/relative/path",
+              FileUtils::makePathRelative("../a/relative/path",
+                                          "/some/working/directory"));
+    EXPECT_EQ("test",
+              FileUtils::makePathRelative("test", "/some/working/directory"));
+    EXPECT_EQ("test/../path", FileUtils::makePathRelative(
+                                  "test/../path", "/some/working/directory"));
+    EXPECT_EQ("test/long/path",
+              FileUtils::makePathRelative("test/long/path",
+                                          "/some/working/directory"));
+    EXPECT_EQ("some/path", FileUtils::makePathRelative(
+                               "some/path", "/some/working/directory"));
+    EXPECT_EQ("./some/path", FileUtils::makePathRelative(
+                                 "./some/path", "/some/working/directory"));
+    EXPECT_EQ("some/long/path/..",
+              FileUtils::makePathRelative("some/long/path/..",
+                                          "/some/working/directory"));
+}
+
+TEST(MakePathRelativeTest, DoNothingIfWorkingDirectoryNull)
+{
+    EXPECT_EQ("/test/directory/",
+              FileUtils::makePathRelative("/test/directory/", ""));
+    EXPECT_EQ("/test", FileUtils::makePathRelative("/test", ""));
+}
+
+TEST(MakePathRelativeTest, WorkingDirectoryIsPathPrefix)
+{
+    EXPECT_EQ("some/test/path",
+              FileUtils::makePathRelative("/some/test/path", "/"));
+
+    EXPECT_EQ("test/path",
+              FileUtils::makePathRelative("/some/test/path", "/some"));
+    EXPECT_EQ("test/path",
+              FileUtils::makePathRelative("/some/test/path", "/some/"));
+
+    EXPECT_EQ("path",
+              FileUtils::makePathRelative("/some/test/path", "/some/test"));
+    EXPECT_EQ("path",
+              FileUtils::makePathRelative("/some/test/path", "/some/test/"));
+
+    EXPECT_EQ("path/",
+              FileUtils::makePathRelative("/some/test/path/", "/some/test"));
+    EXPECT_EQ("path/",
+              FileUtils::makePathRelative("/some/test/path/", "/some/test/"));
+}
+
+TEST(MakePathRelativeTest, PathEqualsWorkingDirectory)
+{
+    EXPECT_EQ(".", FileUtils::makePathRelative("/some/test/path",
+                                               "/some/test/path"));
+    EXPECT_EQ(".", FileUtils::makePathRelative("/some/test/path",
+                                               "/some/test/path/"));
+    EXPECT_EQ("./", FileUtils::makePathRelative("/some/test/path/",
+                                                "/some/test/path"));
+    EXPECT_EQ("./", FileUtils::makePathRelative("/some/test/path/",
+                                                "/some/test/path/"));
+}
+
+TEST(MakePathRelativeTest, PathAlmostEqualsWorkingDirectory)
+{
+    EXPECT_EQ("../tests",
+              FileUtils::makePathRelative("/some/tests", "/some/test"));
+    EXPECT_EQ("../tests",
+              FileUtils::makePathRelative("/some/tests", "/some/test/"));
+    EXPECT_EQ("../tests/",
+              FileUtils::makePathRelative("/some/tests/", "/some/test"));
+    EXPECT_EQ("../tests/",
+              FileUtils::makePathRelative("/some/tests/", "/some/test/"));
+}
+
+TEST(MakePathRelativeTest, PathIsParentOfWorkingDirectory)
+{
+    EXPECT_EQ("..", FileUtils::makePathRelative("/a/b/c", "/a/b/c/d"));
+    EXPECT_EQ("..", FileUtils::makePathRelative("/a/b/c", "/a/b/c/d/"));
+    EXPECT_EQ("../", FileUtils::makePathRelative("/a/b/c/", "/a/b/c/d"));
+    EXPECT_EQ("../", FileUtils::makePathRelative("/a/b/c/", "/a/b/c/d/"));
+
+    EXPECT_EQ("../../..", FileUtils::makePathRelative("/a", "/a/b/c/d"));
+    EXPECT_EQ("../../..", FileUtils::makePathRelative("/a", "/a/b/c/d/"));
+    EXPECT_EQ("../../../", FileUtils::makePathRelative("/a/", "/a/b/c/d"));
+    EXPECT_EQ("../../../", FileUtils::makePathRelative("/a/", "/a/b/c/d/"));
+}
+
+TEST(MakePathRelativeTest, PathAdjacentToWorkingDirectory)
+{
+    EXPECT_EQ("../e", FileUtils::makePathRelative("/a/b/c/e", "/a/b/c/d"));
+    EXPECT_EQ("../e", FileUtils::makePathRelative("/a/b/c/e", "/a/b/c/d/"));
+    EXPECT_EQ("../e/", FileUtils::makePathRelative("/a/b/c/e/", "/a/b/c/d"));
+    EXPECT_EQ("../e/", FileUtils::makePathRelative("/a/b/c/e/", "/a/b/c/d/"));
+
+    EXPECT_EQ("../e/f/g",
+              FileUtils::makePathRelative("/a/b/c/e/f/g", "/a/b/c/d"));
+    EXPECT_EQ("../e/f/g",
+              FileUtils::makePathRelative("/a/b/c/e/f/g", "/a/b/c/d/"));
+    EXPECT_EQ("../e/f/g/",
+              FileUtils::makePathRelative("/a/b/c/e/f/g/", "/a/b/c/d"));
+    EXPECT_EQ("../e/f/g/",
+              FileUtils::makePathRelative("/a/b/c/e/f/g/", "/a/b/c/d/"));
+
+    EXPECT_EQ("../../e/f/g",
+              FileUtils::makePathRelative("/a/b/e/f/g", "/a/b/c/d"));
+    EXPECT_EQ("../../e/f/g",
+              FileUtils::makePathRelative("/a/b/e/f/g", "/a/b/c/d/"));
+    EXPECT_EQ("../../e/f/g/",
+              FileUtils::makePathRelative("/a/b/e/f/g/", "/a/b/c/d"));
+    EXPECT_EQ("../../e/f/g/",
+              FileUtils::makePathRelative("/a/b/e/f/g/", "/a/b/c/d/"));
 }
 
 TEST(FileUtilsTests, WriteFileAtomically)

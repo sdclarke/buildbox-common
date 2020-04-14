@@ -233,6 +233,50 @@ struct FileUtils {
                                         const std::string &cwd);
 
     /**
+     * Make the given path relative to the given working directory.
+     *
+     * If the given working directory is empty, or if the given path has
+     * nothing to do with the working directory, the path will be returned
+     * unmodified.
+     */
+    static std::string makePathRelative(const std::string &path,
+                                        const std::string &cwd);
+
+    /**
+     * Join two path segments together and return the normalized results.
+     * - When the second segment is an absolute path, it will be the only
+     * path included in the (normalized) result, similar to other
+     * implementations of standard libraries that join paths,
+     * unless the `forceSecondSegmentRelative` flag is set to true (Default:
+     * false)
+     * - Warning: When the paths include `..`, the resulting joined path may
+     * escape the first path
+     *
+     * e.g. `joinPathSegments('/a/', '/b')`       -> '/b'
+     *      `joinPathSegments('/a/', '/b', true)` -> '/a/b'
+     */
+    static std::string
+    joinPathSegments(const std::string &firstSegment,
+                     const std::string &secondSegment,
+                     const bool forceSecondSegmentRelative = false);
+
+    /**
+     * Join two path segments together (using FileUtils::joinPathSegments), but
+     * throw a `std::runtime_error` if the second path segment makes the joined
+     * path escape the first path segment.
+     *
+     * Accepts the optional flag `forceRelativePathWithinBaseDir` for invoking
+     * `joinPathSegments` (Default: false)
+     *
+     * e.g. `joinPathSegmentsNoEscape('/a/', '/b')`       -> raises
+     * `std::runtime_error` due to `/b` escaping '/a/'
+     *      `joinPathSegmentsNoEscape('/a/', '/b', true)` -> '/a/b'
+     */
+    static std::string joinPathSegmentsNoEscape(
+        const std::string &basedir, const std::string &pathWithinBasedir,
+        const bool forceRelativePathWithinBaseDir = false);
+
+    /**
      * Copy file contents (non-atomically) from the given source path
      * to the given destination path. Additionally attempt to
      * duplicate the file mode.

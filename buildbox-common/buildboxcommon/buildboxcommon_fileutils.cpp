@@ -487,6 +487,179 @@ std::string FileUtils::makePathAbsolute(const std::string &path,
     return normalized_path;
 }
 
+std::string FileUtils::makePathRelative(const std::string &path,
+                                        const std::string &cwd)
+{
+    // Return unmodified `path` in the following cases
+    if (cwd.empty() || path.empty() || path.front() != '/') {
+        return path;
+    }
+
+    // If `cwd` is set, require it to be an absolute path
+    if (cwd.front() != '/') {
+        BUILDBOXCOMMON_THROW_EXCEPTION(
+            std::runtime_error,
+            "cwd must be an absolute path or empty: cwd=[" << cwd << "]");
+    }
+
+    unsigned int pathIndex = 0;
+    unsigned int nextPathIndex = pathIndex + 1;
+    unsigned int lastMatchingSegmentEnd = 0;
+    while (pathIndex < path.length() && path[pathIndex] == cwd[pathIndex]) {
+        if (nextPathIndex == cwd.length()) {
+            // Working directory is prefix of path, so if the last
+            // segment matches, we're done.
+            if (path.length() == nextPathIndex) {
+                return path[pathIndex] == '/' ? "./" : ".";
+            }
+            else if (path.length() == pathIndex + 2 &&
+                     path[nextPathIndex] == '/') {
+                return "./";
+            }
+            else if (path[pathIndex] == '/') {
+                return path.substr(nextPathIndex);
+            }
+            else if (path[nextPathIndex] == '/') {
+                return path.substr(pathIndex + 2);
+            }
+        }
+        else if (path[pathIndex] == '/') {
+            lastMatchingSegmentEnd = pathIndex;
+        }
+        ++pathIndex;
+        ++nextPathIndex;
+    }
+
+    if (pathIndex == path.length() && cwd[pathIndex] == '/') {
+        // Path is prefix of working directory.
+        if (nextPathIndex == cwd.length()) {
+            return ".";
+        }
+        else {
+            lastMatchingSegmentEnd = pathIndex;
+            ++pathIndex;
+            ++nextPathIndex;
+        }
+    }
+
+    unsigned int dotdotsNeeded = 1;
+    while (pathIndex < cwd.length()) {
+        if (cwd[pathIndex] == '/' && cwd[nextPathIndex] != 0) {
+            ++dotdotsNeeded;
+        }
+        ++pathIndex;
+        ++nextPathIndex;
+    }
+
+    std::string result = std::string(path).replace(0, lastMatchingSegmentEnd,
+                                                   dotdotsNeeded * 3 - 1, '.');
+
+    for (unsigned int j = 0; j < dotdotsNeeded - 1; ++j) {
+        result[j * 3 + 2] = '/';
+    }
+    return result;
+}
+
+std::string FileUtils::joinPathSegments(const std::string &firstSegment,
+                                        const std::string &secondSegment,
+                                        const bool forceSecondSegmentRelative)
+{
+    if (firstSegment.empty() || secondSegment.empty()) {
+        BUILDBOXCOMMON_THROW_EXCEPTION(std::runtime_error,
+                                       "Both path segments must be non-empty."
+                                           << " firstSegment=[" << firstSegment
+                                           << "], secondSegment=["
+                                           << secondSegment << "]");
+    }
+
+    const std::string firstSegmentNormalized =
+        FileUtils::normalizePath(firstSegment.c_str());
+
+    const std::string secondSegmentNormalized =
+        FileUtils::normalizePath(secondSegment.c_str());
+
+    if (!forceSecondSegmentRelative &&
+        secondSegmentNormalized.front() == '/') {
+        return secondSegmentNormalized;
+    }
+    else {
+        // Now all we have to do is concatenate the paths with a '/' between
+        // them and call normalizePath() to evaluate any remaining `..` and
+        // make sure we remove any potential double '//' (e.g.
+        // `joinPathSegments('a/','/b', true) -> '/a/b'`)
+        const std::string combined_path =
+            firstSegmentNormalized + '/' + secondSegmentNormalized;
+        return FileUtils::normalizePath(combined_path.c_str());
+    }
+}
+
+std::string
+FileUtils::joinPathSegmentsNoEscape(const std::string &basedir,
+                                    const std::string &pathWithinBasedir,
+                                    const bool forceRelativePathWithinBaseDir)
+{
+    const std::string normalizedBaseDir =
+        FileUtils::normalizePath(basedir.c_str());
+
+    std::string normalizedPathWithinBaseDir =
+        FileUtils::normalizePath(pathWithinBasedir.c_str());
+
+    // Join paths using`joinPathSegments`
+    const std::string joinedPath = FileUtils::joinPathSegments(
+        basedir, normalizedPathWithinBaseDir, forceRelativePathWithinBaseDir);
+
+    // Let's by default assume that the path escapes to reduce potential missed
+    // cases in which we may incorrectly assume it doesn't escape, and check
+    // for the known cases we are certain it doesn't escape
+    bool escapes = true;
+
+    // Do not allow any `..`, there shouldn't be any after normalizations
+    // unless an escape is happening
+    if (joinedPath.find("..") != std::string::npos) {
+        escapes = true;
+    }
+    else if (joinedPath == normalizedBaseDir) {
+        // Normalized path is the base directory
+        escapes = false;
+    }
+    else if (normalizedBaseDir == "/" || normalizedBaseDir == "") {
+        // Normalized baseDir is `/` or `` (root or relative to cwd)
+
+        // In these cases not having `..` in the combinedPath is enough
+        // to make sure it doesn't escape
+        // (We checked for `..` above)
+        escapes = false;
+    }
+    else if (joinedPath.find(normalizedBaseDir) == 0) {
+        // Normalized path is within base directory
+
+        // Make sure that this has a '/' as well after the `normalizedBaseDir`
+        // Detects cases like:
+        //       `joinPathSegmentsNoEscape('/base/dir', '../dir2')`
+        // which would result in '/base/dir2', matching '/base/dir'
+        // prefix but actually escaping `/base/dir`
+        if (joinedPath.size() >=
+            normalizedBaseDir.size()) { // sanity check, should always be the
+                                        // case if we get here
+            if (joinedPath.at(normalizedBaseDir.size()) == '/') {
+                escapes = false;
+            }
+        }
+    }
+
+    // At this point the checks we made above should inform us whether this
+    // joined path is escaping
+    if (escapes) {
+        BUILDBOXCOMMON_THROW_EXCEPTION(
+            std::runtime_error,
+            "Detected escaping path while joining "
+                << "basedir=[" << basedir << "] and "
+                << "pathWithinBasedir=[" << pathWithinBasedir << "]."
+                << " Resulting escaping path=[" << joinedPath << "].");
+    }
+    return joinedPath;
+}
+
 std::string FileUtils::normalizePath(const char *path)
 {
     std::vector<std::string> segments;
