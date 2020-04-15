@@ -149,6 +149,17 @@ class CommandLine {
     int getInt(const std::string &name) const;
     double getDouble(const std::string &name) const;
     bool getBool(const std::string &name) const;
+
+    /* These getters allow to pass a default value that will be returned if the
+     * key is not defined. They are always successful.
+     */
+    const std::string &getString(const std::string &name,
+                                 const std::string &default_value) const;
+    int getInt(const std::string &name, const int default_value) const;
+    bool getBool(const std::string &name, const bool default_value) const;
+    double getDouble(const std::string &name,
+                     const double default_value) const;
+
     const CommandLineTypes::TypeInfo::VectorOfString &
     getVS(const std::string &name) const;
     const CommandLineTypes::TypeInfo::VectorOfPairOfString &
@@ -161,6 +172,9 @@ class CommandLine {
 
 #ifdef BUILDBOXCOMMON_COMMANDLINE_USES_CXX17
     template <typename T> const T &get(const std::string &name) const;
+
+    template <typename T>
+    const T &get(const std::string &name, const T &default_value) const;
 #endif
 
     const std::string &processName() const { return d_processName; }

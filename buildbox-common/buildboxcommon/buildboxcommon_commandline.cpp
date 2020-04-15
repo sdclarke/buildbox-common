@@ -530,6 +530,23 @@ template <typename T> const T &CommandLine::get(const std::string &name) const
     return std::get<T>(it->second.d_argumentValue);
 }
 
+template <typename T>
+const T &CommandLine::get(const std::string &name,
+                          const T &default_value) const
+{
+    const auto it = d_parsedArgs.find(name);
+    if (it == d_parsedArgs.end()) {
+        return default_value;
+    }
+
+    if (!std::holds_alternative<T>(it->second.d_argumentValue)) {
+        throw std::runtime_error("mismatched types in lookup of arg \"" +
+                                 name + "\"");
+    }
+
+    return std::get<T>(it->second.d_argumentValue);
+}
+
 template const std::string &
 CommandLine::get<std::string>(const std::string &name) const;
 template const int &CommandLine::get<int>(const std::string &name) const;
@@ -592,6 +609,62 @@ bool CommandLine::getBool(const std::string &name) const
         throw std::runtime_error("argument \"" + name + "\" not found");
     }
     return it->second.d_argumentValue.d_bool;
+#endif
+}
+
+const std::string &
+CommandLine::getString(const std::string &name,
+                       const std::string &default_value) const
+{
+#ifdef BUILDBOXCOMMON_COMMANDLINE_USES_CXX17
+    return this->get(name, default_value);
+#else
+    const auto it = d_parsedArgs.find(name);
+    if (it == d_parsedArgs.cend()) {
+        return default_value;
+    }
+    return it->second.d_argumentValue.d_str;
+#endif
+}
+
+int CommandLine::getInt(const std::string &name, const int default_value) const
+{
+#ifdef BUILDBOXCOMMON_COMMANDLINE_USES_CXX17
+    return this->get(name, default_value);
+#else
+    const auto it = d_parsedArgs.find(name);
+    if (it == d_parsedArgs.cend()) {
+        return default_value;
+    }
+    return it->second.d_argumentValue.d_int;
+#endif
+}
+
+bool CommandLine::getBool(const std::string &name,
+                          const bool default_value) const
+{
+#ifdef BUILDBOXCOMMON_COMMANDLINE_USES_CXX17
+    return this->get(name, default_value);
+#else
+    const auto it = d_parsedArgs.find(name);
+    if (it == d_parsedArgs.cend()) {
+        return default_value;
+    }
+    return it->second.d_argumentValue.d_bool;
+#endif
+}
+
+double CommandLine::getDouble(const std::string &name,
+                              const double default_value) const
+{
+#ifdef BUILDBOXCOMMON_COMMANDLINE_USES_CXX17
+    return this->get(name, default_value);
+#else
+    const auto it = d_parsedArgs.find(name);
+    if (it == d_parsedArgs.cend()) {
+        return default_value;
+    }
+    return it->second.d_argumentValue.d_double;
 #endif
 }
 

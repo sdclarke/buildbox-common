@@ -766,3 +766,50 @@ TEST(CommandLineTests, TestNoPositionals2)
     CommandLine commandLine(noPositionalsSpec);
     EXPECT_TRUE(commandLine.parse(argc, argvOptionSpaceValueNoPositional));
 }
+
+TEST(CommandLineTests, GettersWithFallbackValuesPresent)
+{
+    const ArgumentSpec testSpec[] = {
+        {"bool-option", "", TypeInfo(TypeInfo::DT_BOOL)},
+        {"int-option", "", TypeInfo(TypeInfo::DT_INT)},
+        {"double-option", "", TypeInfo(TypeInfo::DT_DOUBLE)},
+        {"string-option", "", TypeInfo(TypeInfo::DT_STRING)},
+    };
+
+    const char *argvOptions[] = {
+        "--bool-option",
+        "--int-option=1024",
+        "--double-option=3.14",
+        "--string-option=foo",
+    };
+
+    const int argc = sizeof(argvOptions) / sizeof(const char *);
+    CommandLine commandLine(testSpec);
+
+    const bool success = commandLine.parse(argc, argvOptions);
+    ASSERT_TRUE(success);
+
+    EXPECT_EQ(commandLine.getString("string-option", "default-string"), "foo");
+
+    EXPECT_EQ(commandLine.getInt("int-option", 0), 1024);
+
+    EXPECT_EQ(commandLine.getDouble("double-option", 1.11), 3.14);
+
+    EXPECT_EQ(commandLine.getString("string-option", "bar"), "foo");
+}
+
+TEST(CommandLineTests, GettersWithFallbackDefaultValues)
+{
+    CommandLine commandLine(defaultSpec);
+
+    const auto option_name = "option123";
+    EXPECT_FALSE(commandLine.exists("option_name"));
+
+    EXPECT_EQ(commandLine.getString(option_name, "foo"), "foo");
+
+    EXPECT_EQ(commandLine.getBool(option_name, true), true);
+
+    EXPECT_EQ(commandLine.getInt(option_name, 1024), 1024);
+
+    EXPECT_EQ(commandLine.getDouble(option_name, 3.14), 3.14);
+}
