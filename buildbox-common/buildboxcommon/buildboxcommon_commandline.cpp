@@ -534,6 +534,7 @@ template const std::string &
 CommandLine::get<std::string>(const std::string &name) const;
 template const int &CommandLine::get<int>(const std::string &name) const;
 template const double &CommandLine::get<double>(const std::string &name) const;
+template const bool &CommandLine::get<bool>(const std::string &name) const;
 template const TypeInfo::VectorOfString &
 CommandLine::get<TypeInfo::VectorOfString>(const std::string &name) const;
 template const TypeInfo::VectorOfPairOfString &
@@ -568,7 +569,7 @@ int CommandLine::getInt(const std::string &name) const
 #endif
 }
 
-bool CommandLine::getBool(const std::string &name) const
+double CommandLine::getDouble(const std::string &name) const
 {
 #ifdef BUILDBOXCOMMON_COMMANDLINE_USES_CXX17
     return this->get<double>(name);
@@ -577,11 +578,11 @@ bool CommandLine::getBool(const std::string &name) const
     if (it == d_parsedArgs.end()) {
         throw std::runtime_error("argument \"" + name + "\" not found");
     }
-    return it->second.d_argumentValue.d_bool;
+    return it->second.d_argumentValue.d_double;
 #endif
 }
 
-double CommandLine::getDouble(const std::string &name) const
+bool CommandLine::getBool(const std::string &name) const
 {
 #ifdef BUILDBOXCOMMON_COMMANDLINE_USES_CXX17
     return this->get<bool>(name);
@@ -590,7 +591,7 @@ double CommandLine::getDouble(const std::string &name) const
     if (it == d_parsedArgs.end()) {
         throw std::runtime_error("argument \"" + name + "\" not found");
     }
-    return it->second.d_argumentValue.d_double;
+    return it->second.d_argumentValue.d_bool;
 #endif
 }
 

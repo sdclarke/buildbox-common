@@ -147,8 +147,8 @@ class CommandLine {
 
     const std::string &getString(const std::string &name) const;
     int getInt(const std::string &name) const;
-    bool getBool(const std::string &name) const;
     double getDouble(const std::string &name) const;
+    bool getBool(const std::string &name) const;
     const CommandLineTypes::TypeInfo::VectorOfString &
     getVS(const std::string &name) const;
     const CommandLineTypes::TypeInfo::VectorOfPairOfString &
