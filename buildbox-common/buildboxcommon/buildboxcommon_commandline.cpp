@@ -87,16 +87,18 @@ CommandLine::CommandLine(
 
 bool CommandLine::existsInSpec(const std::string &argvArg) const
 {
-    return (std::count_if(d_spec.begin(), d_spec.end(),
-                          [&argvArg](const ArgumentSpec &spec) {
-                              return (spec.d_name == argvArg);
-                          }) >= 1);
+    const auto result = std::find_if(d_spec.begin(), d_spec.end(),
+                                     [&argvArg](const ArgumentSpec &spec) {
+                                         return (spec.d_name == argvArg);
+                                     });
+
+    return (result != d_spec.end());
 }
 
 bool CommandLine::findOptionSpecByName(const std::string &argvArg,
                                        const ArgumentSpec **spec)
 {
-    auto result = std::find_if(
+    const auto result = std::find_if(
         d_spec.begin(), d_spec.end(),
         [&argvArg](const ArgumentSpec &s) { return (s.d_name == argvArg); });
 
