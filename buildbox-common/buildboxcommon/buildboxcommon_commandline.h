@@ -139,6 +139,9 @@ class CommandLine {
     template <int LENGTH>
     CommandLine(const CommandLineTypes::ArgumentSpec (&optionSpec)[LENGTH]);
 
+    explicit CommandLine(
+        const std::vector<CommandLineTypes::ArgumentSpec> &optionSpec);
+
     void usage(std::ostream &out = std::cerr);
 
     bool parse(int argc, char *argv[], std::ostream &out = std::cerr);
@@ -193,8 +196,7 @@ class CommandLine {
 
     typedef std::map<std::string, ArgumentMetaData> CommandLineArgs;
 
-    const CommandLineTypes::ArgumentSpec *const d_spec;
-    const size_t d_specSize;
+    std::vector<CommandLineTypes::ArgumentSpec> d_spec;
     CommandLineArgs d_parsedArgs;
     std::string d_processName;
     size_t d_argIdx;
@@ -219,9 +221,9 @@ class CommandLine {
 template <int LENGTH>
 CommandLine::CommandLine(
     const CommandLineTypes::ArgumentSpec (&optionSpec)[LENGTH])
-    : d_spec(optionSpec), d_specSize(LENGTH), d_argIdx(0),
-      d_idxLastPositionalFound(0)
+    : d_argIdx(0), d_idxLastPositionalFound(0)
 {
+    std::copy(optionSpec, optionSpec + LENGTH, std::back_inserter(d_spec));
 }
 
 } // namespace buildboxcommon

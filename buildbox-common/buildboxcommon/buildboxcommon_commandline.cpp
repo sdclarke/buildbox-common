@@ -79,9 +79,15 @@ std::string prefix(const int lineNumber)
 
 } // namespace
 
+CommandLine::CommandLine(
+    const std::vector<CommandLineTypes::ArgumentSpec> &optionSpec)
+    : d_spec(optionSpec), d_argIdx(0), d_idxLastPositionalFound(0)
+{
+}
+
 bool CommandLine::existsInSpec(const std::string &argvArg) const
 {
-    return (std::count_if(d_spec, d_spec + d_specSize,
+    return (std::count_if(d_spec.begin(), d_spec.end(),
                           [&argvArg](const ArgumentSpec &spec) {
                               return (spec.d_name == argvArg);
                           }) >= 1);
@@ -90,12 +96,12 @@ bool CommandLine::existsInSpec(const std::string &argvArg) const
 bool CommandLine::findOptionSpecByName(const std::string &argvArg,
                                        const ArgumentSpec **spec)
 {
-    const ArgumentSpec *result = std::find_if(
-        d_spec, d_spec + d_specSize,
+    auto result = std::find_if(
+        d_spec.begin(), d_spec.end(),
         [&argvArg](const ArgumentSpec &s) { return (s.d_name == argvArg); });
 
-    if (result != (d_spec + d_specSize)) {
-        *spec = result;
+    if (result != d_spec.end()) {
+        *spec = &(*result);
         return true;
     }
 
@@ -107,7 +113,8 @@ bool CommandLine::findNextPositionalSpec(const ArgumentSpec **spec)
     // positional parameters have empty names, so just return them in
     // order
     bool found = false;
-    for (; d_idxLastPositionalFound < d_specSize; ++d_idxLastPositionalFound) {
+    for (; d_idxLastPositionalFound < d_spec.size();
+         ++d_idxLastPositionalFound) {
         if (d_spec[d_idxLastPositionalFound].d_name.empty()) {
             *spec = &d_spec[d_idxLastPositionalFound];
             ++d_idxLastPositionalFound;
@@ -320,7 +327,7 @@ bool CommandLine::parsePositionals(std::ostream &out)
 {
     // sanity check for missing positionals
     const size_t numRequiredSpecPositionals =
-        std::count_if(d_spec, d_spec + d_specSize, isRequiredPositional);
+        std::count_if(d_spec.begin(), d_spec.end(), isRequiredPositional);
     if (d_rawArgv.size() < (d_argIdx + numRequiredSpecPositionals)) {
         out << prefix(__LINE__) << ": parse error: "
             << "required positional argument(s) missing from command line"
@@ -450,7 +457,7 @@ bool CommandLine::validateRequiredArgs(std::string *out)
     const std::string tmp = prefix(__LINE__);
     const std::string filler(tmp.length() + 2, ' ');
     std::ostringstream oss;
-    for (size_t i = 0; i < d_specSize; ++i) {
+    for (size_t i = 0; i < d_spec.size(); ++i) {
         const ArgumentSpec *spec = &d_spec[i];
 
         // do not count positionals
@@ -487,7 +494,7 @@ void CommandLine::usage(std::ostream &out)
     // argument name to come up with correct padding between optionName and
     // optionDescription
     size_t maxOptionLength = 0;
-    for (size_t i = 0; i < d_specSize; ++i) {
+    for (size_t i = 0; i < d_spec.size(); ++i) {
         maxOptionLength =
             std::max<size_t>(maxOptionLength, d_spec[i].d_name.length());
     }
@@ -497,7 +504,7 @@ void CommandLine::usage(std::ostream &out)
     const size_t maxPadding = maxOptionLength + gapSize;
     static const std::string prefixFill(prefixSize, ' ');
     out << "Usage: " << d_processName << "\n";
-    for (size_t i = 0; i < d_specSize; ++i) {
+    for (size_t i = 0; i < d_spec.size(); ++i) {
         const ArgumentSpec *spec = &d_spec[i];
         const int fill = static_cast<int>(
             maxPadding - (spec->d_name.empty() ? spec->d_desc.length()
