@@ -515,6 +515,64 @@ const std::string expected(
     "     BOT Id                       POSITIONAL\n\n");
 // clang-format on
 
+void initVectorOfSpecs(std::vector<ArgumentSpec> &spec)
+{
+    spec.emplace_back("help", "Display usage and exit",
+                      TypeInfo(TypeInfo::DT_BOOL));
+    spec.emplace_back("instance", "Name of instance",
+                      TypeInfo(TypeInfo::DT_STRING), ArgumentSpec::O_OPTIONAL,
+                      ArgumentSpec::C_WITH_ARG);
+    spec.emplace_back("concurrent-jobs", "Stop after running this many jobs",
+                      TypeInfo(TypeInfo::DT_INT), ArgumentSpec::O_OPTIONAL,
+                      ArgumentSpec::C_WITH_ARG);
+    spec.emplace_back("stop-after", "Stop after running this many jobs",
+                      TypeInfo(TypeInfo::DT_INT), ArgumentSpec::O_OPTIONAL,
+                      ArgumentSpec::C_WITH_ARG);
+    spec.emplace_back("cas-remote", "IP/port of remote CAS server",
+                      TypeInfo(TypeInfo::DT_STRING), ArgumentSpec::O_REQUIRED,
+                      ArgumentSpec::C_WITH_ARG);
+    spec.emplace_back("bots-remote", "IP/port of remote BOTS server",
+                      TypeInfo(TypeInfo::DT_STRING), ArgumentSpec::O_REQUIRED,
+                      ArgumentSpec::C_WITH_ARG);
+    spec.emplace_back("request-timeout", "Request timeout",
+                      TypeInfo(TypeInfo::DT_INT), ArgumentSpec::O_OPTIONAL,
+                      ArgumentSpec::C_WITH_ARG);
+    spec.emplace_back("buildbox-run", "Absolute path to runner exectuable",
+                      TypeInfo(TypeInfo::DT_STRING), ArgumentSpec::O_REQUIRED,
+                      ArgumentSpec::C_WITH_ARG);
+    spec.emplace_back("runner-arg", "Args to pass to the runner",
+                      TypeInfo(TypeInfo::DT_STRING_ARRAY),
+                      ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG);
+    spec.emplace_back("platform",
+                      "Set a platform property(repeated):\n--platform "
+                      "KEY=VALUE\n--platform KEY=VALUE",
+                      TypeInfo(TypeInfo::DT_STRING_PAIR_ARRAY),
+                      ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG);
+    spec.emplace_back(
+        "metrics-mode",
+        "Metrics Mode: --metrics-mode=MODE - options for MODE are\n"
+        "udp://<hostname>:<port>\nfile:///path/to/file\nstderr",
+        TypeInfo(TypeInfo::DT_STRING), ArgumentSpec::O_OPTIONAL,
+        ArgumentSpec::C_WITH_ARG);
+    spec.emplace_back("metrics-publish-interval",
+                      "Metrics publishing interval",
+                      TypeInfo(TypeInfo::DT_INT), ArgumentSpec::O_OPTIONAL,
+                      ArgumentSpec::C_WITH_ARG);
+    spec.emplace_back("log-level", "Log verbosity level",
+                      TypeInfo(TypeInfo::DT_STRING), ArgumentSpec::O_OPTIONAL,
+                      ArgumentSpec::C_WITH_ARG);
+    spec.emplace_back("verbose", "Set log level to debug",
+                      TypeInfo(TypeInfo::DT_BOOL), ArgumentSpec::O_OPTIONAL);
+    spec.emplace_back("log-file", "Log file name",
+                      TypeInfo(TypeInfo::DT_STRING), ArgumentSpec::O_OPTIONAL,
+                      ArgumentSpec::C_WITH_ARG);
+    spec.emplace_back("config-file", "Absolute path to config file",
+                      TypeInfo(TypeInfo::DT_STRING), ArgumentSpec::O_OPTIONAL,
+                      ArgumentSpec::C_WITH_ARG);
+    spec.emplace_back("", "BOT Id", TypeInfo(&botId),
+                      ArgumentSpec::O_OPTIONAL);
+}
+
 void validate(const CommandLine &cml)
 {
     // primitive types
@@ -812,4 +870,17 @@ TEST(CommandLineTests, GettersWithFallbackDefaultValues)
     EXPECT_EQ(commandLine.getInt(option_name, 1024), 1024);
 
     EXPECT_EQ(commandLine.getDouble(option_name, 3.14), 3.14);
+}
+
+TEST(CommandLineTests, TestVectorOfSpecs)
+{
+    std::vector<ArgumentSpec> spec;
+    initVectorOfSpecs(spec);
+
+    CommandLine commandLine(spec);
+    const bool success = commandLine.parse(
+        (sizeof(argvOptionEqualsValue) / sizeof(const char *)),
+        argvOptionEqualsValue);
+    EXPECT_TRUE(success);
+    validate(commandLine);
 }
