@@ -373,6 +373,14 @@ struct FileUtils {
      */
     static void deleteRecursively(const char *path,
                                   const bool delete_parent_directory);
+
+    /**
+     * Given a path, create the directory including its parents if necessary.
+     * Silently ignore existing directories.
+     * PRE: `path` must be normalized.
+     */
+    static void createDirectoriesInPath(const std::string &path,
+                                        const mode_t mode);
 };
 } // namespace buildboxcommon
 

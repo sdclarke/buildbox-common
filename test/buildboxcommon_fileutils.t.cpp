@@ -34,21 +34,43 @@
 
 using namespace buildboxcommon;
 
-TEST(FileUtilsTests, DirectoryTests)
+class CreateDirectoryTestFixture : public ::testing::TestWithParam<mode_t> {
+  protected:
+    CreateDirectoryTestFixture() {}
+};
+
+mode_t dirPermissions(const std::string &path)
+{
+    struct stat stat_buf;
+    const int stat_status = stat(path.c_str(), &stat_buf);
+    if (stat_status != 0) {
+        throw std::system_error(errno, std::system_category(),
+                                "Error calling stat(" + path + ")");
+    }
+
+    return stat_buf.st_mode & 0777;
+}
+INSTANTIATE_TEST_CASE_P(CreateDirectoryTests, CreateDirectoryTestFixture,
+                        ::testing::Values(0755, 0700));
+
+TEST_P(CreateDirectoryTestFixture, DirectoryTests)
 {
     TemporaryDirectory tmpdir;
-    std::string pathStr = std::string(tmpdir.name()) + "/foodir/";
+
+    const std::string pathStr = std::string(tmpdir.name()) + "/foodir/";
     const char *path = pathStr.c_str();
 
     ASSERT_FALSE(buildboxcommontest::TestUtils::pathExists(path));
     ASSERT_FALSE(FileUtils::isDirectory(path));
     ASSERT_FALSE(FileUtils::isRegularFile(path));
 
-    FileUtils::createDirectory(path);
+    const mode_t mode = GetParam();
+    FileUtils::createDirectory(path, mode);
 
     ASSERT_TRUE(buildboxcommontest::TestUtils::pathExists(path));
     ASSERT_TRUE(FileUtils::isDirectory(path));
     ASSERT_FALSE(FileUtils::isRegularFile(path));
+    ASSERT_EQ(dirPermissions(path), mode);
 
     FileUtils::deleteDirectory(path);
 
@@ -57,8 +79,9 @@ TEST(FileUtilsTests, DirectoryTests)
     ASSERT_FALSE(FileUtils::isRegularFile(path));
 }
 
-TEST(FileUtilsTest, CreateDirectorySingleLevel)
+TEST(CreateDirectoryTestFixture, CreateDirectoryDefaultMode)
 {
+    const mode_t default_mode = 0755;
     TemporaryDirectory dir;
 
     const std::string path = std::string(dir.name()) + "/subdir";
@@ -66,17 +89,44 @@ TEST(FileUtilsTest, CreateDirectorySingleLevel)
     ASSERT_FALSE(FileUtils::isDirectory(path.c_str()));
     FileUtils::createDirectory(path.c_str());
     ASSERT_TRUE(FileUtils::isDirectory(path.c_str()));
+
+    ASSERT_EQ(dirPermissions(path), default_mode);
 }
 
-TEST(FileUtilsTest, CreateDirectoryPlusItsParents)
+TEST_P(CreateDirectoryTestFixture, CreateDirectorySingleLevel)
 {
     TemporaryDirectory dir;
 
-    const std::string path = std::string(dir.name()) + "/dir1/dir2/dir3/";
+    const std::string path = std::string(dir.name()) + "/subdir";
 
     ASSERT_FALSE(FileUtils::isDirectory(path.c_str()));
-    FileUtils::createDirectory(path.c_str());
+
+    const mode_t mode = GetParam();
+    FileUtils::createDirectory(path.c_str(), mode);
+
     ASSERT_TRUE(FileUtils::isDirectory(path.c_str()));
+    ASSERT_EQ(dirPermissions(path), mode);
+}
+
+TEST_P(CreateDirectoryTestFixture, CreateDirectoryPlusItsParents)
+{
+    const mode_t mode = GetParam();
+
+    TemporaryDirectory dir;
+    ASSERT_EQ(chmod(dir.name(), mode), 0);
+
+    const std::string root_directory = dir.name();
+    const std::string path = root_directory + "/dir1/dir2/dir3/";
+
+    ASSERT_FALSE(FileUtils::isDirectory(path.c_str()));
+
+    FileUtils::createDirectory(path.c_str(), mode);
+    ASSERT_TRUE(FileUtils::isDirectory(path.c_str()));
+    ASSERT_EQ(dirPermissions(path), mode);
+
+    // The subdirectories were created with the same mode:
+    ASSERT_EQ(dirPermissions(root_directory + "/dir1"), mode);
+    ASSERT_EQ(dirPermissions(root_directory + "/dir1/dir2/"), mode);
 }
 
 TEST(FileUtilsTest, CreateExistingDirectory)
