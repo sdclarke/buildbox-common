@@ -23,6 +23,7 @@
 #include <buildboxcommon_localcasstageddirectory.h>
 #include <buildboxcommon_logging.h>
 #include <buildboxcommon_systemutils.h>
+#include <buildboxcommon_temporaryfile.h>
 #include <buildboxcommon_timeutils.h>
 
 #include <algorithm>
@@ -34,7 +35,6 @@
 #include <functional>
 #include <sstream>
 #include <stdlib.h>
-#include <sys/select.h>
 #include <sys/stat.h>
 #include <system_error>
 #include <unistd.h>
@@ -45,35 +45,6 @@ namespace buildboxcommon {
 static const int BUILDBOXCOMMON_RUNNER_USAGE_PAD_WIDTH = 32;
 
 namespace {
-static void markNonBlocking(int fd)
-{
-    const int flags = fcntl(fd, F_GETFL);
-    if (flags == -1) {
-        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
-            std::system_error, errno, std::system_category,
-            "Error in fcntl for file descriptor " << fd);
-    }
-    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
-        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
-            std::system_error, errno, std::system_category,
-            "Error in fcntl for file descriptor " << fd);
-    }
-}
-
-static void writeAll(int fd, const char *buffer, ssize_t len)
-{
-    while (len > 0) {
-        const auto bytes_written = write(fd, buffer, static_cast<size_t>(len));
-        if (bytes_written == -1) {
-            BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
-                std::system_error, errno, std::system_category,
-                "Error in write for file descriptor " << fd);
-        }
-        len -= bytes_written;
-        buffer += bytes_written;
-    }
-}
-
 static void usage(const char *name)
 {
     std::clog << "\nusage: " << name << " [OPTIONS]\n";
@@ -93,6 +64,26 @@ static void usage(const char *name)
     std::clog << "    --capabilities              Print capabilities "
                  "supported by this runner\n";
     ConnectionOptions::printArgHelp(BUILDBOXCOMMON_RUNNER_USAGE_PAD_WIDTH);
+}
+
+void redirectStandardOutputsToFiles(const TemporaryFile &stdout_file,
+                                    const TemporaryFile &stderr_file)
+{
+    if (dup2(stdout_file.fd(), STDOUT_FILENO) == -1) {
+        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+            std::system_error, errno, std::system_category,
+            "Error redirecting stdout to \""
+                << stdout_file.name()
+                << "\". File fd == " << stdout_file.fd());
+    }
+
+    if (dup2(stderr_file.fd(), STDERR_FILENO) == -1) {
+        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+            std::system_error, errno, std::system_category,
+            "Error redirecting stderr to \""
+                << stderr_file.name()
+                << "\". File fd == " << stderr_file.fd());
+    }
 }
 
 } // namespace
@@ -342,83 +333,6 @@ void Runner::createOutputDirectories(const Command &command,
                   createDirectoryIfNeeded);
 }
 
-std::array<int, 2> Runner::createPipe() const
-{
-    std::array<int, 2> pipe_fds = {0, 0};
-
-    if (pipe(pipe_fds.data()) == -1) {
-        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(std::system_error, errno,
-                                              std::system_category,
-                                              "Error calling pipe()");
-    }
-
-    markNonBlocking(pipe_fds[0]);
-    return pipe_fds;
-}
-
-std::pair<std::string, std::string>
-Runner::readStandardOutputs(const int stdout_read_fd, const int stderr_read_fd)
-{
-    std::string stdout_contents, stderr_contents;
-
-    fd_set fds_to_read;
-    FD_ZERO(&fds_to_read);
-    FD_SET(stdout_read_fd, &fds_to_read);
-    FD_SET(stderr_read_fd, &fds_to_read);
-
-    char buffer[4096];
-
-    // Reading from a source FD, write to the destination FD and append the
-    // data to the `result_output` string. Clear the `fds_to_read` set if
-    // necessary.
-    const auto writeStreamContents =
-        [&buffer, &fds_to_read](const int source_fd, const int destination_fd,
-                                std::string *result_output) {
-            const auto bytesRead = read(source_fd, buffer, sizeof(buffer));
-
-            if (bytesRead > 0) {
-                writeAll(destination_fd, buffer, bytesRead);
-                // TODO: do we wanna try and handle stdout/stderr that's too
-                // big to fit in memory?
-                result_output->append(buffer, static_cast<size_t>(bytesRead));
-            }
-            else if (bytesRead == 0 ||
-                     (bytesRead == -1 && errno != EINTR && errno != EAGAIN)) {
-                FD_CLR(source_fd, &fds_to_read);
-            }
-        };
-
-    while (FD_ISSET(stdout_read_fd, &fds_to_read) ||
-           FD_ISSET(stderr_read_fd, &fds_to_read)) {
-
-        fd_set fdsSuccessfullyRead = fds_to_read;
-        if (select(FD_SETSIZE, &fdsSuccessfullyRead, nullptr, nullptr,
-                   nullptr) < 0) {
-            if (errno == EINTR && getSignalStatus()) {
-                // Caught SIGINT or SIGTERM
-                break;
-            }
-            else {
-                BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(std::system_error, errno,
-                                                      std::system_category,
-                                                      "Error in select()");
-            }
-        }
-
-        if (FD_ISSET(stdout_read_fd, &fdsSuccessfullyRead)) {
-            writeStreamContents(stdout_read_fd, STDOUT_FILENO,
-                                &stdout_contents);
-        }
-        if (FD_ISSET(stderr_read_fd, &fdsSuccessfullyRead)) {
-            writeStreamContents(stderr_read_fd, STDERR_FILENO,
-                                &stderr_contents);
-        }
-    }
-
-    return std::make_pair(std::move(stdout_contents),
-                          std::move(stderr_contents));
-}
-
 void Runner::executeAndStore(
     const std::vector<std::string> &command,
     const UploadOutputsCallback &upload_outputs_function, ActionResult *result)
@@ -428,11 +342,12 @@ void Runner::executeAndStore(
         logline << token << " ";
     }
 
-    BUILDBOX_RUNNER_LOG(DEBUG, "Executing command: " << logline.str());
+    // Creating files for stdout and stderr. The command's outputs will be
+    // redirected there.
+    TemporaryFile stdout_file;
+    TemporaryFile stderr_file;
 
-    // Create pipes for stdout and stderr
-    auto stdout_pipe = createPipe();
-    auto stderr_pipe = createPipe();
+    BUILDBOX_RUNNER_LOG(DEBUG, "Executing command: " << logline.str());
 
     auto *result_metadata = result->mutable_execution_metadata();
 
@@ -447,14 +362,9 @@ void Runner::executeAndStore(
             std::system_error, errno, std::system_category, "Error in fork()");
     }
     else if (pid == 0) {
-        // runs only on the child
-        close(stdout_pipe[0]);
-        dup2(stdout_pipe[1], STDOUT_FILENO);
-        close(stdout_pipe[1]);
-
-        close(stderr_pipe[0]);
-        dup2(stderr_pipe[1], STDERR_FILENO);
-        close(stderr_pipe[1]);
+        redirectStandardOutputsToFiles(stdout_file, stderr_file);
+        stdout_file.close();
+        stderr_file.close();
 
         // According to the REAPI:
         // "[...] the path to the executable [...] must be either a relative
@@ -474,35 +384,21 @@ void Runner::executeAndStore(
         _Exit(exit_code);
     }
 
-    close(stdout_pipe[1]);
-    close(stderr_pipe[1]);
-
-    // Read `stdout` and `stderr`:
-    const auto standard_outputs =
-        readStandardOutputs(stdout_pipe[0], stderr_pipe[0]);
-    close(stdout_pipe[0]);
-    close(stderr_pipe[0]);
-
-    if (!getSignalStatus()) {
-        const std::string &stdout_contents = standard_outputs.first;
-        const std::string &stderr_contents = standard_outputs.second;
-
-        BUILDBOX_RUNNER_LOG(DEBUG, "Finished reading commands's stdout/err");
-
-        Digest stdout_digest, stderr_digest;
-        std::tie(stdout_digest, stderr_digest) =
-            upload_outputs_function(stdout_contents, stderr_contents);
-
-        result->mutable_stdout_digest()->CopyFrom(stdout_digest);
-        result->mutable_stderr_digest()->CopyFrom(stderr_digest);
-    }
-
     while (!getSignalStatus()) {
         const int exit_code = SystemUtils::waitPidOrSignal(pid);
         if (exit_code >= 0) {
             // -- Execution ended --
             result_metadata->mutable_execution_completed_timestamp()->CopyFrom(
                 TimeUtils::now());
+
+            // Uploading standard outputs:
+            Digest stdout_digest, stderr_digest;
+            std::tie(stdout_digest, stderr_digest) = upload_outputs_function(
+                stdout_file.name(), stderr_file.name());
+
+            result->mutable_stdout_digest()->CopyFrom(stdout_digest);
+            result->mutable_stderr_digest()->CopyFrom(stderr_digest);
+
             result->set_exit_code(exit_code);
             return;
         }
@@ -624,15 +520,15 @@ bool Runner::parseArguments(int argc, char *argv[])
 }
 
 std::pair<Digest, Digest>
-Runner::uploadOutputs(const std::string &stdout_contents,
-                      const std::string &stderr_contents) const
+Runner::uploadOutputs(const std::string &stdout_file,
+                      const std::string &stderr_file) const
 {
-    Digest stdout_digest = CASHash::hash(stdout_contents);
-    Digest stderr_digest = CASHash::hash(stderr_contents);
+    Digest stdout_digest = CASHash::hashFile(stdout_file);
+    Digest stderr_digest = CASHash::hashFile(stderr_file);
 
     const std::vector<Client::UploadRequest> upload_requests = {
-        Client::UploadRequest(stdout_digest, stdout_contents),
-        Client::UploadRequest(stderr_digest, stderr_contents),
+        Client::UploadRequest::from_path(stdout_digest, stdout_file),
+        Client::UploadRequest::from_path(stderr_digest, stderr_file),
     };
 
     // If some output fails to be uploaded, we'll return an empty digest for

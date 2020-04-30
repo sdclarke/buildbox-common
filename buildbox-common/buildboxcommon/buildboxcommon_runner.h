@@ -25,6 +25,7 @@
 #include <buildboxcommon_connectionoptions.h>
 #include <buildboxcommon_logging.h>
 #include <buildboxcommon_stageddirectory.h>
+#include <buildboxcommon_temporaryfile.h>
 #include <buildboxcommon_timeutils.h>
 
 namespace buildboxcommon {
@@ -89,8 +90,7 @@ class Runner {
                          ActionResult *result);
 
     typedef std::function<std::pair<Digest, Digest>(
-        const std::string &stdout_contents,
-        const std::string &stderr_contents)>
+        const std::string &stdout_file, const std::string &stderr_file)>
         UploadOutputsCallback;
     /**
      * Helper method to unit test the runner-facing implementation.
@@ -187,8 +187,8 @@ class Runner {
      * result will contain an empty `Digest` object.
      */
     std::pair<Digest, Digest>
-    uploadOutputs(const std::string &stdout_contents,
-                  const std::string &stderr_contents) const;
+    uploadOutputs(const std::string &stdout_file,
+                  const std::string &stderr_file) const;
 
     ConnectionOptions d_casRemote;
     std::string d_inputPath;
@@ -207,12 +207,6 @@ class Runner {
 
     void writeActionResult(const ActionResult &action_result,
                            const std::string &path) const;
-
-    // Given file descriptors to `stdout` and `stderr` pipes' reading ends,
-    // get their contents. Returns a pair of strings in the same order,
-    // i.e. (stdout, stderr).
-    static std::pair<std::string, std::string>
-    readStandardOutputs(const int stdout_read_fd, const int stderr_read_fd);
 
     // Fetch a `Command` message from the remote CAS. If that fails, log
     // the error and `exit(1)`.

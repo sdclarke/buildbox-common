@@ -40,13 +40,13 @@ class TestRunner : public Runner {
     }
 
     static std::pair<Digest, Digest>
-    dummyUploadFunction(const std::string &stdout_contents,
-                        const std::string &stderr_contents)
+    dummyUploadFunction(const std::string &stdout_file,
+                        const std::string &stderr_file)
     {
-        // Return valid hashes to verify that this was invoked with the
-        // expected data:
-        return std::make_pair(CASHash::hash(stdout_contents),
-                              CASHash::hash(stderr_contents));
+        // Return valid hashes so that tests can verify that this was invoked
+        // with the expected data:
+        return std::make_pair(CASHash::hashFile(stdout_file),
+                              CASHash::hashFile(stderr_file));
     }
 
     using Runner::executeAndStore;
