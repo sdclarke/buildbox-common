@@ -85,6 +85,10 @@ class Runner {
     /**
      * Execute the given command (without attempting to sandbox it) and
      * store its stdout, stderr, and exit code in the given ActionResult.
+     *
+     * If `skip_logs_capture` is true, do not capture the contents of stdout
+     * and stderr (`stdout_digest` and `stderr_digest` will be left unset in
+     * the `ActionResult`.)
      */
     void executeAndStore(const std::vector<std::string> &command,
                          ActionResult *result);
@@ -94,8 +98,8 @@ class Runner {
         UploadOutputsCallback;
     /**
      * Helper method to unit test the runner-facing implementation.
-     * Invokes the `upload_output_function` callback for `stdout` and
-     * `stderr` if those are not empty.
+     * If set, invokes the `upload_output_function` callback for `stdout` and
+     * `stderr` when those are not empty.
      */
     void executeAndStore(const std::vector<std::string> &command,
                          const UploadOutputsCallback &upload_outputs_function,
@@ -191,6 +195,8 @@ class Runner {
                   const std::string &stderr_file) const;
 
     ConnectionOptions d_casRemote;
+    bool d_skip_standard_outputs_capture;
+
     std::string d_inputPath;
     std::string d_outputPath;
 
@@ -217,6 +223,9 @@ class Runner {
     {
         t->CopyFrom(buildboxcommon::TimeUtils::now());
     }
+
+    // exec()'s the given command (does not return).
+    static void execute(const std::vector<std::string> &command);
 
 }; // namespace buildboxcommon
 

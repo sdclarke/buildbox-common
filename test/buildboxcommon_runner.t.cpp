@@ -181,6 +181,24 @@ TEST(RunnerTest, ExecuteAndStoreStderr)
     EXPECT_EQ(result.exit_code(), 0);
 }
 
+TEST(RunnerTest, ExecuteAndStoreWithoutStandardOutputCapture)
+{
+    TestRunner runner;
+    ActionResult result;
+
+    const auto path_to_false = SystemUtils::getPathToCommand("false");
+    ASSERT_FALSE(path_to_false.empty());
+
+    const auto upload_callback = nullptr;
+    runner.executeAndStore({path_to_false}, upload_callback, &result);
+
+    EXPECT_FALSE(result.has_stdout_digest());
+    EXPECT_FALSE(result.has_stderr_digest());
+    EXPECT_NE(result.exit_code(), 0);
+
+    assert_metadata_execution_timestamps_set(result);
+}
+
 TEST(RunnerTest, CreateOutputDirectoriesTest)
 {
     TestRunner runner;

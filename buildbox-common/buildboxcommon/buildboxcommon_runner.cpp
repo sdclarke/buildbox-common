@@ -59,31 +59,36 @@ static void usage(const char *name)
     std::clog << "    --log-file=FILE             File to write log to\n";
     std::clog
         << "    --use-localcas              Use LocalCAS protocol methods\n";
-    std::clog << "    --workspace-path=PATH           Location on disk which "
+    std::clog << "    --workspace-path=PATH       Location on disk which "
                  "runner will use as root when executing jobs\n";
+    std::clog << "    --no-logs-capture           Do not upload the "
+                 "contents written to stdout and stderr\n";
     std::clog << "    --capabilities              Print capabilities "
                  "supported by this runner\n";
     ConnectionOptions::printArgHelp(BUILDBOXCOMMON_RUNNER_USAGE_PAD_WIDTH);
 }
 
-void redirectStandardOutputsToFiles(const TemporaryFile &stdout_file,
-                                    const TemporaryFile &stderr_file)
+void redirectStandardOutputsToFiles(TemporaryFile *stdout_file,
+                                    TemporaryFile *stderr_file)
 {
-    if (dup2(stdout_file.fd(), STDOUT_FILENO) == -1) {
+    if (dup2(stdout_file->fd(), STDOUT_FILENO) == -1) {
         BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
             std::system_error, errno, std::system_category,
             "Error redirecting stdout to \""
-                << stdout_file.name()
-                << "\". File fd == " << stdout_file.fd());
+                << stdout_file->name()
+                << "\". File fd == " << stdout_file->fd());
     }
 
-    if (dup2(stderr_file.fd(), STDERR_FILENO) == -1) {
+    if (dup2(stderr_file->fd(), STDERR_FILENO) == -1) {
         BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
             std::system_error, errno, std::system_category,
             "Error redirecting stderr to \""
-                << stderr_file.name()
-                << "\". File fd == " << stderr_file.fd());
+                << stderr_file->name()
+                << "\". File fd == " << stderr_file->fd());
     }
+
+    stdout_file->close();
+    stderr_file->close();
 }
 
 } // namespace
@@ -333,6 +338,18 @@ void Runner::createOutputDirectories(const Command &command,
                   createDirectoryIfNeeded);
 }
 
+void Runner::execute(const std::vector<std::string> &command)
+{
+    const int exit_code = buildboxcommon::SystemUtils::executeCommand(command);
+    // --------------------------------------------------------------------
+
+    // `executeCommand()` only returns when encountering an error, so the
+    // lines below will only be executed in that case:
+    const char *command_name = command.front().c_str();
+    perror(command_name);
+    _Exit(exit_code);
+}
+
 void Runner::executeAndStore(
     const std::vector<std::string> &command,
     const UploadOutputsCallback &upload_outputs_function, ActionResult *result)
@@ -342,10 +359,20 @@ void Runner::executeAndStore(
         logline << token << " ";
     }
 
-    // Creating files for stdout and stderr. The command's outputs will be
-    // redirected there.
-    TemporaryFile stdout_file;
-    TemporaryFile stderr_file;
+    const bool capture_standard_outputs = (upload_outputs_function != nullptr);
+
+    std::unique_ptr<TemporaryFile> stdout_file, stderr_file;
+    if (capture_standard_outputs) {
+        // Creating files for stdout and stderr. The command's outputs will be
+        // redirected there.
+        stdout_file = std::make_unique<TemporaryFile>();
+        stderr_file = std::make_unique<TemporaryFile>();
+    }
+    else {
+        BUILDBOX_RUNNER_LOG(TRACE,
+                            "No upload callback given, will skip the "
+                            "capturing and uploading of stdout and stderr.");
+    }
 
     BUILDBOX_RUNNER_LOG(DEBUG, "Executing command: " << logline.str());
 
@@ -362,26 +389,12 @@ void Runner::executeAndStore(
             std::system_error, errno, std::system_category, "Error in fork()");
     }
     else if (pid == 0) {
-        redirectStandardOutputsToFiles(stdout_file, stderr_file);
-        stdout_file.close();
-        stderr_file.close();
+        if (capture_standard_outputs) {
+            redirectStandardOutputsToFiles(stdout_file.get(),
+                                           stderr_file.get());
+        }
 
-        // According to the REAPI:
-        // "[...] the path to the executable [...] must be either a relative
-        // path, in which case it is evaluated with respect to the input root,
-        // or an absolute path."
-        //
-        // `executeCommand()` does NOT search for binaries using $PATH. So, if
-        // the command does not comply with that, it will fail.
-        const int exit_code =
-            buildboxcommon::SystemUtils::executeCommand(command);
-        // --------------------------------------------------------------------
-
-        // `executeCommand()` only returns when encountering an error, so the
-        // lines below will only be executed in that case:
-        const char *command_name = command.front().c_str();
-        perror(command_name);
-        _Exit(exit_code);
+        execute(command);
     }
 
     while (!getSignalStatus()) {
@@ -391,13 +404,16 @@ void Runner::executeAndStore(
             result_metadata->mutable_execution_completed_timestamp()->CopyFrom(
                 TimeUtils::now());
 
-            // Uploading standard outputs:
-            Digest stdout_digest, stderr_digest;
-            std::tie(stdout_digest, stderr_digest) = upload_outputs_function(
-                stdout_file.name(), stderr_file.name());
+            if (capture_standard_outputs) {
+                // Uploading standard outputs:
+                Digest stdout_digest, stderr_digest;
+                std::tie(stdout_digest, stderr_digest) =
+                    upload_outputs_function(stdout_file->name(),
+                                            stderr_file->name());
 
-            result->mutable_stdout_digest()->CopyFrom(stdout_digest);
-            result->mutable_stderr_digest()->CopyFrom(stderr_digest);
+                result->mutable_stdout_digest()->CopyFrom(stdout_digest);
+                result->mutable_stderr_digest()->CopyFrom(stderr_digest);
+            }
 
             result->set_exit_code(exit_code);
             return;
@@ -414,10 +430,14 @@ void Runner::executeAndStore(
 void Runner::executeAndStore(const std::vector<std::string> &command,
                              ActionResult *result)
 {
-    // This callback will be used to upload the contents of stdout and stderr.
-    const UploadOutputsCallback outputs_upload_function =
-        std::bind(&Runner::uploadOutputs, this, std::placeholders::_1,
-                  std::placeholders::_2);
+    UploadOutputsCallback outputs_upload_function;
+    if (!d_skip_standard_outputs_capture) {
+        // This callback will be used to upload the contents of stdout and
+        // stderr.
+        outputs_upload_function =
+            std::bind(&Runner::uploadOutputs, this, std::placeholders::_1,
+                      std::placeholders::_2);
+    }
 
     this->executeAndStore(command, outputs_upload_function, result);
 }
@@ -476,6 +496,9 @@ bool Runner::parseArguments(int argc, char *argv[])
                     }
                     fclose(fp);
                     BUILDBOX_LOG_SET_FILE(value);
+                }
+                else if (key == "no-logs-capture") {
+                    this->d_skip_standard_outputs_capture = true;
                 }
                 else {
                     std::cerr << "Invalid option " << argv[0] << std::endl;
