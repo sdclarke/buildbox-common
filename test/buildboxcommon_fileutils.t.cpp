@@ -1111,7 +1111,10 @@ TEST(FileUtilsTests, ModifyFileTimestamp)
     ASSERT_NE(exp_count, orig_count);
 
     const std::string new_stamp = "2012-01-03T10:21:32.000000Z";
-    auto new_time = TimeUtils::parse_timestamp(new_stamp);
+    google::protobuf::Timestamp gtime;
+    ASSERT_TRUE(
+        google::protobuf::util::TimeUtil::FromString(new_stamp, &gtime));
+    auto new_time = TimeUtils::parse_timestamp(gtime);
     auto new_count = std::chrono::duration_cast<std::chrono::microseconds>(
                          new_time.time_since_epoch())
                          .count();

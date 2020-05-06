@@ -37,7 +37,8 @@ typedef std::unordered_map<buildboxcommon::Digest, std::string>::iterator
 struct File {
     Digest d_digest;
     bool d_executable;
-    std::string d_mtime;
+    bool d_mtime_set = false;
+    std::chrono::system_clock::time_point d_mtime;
 
     File(){};
 

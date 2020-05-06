@@ -20,6 +20,7 @@
 #include <buildboxcommon_merklize.h>
 #include <buildboxcommon_temporarydirectory.h>
 #include <buildboxcommon_temporaryfile.h>
+#include <buildboxcommon_timeutils.h>
 #include <gtest/gtest.h>
 
 #include <build/bazel/remote/execution/v2/remote_execution_mock.grpc.pb.h>
@@ -516,7 +517,7 @@ TEST_F(ClientTestFixture, CaptureDirectory)
 {
     const std::string path_to_capture = "/path/to/stage";
     std::vector<std::string> paths = {path_to_capture};
-    const std::string property = "MTime";
+    const std::string property = "mtime";
     const std::vector<std::string> properties = {property};
 
     CaptureTreeResponse response;
@@ -551,7 +552,7 @@ TEST_F(ClientTestFixture, CaptureDirectory)
 TEST_F(ClientTestFixture, CaptureDirectoryErrorThrows)
 {
     std::vector<std::string> paths = {std::string("/path/to/stage")};
-    std::vector<std::string> properties = {std::string("MTime")};
+    std::vector<std::string> properties = {std::string("mtime")};
 
     CaptureTreeResponse response;
     auto entry = response.add_responses();
@@ -577,25 +578,24 @@ TEST_F(ClientTestFixture, CaptureFiles)
     const std::vector<std::string> files_to_capture = {
         "/path/to/stage/file1.txt", "/path/to/stage/file2.txt"};
 
-    const std::string property = "MTime";
-    const std::string value = "";
+    const std::string property = "mtime";
+    const auto mtime = TimeUtils::now();
+
     // Response that the server will return to the client:
     CaptureFilesResponse response;
     auto entry1 = response.add_responses();
     entry1->set_path(files_to_capture[0]);
     entry1->mutable_digest()->CopyFrom(make_digest("file1.txt-contents"));
     entry1->mutable_status()->set_code(grpc::StatusCode::OK);
-    auto node_property1 = entry1->add_node_properties();
-    node_property1->set_name(property);
-    node_property1->set_value(value);
+    auto properties1 = entry1->mutable_node_properties();
+    properties1->mutable_mtime()->CopyFrom(mtime);
 
     auto entry2 = response.add_responses();
     entry2->set_path(files_to_capture[1]);
     entry2->mutable_digest()->CopyFrom(make_digest("file2.txt-contents"));
     entry2->mutable_status()->set_code(grpc::StatusCode::OK);
-    auto node_property2 = entry2->add_node_properties();
-    node_property2->set_name(property);
-    node_property2->set_value(value);
+    auto properties2 = entry2->mutable_node_properties();
+    properties2->mutable_mtime()->CopyFrom(mtime);
 
     CaptureFilesRequest request;
 
@@ -639,16 +639,8 @@ TEST_F(ClientTestFixture, CaptureFiles)
     ASSERT_EQ(returned_response.responses(1).status().code(),
               grpc::StatusCode::OK);
 
-    ASSERT_EQ(returned_response.responses(0).node_properties_size(), 1);
-    ASSERT_EQ(returned_response.responses(0).node_properties(0).name(),
-              property);
-    ASSERT_EQ(returned_response.responses(0).node_properties(0).value(),
-              value);
-    ASSERT_EQ(returned_response.responses(1).node_properties_size(), 1);
-    ASSERT_EQ(returned_response.responses(1).node_properties(0).name(),
-              property);
-    ASSERT_EQ(returned_response.responses(1).node_properties(0).value(),
-              value);
+    ASSERT_EQ(returned_response.responses(0).node_properties().mtime(), mtime);
+    ASSERT_EQ(returned_response.responses(1).node_properties().mtime(), mtime);
 }
 
 TEST_F(ClientTestFixture, CaptureFilesErrorThrows)
@@ -658,9 +650,8 @@ TEST_F(ClientTestFixture, CaptureFilesErrorThrows)
         .WillOnce(Return(
             grpc::Status(grpc::StatusCode::UNKNOWN, "Something went wrong.")));
 
-    ASSERT_THROW(
-        this->captureFiles({"/path/to/stage/file.txt"}, {"MTime"}, false),
-        std::runtime_error);
+    ASSERT_THROW(this->captureFiles({"/path/to/stage/file.txt"}, {}, false),
+                 std::runtime_error);
 }
 
 class GetTreeFixture : public ClientTestFixture {

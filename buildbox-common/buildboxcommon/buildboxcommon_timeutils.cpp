@@ -21,38 +21,25 @@
 
 namespace buildboxcommon {
 
-const std::string
+const google::protobuf::Timestamp
 TimeUtils::make_timestamp(const std::chrono::system_clock::time_point mtime)
 {
     auto usec = (google::protobuf::int64)
                     std::chrono::duration_cast<std::chrono::microseconds>(
                         mtime.time_since_epoch())
                         .count();
-    auto time =
-        google::protobuf::util::TimeUtil::MicrosecondsToTimestamp(usec);
-    const std::string timestamp =
-        google::protobuf::util::TimeUtil::ToString(time);
-
-    return timestamp;
+    return google::protobuf::util::TimeUtil::MicrosecondsToTimestamp(usec);
 }
 
 const std::chrono::system_clock::time_point
-TimeUtils::parse_timestamp(const std::string &timestamp)
+TimeUtils::parse_timestamp(const google::protobuf::Timestamp &timestamp)
 {
-    google::protobuf::Timestamp gtime;
-    if (google::protobuf::util::TimeUtil::FromString(timestamp, &gtime)) {
-        const std::chrono::system_clock::time_point timepoint =
-            std::chrono::system_clock::from_time_t(
-                static_cast<time_t>(gtime.seconds())) +
-            std::chrono::microseconds{static_cast<long>(gtime.nanos()) / 1000};
+    const std::chrono::system_clock::time_point timepoint =
+        std::chrono::system_clock::from_time_t(
+            static_cast<time_t>(timestamp.seconds())) +
+        std::chrono::microseconds{static_cast<long>(timestamp.nanos()) / 1000};
 
-        return timepoint;
-    }
-    else {
-        BUILDBOXCOMMON_THROW_EXCEPTION(std::runtime_error,
-                                       "Failed to parse timestamp: \""
-                                           << timestamp << "\"");
-    }
+    return timepoint;
 }
 
 struct timespec

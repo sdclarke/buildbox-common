@@ -27,18 +27,16 @@ struct TimeUtils {
     // Provide a namespace for timestamp utilities.
 
     /**
-     * Return a string representing the given time_point in the
-     * ISO 8601 format (https://www.ietf.org/rfc/rfc3339.txt).
+     * Return a Protobuf Timestamp representing the given time_point.
      */
-    static const std::string
+    static const google::protobuf::Timestamp
     make_timestamp(const std::chrono::system_clock::time_point timepoint);
 
     /**
-     * Return a timespec representing the given ISO 8601 datetime
-     * (https://www.ietf.org/rfc/rfc3339.txt).
+     * Return a timespec representing the given Protobuf Timestamp.
      */
     static const std::chrono::system_clock::time_point
-    parse_timestamp(const std::string &timestamp);
+    parse_timestamp(const google::protobuf::Timestamp &timestamp);
 
     /**
      * Return a timespec representing the given time_point.

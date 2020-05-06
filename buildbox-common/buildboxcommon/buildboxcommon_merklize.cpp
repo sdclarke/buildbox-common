@@ -36,11 +36,10 @@ File::File(const char *path,
 {
     d_executable = FileUtils::isExecutable(path);
     d_digest = CASHash::hashFile(path);
-    d_mtime = "";
     for (const std::string &property : capture_properties) {
-        if (property == "MTime") {
-            d_mtime = TimeUtils::make_timestamp(FileUtils::getFileMtime(path));
-            break;
+        if (property == "mtime") {
+            d_mtime = FileUtils::getFileMtime(path);
+            d_mtime_set = true;
         }
     }
     return;
@@ -52,10 +51,10 @@ FileNode File::to_filenode(const std::string &name) const
     result.set_name(name);
     *result.mutable_digest() = d_digest;
     result.set_is_executable(d_executable);
-    if (!d_mtime.empty()) {
-        NodeProperty *property = result.add_node_properties();
-        property->set_name("MTime");
-        property->set_value(d_mtime);
+    if (d_mtime_set) {
+        auto node_properties = result.mutable_node_properties();
+        node_properties->mutable_mtime()->CopyFrom(
+            TimeUtils::make_timestamp(d_mtime));
     }
     return result;
 }

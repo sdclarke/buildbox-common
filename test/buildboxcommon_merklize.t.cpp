@@ -31,6 +31,7 @@ TEST(FileTest, ToFilenode)
     EXPECT_EQ(fileNode.digest().hash(), "HASH HERE");
     EXPECT_EQ(fileNode.digest().size_bytes(), 123);
     EXPECT_TRUE(fileNode.is_executable());
+    EXPECT_FALSE(fileNode.has_node_properties());
 }
 
 TEST(NestedDirectoryTest, EmptyNestedDirectory)

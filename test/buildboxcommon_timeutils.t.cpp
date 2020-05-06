@@ -29,8 +29,8 @@ TEST(TimeUtilsTests, MakeTimestamp)
     ASSERT_EQ(usec.count(), (long)1575452181012345);
     std::string expected = "2019-12-04T09:36:21.012345Z";
     std::chrono::system_clock::time_point mtime(usec);
-    std::string timestamp = TimeUtils::make_timestamp(mtime);
-    ASSERT_EQ(timestamp, expected);
+    auto timestamp = TimeUtils::make_timestamp(mtime);
+    ASSERT_EQ(google::protobuf::util::TimeUtil::ToString(timestamp), expected);
 }
 
 TEST(TimeUtilsTests, ParseTimestamp)
@@ -39,8 +39,11 @@ TEST(TimeUtilsTests, ParseTimestamp)
     // std::chrono::system_clock::time_point
     std::string timestamp = "2019-12-04T09:36:21.012345Z";
     std::chrono::microseconds exp((long)1575452181012345);
+    google::protobuf::Timestamp gtime;
+    ASSERT_TRUE(
+        google::protobuf::util::TimeUtil::FromString(timestamp, &gtime));
     std::chrono::system_clock::time_point timepoint =
-        TimeUtils::parse_timestamp(timestamp);
+        TimeUtils::parse_timestamp(gtime);
     auto usec = std::chrono::duration_cast<std::chrono::microseconds>(
         timepoint.time_since_epoch());
     ASSERT_EQ(exp.count(), usec.count());
