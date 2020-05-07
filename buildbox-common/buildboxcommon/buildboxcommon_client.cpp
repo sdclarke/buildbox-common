@@ -554,10 +554,19 @@ Client::uploadBlobs(const std::vector<UploadRequest> &requests)
         const size_t batch_start = batch_range.first;
         const size_t batch_end = batch_range.second;
 
-        const std::vector<Client::UploadResult> digests_not_uploaded =
-            batchUpload(request_list, batch_start, batch_end);
-        for (const auto &upload_result : digests_not_uploaded) {
-            results.push_back(upload_result);
+        try {
+            const std::vector<Client::UploadResult> digests_not_uploaded =
+                batchUpload(request_list, batch_start, batch_end);
+            std::move(digests_not_uploaded.cbegin(),
+                      digests_not_uploaded.cend(),
+                      std::back_inserter(results));
+        }
+        catch (const std::runtime_error &e) {
+            BUILDBOX_LOG_ERROR("Batch upload failed: " +
+                               std::string(e.what()));
+
+            // The whole batch request failed.
+            throw e;
         }
     }
 
