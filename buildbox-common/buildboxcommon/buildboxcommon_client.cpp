@@ -531,6 +531,13 @@ grpc::Status Client::uploadRequest(const UploadRequest &request)
 std::vector<Client::UploadResult>
 Client::uploadBlobs(const std::vector<UploadRequest> &requests)
 {
+    return Client::uploadBlobs(requests, false);
+}
+
+std::vector<Client::UploadResult>
+Client::uploadBlobs(const std::vector<UploadRequest> &requests,
+                    const bool throw_on_error)
+{
     std::vector<Client::UploadResult> results;
 
     // We first sort the requests by their sizes in ascending order, so
@@ -566,7 +573,17 @@ Client::uploadBlobs(const std::vector<UploadRequest> &requests)
                                std::string(e.what()));
 
             // The whole batch request failed.
-            throw e;
+            if (throw_on_error) {
+                throw e;
+            }
+
+            // Report an INTERNAL error code for failed uploads in case
+            // there is no throw.
+            const auto failed_status = grpc::Status(grpc::StatusCode::INTERNAL,
+                                                    grpc::string(e.what()));
+            for (auto d = batch_start; d < batch_end; d++) {
+                results.emplace_back(request_list.at(d).digest, failed_status);
+            }
         }
     }
 

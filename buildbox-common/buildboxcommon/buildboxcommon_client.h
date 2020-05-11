@@ -140,7 +140,6 @@ class Client {
      * errors they received. (An empty result indicates that all digests were
      * uploaded.)
      */
-
     std::vector<UploadResult>
     uploadBlobs(const std::vector<UploadRequest> &requests);
 
@@ -333,6 +332,23 @@ class Client {
         const Digest &digest, const std::string &path,
         const download_callback_t &download_callback,
         const return_directory_callback_t &return_directory_callback);
+
+    /* Upload multiple digests in an efficient way, allowing each digest to
+     * potentially fail separately.
+     *
+     * Return a list containing the Digests that failed to be uploaded and the
+     * errors they received. (An empty result indicates that all digests were
+     * uploaded.)
+     *
+     * `throw_on_error` determines whether an `std::runtime_error`
+     * exception is to be raised on encountering an error during a
+     * download.
+     *
+     * Note: marked as `protected` to unit-test.
+     */
+    std::vector<UploadResult>
+    uploadBlobs(const std::vector<UploadRequest> &requests,
+                const bool throw_on_error);
 
   private:
     std::shared_ptr<grpc::Channel> d_channel;
