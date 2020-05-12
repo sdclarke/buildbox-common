@@ -45,17 +45,6 @@ template <class MetricType> class MetricGuard {
         : d_metric(name), d_scopedMetric(&d_metric, collector)
     {
     }
-
-    // DEPRECATED: the boolean flag indicating whether this metric is
-    // enabled/disabled is no longer respected and will be removed in a later
-    // version. The enablement of metrics is now configured at the
-    // MetricCollectorFactory level (since it should be global, not per
-    // MetricGuard instance).
-    MetricGuard(const std::string &name, bool,
-                MetricCollector<ValueType> *collector = nullptr)
-        : MetricGuard(name, collector)
-    {
-    }
 };
 
 } // namespace buildboxcommonmetrics

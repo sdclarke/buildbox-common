@@ -61,11 +61,9 @@ TEST(MetricsTest, MetricGuardTestIgnoreLocallyDisabled)
                          .size());
 
         EXPECT_TRUE(MetricCollectorFactory::getInstance()->metricsEnabled());
-        MetricGuard<MockTimer> mg("test-metric", false);
+        MetricGuard<MockTimer> mg("test-metric");
     }
-    // As of February 2020 the flag on the MetricGuard is ignored (see
-    // DEPRECATED comment in buildboxcommonmetrics_metricguard.h)
-    // But we left metrics globally enabled.
+
     EXPECT_EQ(1, MetricCollectorFactory::getCollector<MockValueType>()
                      ->getSnapshot()
                      .size());
@@ -89,11 +87,10 @@ TEST(MetricsTest, MetricGuardTestGloballyDisabled)
                          ->getSnapshot()
                          .size());
 
-        MetricGuard<MockTimer> mg("test-metric", false);
-        MetricGuard<MockTimer> mg2("test-metric", true);
+        MetricGuard<MockTimer> mg("test-metric");
+        MetricGuard<MockTimer> mg2("test-metric");
     }
-    // As of February 2020 the flag on the MetricGuard is ignored (see
-    // DEPRECATED comment in buildboxcommonmetrics_metricguard.h)
+
     EXPECT_EQ(0, MetricCollectorFactory::getCollector<MockValueType>()
                      ->getSnapshot()
                      .size());

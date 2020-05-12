@@ -58,7 +58,7 @@ TEST(MetricsTest, MetricGuardTestEnabled)
                          ->getSnapshot()
                          .size());
 
-        MetricGuard<MockTimer> mg("test-metric", true);
+        MetricGuard<MockTimer> mg("test-metric");
 
         EXPECT_EQ(0, MetricCollectorFactory::getCollector<MockValueType>()
                          ->getSnapshot()
