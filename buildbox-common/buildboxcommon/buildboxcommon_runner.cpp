@@ -497,9 +497,6 @@ bool Runner::parseArguments(int argc, char *argv[])
                     fclose(fp);
                     BUILDBOX_LOG_SET_FILE(value);
                 }
-                else if (key == "no-logs-capture") {
-                    this->d_skip_standard_outputs_capture = true;
-                }
                 else {
                     std::cerr << "Invalid option " << argv[0] << std::endl;
                     return false;
@@ -513,6 +510,9 @@ bool Runner::parseArguments(int argc, char *argv[])
                 }
                 else if (strcmp(arg, "use-localcas") == 0) {
                     this->d_use_localcas_protocol = true;
+                }
+                else if (strcmp(arg, "no-logs-capture") == 0) {
+                    this->d_skip_standard_outputs_capture = true;
                 }
                 else if (strcmp(arg, "verbose") == 0) {
                     BUILDBOX_LOG_SET_LEVEL(LogLevel::DEBUG);
