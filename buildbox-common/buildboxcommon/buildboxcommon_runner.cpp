@@ -518,6 +518,9 @@ bool Runner::parseArguments(int argc, char *argv[])
                     BUILDBOX_LOG_SET_LEVEL(LogLevel::DEBUG);
                 }
                 else if (strcmp(arg, "capabilities") == 0) {
+                    // Generic capabilities
+                    std::cout << "no-logs-capture\n";
+
                     printSpecialCapabilities();
                     exit(0);
                 }
