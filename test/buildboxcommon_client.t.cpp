@@ -28,6 +28,7 @@
 #include <google/bytestream/bytestream_mock.grpc.pb.h>
 #include <grpcpp/test/mock_stream.h>
 
+#include <algorithm>
 #include <fstream>
 
 using namespace buildboxcommon;

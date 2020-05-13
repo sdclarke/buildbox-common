@@ -17,6 +17,8 @@
 #include <buildboxcommonmetrics_totaldurationmetricvalue.h>
 #include <gtest/gtest.h>
 
+#include <algorithm>
+
 using namespace buildboxcommon::buildboxcommonmetrics;
 
 TEST(MetricsTest, DurationMetricValueCollectorMultiTest)
