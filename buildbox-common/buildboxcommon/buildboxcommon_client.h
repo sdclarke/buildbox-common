@@ -417,7 +417,7 @@ class Client {
     digest_string_map missingDigests(const digest_string_map &directory_map);
 
     /* Upload a single request. */
-    grpc::Status uploadRequest(const UploadRequest &request);
+    void uploadRequest(const UploadRequest &request);
 
     /*
      * RequestMetadata values. They will be attached to requests sent by this

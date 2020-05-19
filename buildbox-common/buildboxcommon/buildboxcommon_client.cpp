@@ -496,35 +496,26 @@ void Client::upload(int fd, const Digest &digest)
                      this->d_grpcRetryDelay, this->d_metadata_attach_function);
 }
 
-grpc::Status Client::uploadRequest(const UploadRequest &request)
+void Client::uploadRequest(const UploadRequest &request)
 {
-    try {
-        if (request.path.empty()) {
-            upload(request.data, request.digest);
+    if (request.path.empty()) {
+        upload(request.data, request.digest);
+    }
+    else {
+        const int fd = open(request.path.c_str(), O_RDONLY);
+        if (fd < 0) {
+            BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+                std::system_error, errno, std::system_category,
+                "Error in open for file \"" << request.path << "\"");
         }
-        else {
-            const int fd = open(request.path.c_str(), O_RDONLY);
-            if (fd < 0) {
-                BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
-                    std::system_error, errno, std::system_category,
-                    "Error in open for file \"" << request.path << "\"");
-            }
-            try {
-                upload(fd, request.digest);
-            }
-            catch (...) {
-                close(fd);
-                throw;
-            }
+        try {
+            upload(fd, request.digest);
+        }
+        catch (...) {
             close(fd);
+            throw;
         }
-        return grpc::Status::OK;
-    }
-    catch (const GrpcError &e) {
-        return e.status;
-    }
-    catch (const std::runtime_error &e) {
-        return grpc::Status(grpc::StatusCode::INTERNAL, e.what());
+        close(fd);
     }
 }
 
@@ -593,9 +584,26 @@ Client::uploadBlobs(const std::vector<UploadRequest> &requests,
     const size_t batch_end = batches.empty() ? 0 : batches.rbegin()->second;
 
     for (auto d = batch_end; d < request_list.size(); d++) {
-        auto status = uploadRequest(request_list[d]);
-        if (!status.ok()) {
-            results.emplace_back(request_list[d].digest, status);
+        try {
+            uploadRequest(request_list[d]);
+        }
+        catch (const GrpcError &e) {
+            if (throw_on_error) {
+                BUILDBOXCOMMON_THROW_EXCEPTION(std::runtime_error,
+                                               "Failed to upload blob: " +
+                                                   e.status.error_message());
+            }
+            results.emplace_back(request_list[d].digest, e.status);
+        }
+        catch (const std::runtime_error &e) {
+            BUILDBOX_LOG_ERROR("Failed to upload blob: " +
+                               std::string(e.what()));
+            if (throw_on_error) {
+                throw e;
+            }
+            results.emplace_back(
+                request_list[d].digest,
+                grpc::Status(grpc::StatusCode::INTERNAL, e.what()));
         }
     }
 
