@@ -19,6 +19,7 @@
 #include <buildboxcommon_cashash.h>
 #include <buildboxcommon_client.h>
 #include <buildboxcommon_protos.h>
+#include <buildboxcommon_temporarydirectory.h>
 #include <buildboxcommon_temporaryfile.h>
 
 #include <gtest/gtest.h>
@@ -74,6 +75,8 @@ class LocalCasStagedDirectoryFixture : public ::testing::Test {
 
     std::shared_ptr<Client> client;
 
+    TemporaryDirectory staged_directory;
+
     std::unique_ptr<LocalCasStagedDirectory>
     stageDirectory(const std::string &path)
     {
@@ -89,7 +92,8 @@ class LocalCasStagedDirectoryFixture : public ::testing::Test {
         EXPECT_CALL(*reader_writer, WritesDone());
 
         StageTreeResponse response;
-        response.set_path("/path/to/staged_dir/");
+        // Returning a valid directory:
+        response.set_path(staged_directory.name());
         EXPECT_CALL(*reader_writer, Read(_))
             .WillOnce(DoAll(SetArgPointee<0>(response), Return(true)));
 
@@ -106,7 +110,7 @@ TEST_F(LocalCasStagedDirectoryFixture, StageDirectory) { stageDirectory(""); }
 // Just make sure constructor will accept non-empty strings
 TEST_F(LocalCasStagedDirectoryFixture, StageDirectoryCustomPath)
 {
-    stageDirectory("/stage/here/");
+    stageDirectory(staged_directory.name());
 }
 
 TEST_F(LocalCasStagedDirectoryFixture, CaptureCommandOutputs)
@@ -171,4 +175,56 @@ TEST_F(LocalCasStagedDirectoryFixture, CaptureNonExistentFile)
     const auto captured_file = fs->captureFile(non_existent_path, command);
 
     ASSERT_TRUE(captured_file.path().empty());
+}
+
+TEST_F(LocalCasStagedDirectoryFixture, CaptureFileWithEscapingSymlink)
+{
+    TemporaryDirectory top_level_directory;
+    TemporaryDirectory stage_directory(top_level_directory.name(),
+                                       "tmp-test-dir");
+
+    // top_level_directory/
+    //     | file  <---------------|
+    //     | stage_directory/      x  <-- input root level
+    //          | symlink ---------|
+
+    Command command;
+    auto fs = stageDirectory(stage_directory.name());
+
+    // Creating a file in `top_level_directory` and a symlink to it that will
+    // escape the input root:
+    const auto symlink_destination =
+        std::string(top_level_directory.name()) + "file";
+    FileUtils::writeFileAtomically(symlink_destination.c_str(), "");
+
+    const auto symlink_path = std::string(stage_directory.name()) + "/symlink";
+    ASSERT_EQ(symlink(top_level_directory.name(), symlink_path.c_str()), 0);
+    ASSERT_TRUE(FileUtils::isSymlink(symlink_path.c_str()));
+
+    const auto captured_file = fs->captureFile(symlink_path.c_str(), command);
+
+    ASSERT_TRUE(captured_file.path().empty());
+}
+
+TEST_F(LocalCasStagedDirectoryFixture, CaptureDirectoryWithEscapingSymlink)
+{
+    TemporaryDirectory top_level_directory;
+    TemporaryDirectory stage_directory(top_level_directory.name(),
+                                       "tmp-test-dir");
+
+    // top_level_directory/  <-----|
+    //     | stage_directory/      x  <-- input root level
+    //          | symlink ---------|
+
+    Command command;
+    auto fs = stageDirectory(stage_directory.name());
+
+    const auto symlink_path = std::string(stage_directory.name()) + "/symlink";
+    ASSERT_EQ(symlink(top_level_directory.name(), symlink_path.c_str()), 0);
+    ASSERT_TRUE(FileUtils::isSymlink(symlink_path.c_str()));
+
+    const auto captured_directory =
+        fs->captureDirectory(symlink_path.c_str(), command);
+
+    ASSERT_TRUE(captured_directory.path().empty());
 }

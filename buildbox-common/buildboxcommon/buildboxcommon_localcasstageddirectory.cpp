@@ -23,6 +23,11 @@
 #include <buildboxcommon_protos.h>
 #include <buildboxcommon_timeutils.h>
 
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
 using namespace buildboxcommon;
 
 LocalCasStagedDirectory::LocalCasStagedDirectory(
@@ -32,21 +37,36 @@ LocalCasStagedDirectory::LocalCasStagedDirectory(
       d_cas_client_staged_directory(cas_client->stage(digest, path))
 {
     this->d_path = d_cas_client_staged_directory->path();
+
+    this->d_staged_directory_fd =
+        open(d_cas_client_staged_directory->path().c_str(), O_DIRECTORY);
+
+    if (d_staged_directory_fd == -1) {
+        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+            std::system_error, errno, std::system_category,
+            "Error opening staged directory: \"" << d_path << "\"");
+    }
+}
+
+LocalCasStagedDirectory::~LocalCasStagedDirectory()
+{
+    close(d_staged_directory_fd);
 }
 
 OutputFile LocalCasStagedDirectory::captureFile(const char *relative_path,
                                                 const Command &command) const
 {
-    const std::string absolute_path =
-        FileUtils::makePathAbsolute(relative_path, this->d_path);
-
-    if (!FileUtils::isRegularFile(absolute_path.c_str())) {
+    if (!StagedDirectoryUtils::fileInInputRoot(this->d_staged_directory_fd,
+                                               relative_path)) {
         return OutputFile();
     }
 
     const std::vector<std::string> properties(
         command.output_node_properties().cbegin(),
         command.output_node_properties().cend());
+
+    const std::string absolute_path =
+        FileUtils::makePathAbsolute(relative_path, this->d_path);
 
     const CaptureFilesResponse response =
         this->d_cas_client->captureFiles({absolute_path}, properties, false);
@@ -80,14 +100,15 @@ OutputDirectory
 LocalCasStagedDirectory::captureDirectory(const char *relative_path,
                                           const Command &command) const
 {
+    if (!StagedDirectoryUtils::directoryInInputRoot(
+            this->d_staged_directory_fd, relative_path)) {
+        // If the directory does not exist or is outside the input root, we
+        // just ignore it:
+        return OutputDirectory();
+    }
 
     const std::string absolute_path =
         FileUtils::makePathAbsolute(relative_path, this->d_path);
-
-    // If the directory does not exist, we just ignore it:
-    if (!FileUtils::isDirectory(absolute_path.c_str())) {
-        return OutputDirectory();
-    }
 
     const std::vector<std::string> properties(
         command.output_node_properties().cbegin(),

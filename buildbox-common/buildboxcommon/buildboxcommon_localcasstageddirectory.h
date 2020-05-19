@@ -34,7 +34,7 @@ class LocalCasStagedDirectory final : public StagedDirectory {
      *
      * (Done by `~Client::StagedDirectory()`)
      */
-    inline ~LocalCasStagedDirectory(){};
+    ~LocalCasStagedDirectory();
 
     // These functions could be called for paths that do not exist.
     // In that case they will just return empty messages, without attempting
@@ -53,6 +53,7 @@ class LocalCasStagedDirectory final : public StagedDirectory {
   private:
     std::shared_ptr<Client> d_cas_client;
     std::unique_ptr<Client::StagedDirectory> d_cas_client_staged_directory;
+    int d_staged_directory_fd;
 };
 
 } // namespace buildboxcommon
