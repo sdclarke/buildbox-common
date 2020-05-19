@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
+#include <buildboxcommon_fileutils.h>
 #include <buildboxcommon_stageddirectory.h>
+#include <buildboxcommon_temporarydirectory.h>
 
 #include <gtest/gtest.h>
 
@@ -168,4 +170,175 @@ TEST_F(MockStagedDirectory, CommandWorkingDirectory)
 
     ASSERT_EQ(captured_file_path, "working-directory/file1.txt");
     ASSERT_EQ(captured_directory_path, "working-directory/subdirectory");
+}
+
+class OpenDirectoryInInputRootFixture : public ::testing::Test {
+  protected:
+    OpenDirectoryInInputRootFixture() : root_directory_fd(-1)
+    {
+        // Testing with the following directory structure:
+        //
+        // * root_directory/      symlink
+        //      | subdir1/  <--------------------|
+        //           | subdir2/                  |
+        //               | file.txt              |
+        //               | symlink/ -------------|
+
+        const std::string root_directory_path = root_directory.name();
+
+        const auto subdir1_path = root_directory_path + "/subdir1/";
+        FileUtils::createDirectory(subdir1_path.c_str());
+
+        const auto subdir2_path = root_directory_path + "/subdir1/subdir2/";
+        FileUtils::createDirectory(subdir2_path.c_str());
+
+        const auto subdir3_path =
+            root_directory_path + "/subdir1/subdir2/symlink";
+
+        if (symlink(subdir1_path.c_str(), subdir3_path.c_str()) == -1) {
+            throw std::system_error(
+                errno, std::system_category(),
+                "Error creating symlink in the test directory structure.");
+        }
+
+        FileUtils::writeFileAtomically(
+            std::string(root_directory_path + "/subdir1/subdir2/file.txt")
+                .c_str(),
+            "Some data...");
+
+        root_directory_fd = open(root_directory.name(), O_DIRECTORY);
+    }
+
+    TemporaryDirectory root_directory;
+    int root_directory_fd;
+
+    ~OpenDirectoryInInputRootFixture() { close(root_directory_fd); }
+};
+
+void assertFileInDirectory(const int dir_fd, const std::string &filename)
+{
+    ASSERT_NE(dir_fd, -1);
+
+    int file_fd = openat(dir_fd, filename.c_str(), O_RDONLY);
+    ASSERT_NE(file_fd, -1);
+
+    close(file_fd);
+}
+
+TEST_F(OpenDirectoryInInputRootFixture, ValidPath)
+{
+    int directory_fd = -1;
+    ASSERT_NO_THROW(directory_fd =
+                        StagedDirectoryUtils::openDirectoryInInputRoot(
+                            root_directory_fd, "subdir1/subdir2"));
+
+    assertFileInDirectory(directory_fd, "file.txt");
+
+    close(directory_fd);
+}
+
+TEST_F(OpenDirectoryInInputRootFixture, OpenInputRoot)
+{
+    int directory_fd = -1;
+    ASSERT_NO_THROW(directory_fd =
+                        StagedDirectoryUtils::openDirectoryInInputRoot(
+                            root_directory_fd, "."));
+
+    ASSERT_NE(directory_fd, -1);
+
+    close(directory_fd);
+}
+
+TEST_F(OpenDirectoryInInputRootFixture, ValidPaths)
+{
+    int subdir1_fd = -1;
+    ASSERT_NO_THROW(subdir1_fd =
+                        StagedDirectoryUtils::openDirectoryInInputRoot(
+                            root_directory_fd, "subdir1/"));
+    ASSERT_NE(subdir1_fd, -1);
+
+    int subdir2_fd = -1;
+    ASSERT_NO_THROW(subdir2_fd =
+                        StagedDirectoryUtils::openDirectoryInInputRoot(
+                            subdir1_fd, "subdir2/"));
+    ASSERT_NE(subdir2_fd, -1);
+
+    assertFileInDirectory(subdir2_fd, "file.txt");
+
+    close(subdir1_fd);
+    close(subdir2_fd);
+}
+
+TEST_F(OpenDirectoryInInputRootFixture, RootFDArgumentIsNotClosed)
+{
+    const int directory_fd = StagedDirectoryUtils::openDirectoryInInputRoot(
+        root_directory_fd, "subdir1/subdir2");
+
+    ASSERT_NE(fcntl(root_directory_fd, F_GETFD), -1);
+
+    close(directory_fd);
+}
+
+TEST_F(OpenDirectoryInInputRootFixture, OpenFile)
+{
+    ASSERT_THROW(StagedDirectoryUtils::openDirectoryInInputRoot(
+                     root_directory_fd, "subdir1/subdir2/file.txt"),
+                 std::runtime_error);
+}
+
+TEST_F(OpenDirectoryInInputRootFixture, SymlinkInsideRoot)
+{
+    ASSERT_THROW(StagedDirectoryUtils::openDirectoryInInputRoot(
+                     root_directory_fd, "subdir1/subdir2/symlink"),
+                 std::system_error);
+}
+
+TEST_F(OpenDirectoryInInputRootFixture, SymlinkEscapingRoot)
+{
+    // Trying to open "subdir1/subdir2/symlink" with `subdir2/` as the root.
+    // `symlink` points to `subdir1/` is one level above and
+    // therefore not allowed.
+    int subdir2_fd =
+        openat(root_directory_fd, "subdir1/subdir2/", O_DIRECTORY);
+
+    ASSERT_THROW(StagedDirectoryUtils::openDirectoryInInputRoot(
+                     subdir2_fd, "subdir1/subdir2/symlink"),
+                 std::system_error);
+}
+
+TEST_F(OpenDirectoryInInputRootFixture, FileInInputRoot)
+{
+    ASSERT_TRUE(StagedDirectoryUtils::fileInInputRoot(
+        root_directory_fd, "subdir1/subdir2/file.txt"));
+
+    ASSERT_FALSE(StagedDirectoryUtils::fileInInputRoot(
+        root_directory_fd, "subdir1/subdir2/non-existing-file.txt"));
+
+    ASSERT_FALSE(StagedDirectoryUtils::fileInInputRoot(root_directory_fd,
+                                                       "subdir1/subdir2/"));
+
+    ASSERT_FALSE(StagedDirectoryUtils::fileInInputRoot(
+        root_directory_fd, "subdir1/subdir2/symlink"));
+}
+
+TEST_F(OpenDirectoryInInputRootFixture, DirectoryInInputRoot)
+{
+
+    ASSERT_TRUE(StagedDirectoryUtils::directoryInInputRoot(root_directory_fd,
+                                                           "subdir1/subdir2"));
+
+    ASSERT_TRUE(StagedDirectoryUtils::directoryInInputRoot(root_directory_fd,
+                                                           "subdir1/"));
+
+    ASSERT_TRUE(
+        StagedDirectoryUtils::directoryInInputRoot(root_directory_fd, "."));
+
+    ASSERT_FALSE(StagedDirectoryUtils::directoryInInputRoot(
+        root_directory_fd, "subdir1/subdir2/file.txt"));
+
+    ASSERT_FALSE(StagedDirectoryUtils::directoryInInputRoot(
+        root_directory_fd, "subdir1/subdir2/non-existing-file.txt"));
+
+    ASSERT_FALSE(StagedDirectoryUtils::directoryInInputRoot(
+        root_directory_fd, "subdir1/subdir2/symlink"));
 }

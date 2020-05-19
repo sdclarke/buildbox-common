@@ -98,7 +98,8 @@ OutputDirectory FallbackStagedDirectory::captureDirectory(
         // If this succeeds, it means that the path is valid: pointing to a
         // directory inside the input root.
         const int directory_fd =
-            openDirAt(this->d_stage_directory_fd, relative_path);
+            StagedDirectoryUtils::openDirectoryInInputRoot(
+                this->d_stage_directory_fd, relative_path);
         close(directory_fd);
     }
     catch (const std::system_error &) {
@@ -171,91 +172,8 @@ int FallbackStagedDirectory::openFile(const char *relative_path) const
     // of its components is a symlink that points to outside the input root.
     // For simplicity, we won't follow any symlinks.
 
-    // Splitting the path into a path and a filename and opening the directory
-    // where the file is at:
-    const auto path = std::string(relative_path);
-    const auto lastSlash = path.find_last_of('/');
-
-    std::string filename;
-    int directory_fd;
-    if (lastSlash == std::string::npos) {
-        // The path is a file in the root of the stage directory, we already
-        // have that directory open:
-        directory_fd = this->d_stage_directory_fd;
-        filename = path;
-    }
-    else {
-        // If not, we we open the directory making sure that there are no
-        // symlinks in it:
-        const auto base_path = path.substr(0, lastSlash);
-        directory_fd = openDirAt(this->d_stage_directory_fd, base_path);
-
-        filename = path.substr(lastSlash + 1);
-    }
-
-    // Now that we have the directory that contains the file open, and we are
-    // certain that it is inside the input root, we can open the file (also
-    // making sure that it is not a symlink):
-    const int file_fd =
-        openat(directory_fd, filename.c_str(), O_RDONLY | O_NOFOLLOW);
-
-    if (directory_fd != this->d_stage_directory_fd) {
-        close(directory_fd);
-    }
-
-    if (file_fd == -1) {
-        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
-            std::system_error, errno, std::system_category,
-            "Error opening \"" << relative_path << "\" inside of \""
-                               << this->d_stage_directory.name() << "\"");
-    }
-
-    return file_fd;
-}
-
-int FallbackStagedDirectory::openDirAt(const int root_dir_fd,
-                                       const std::string &path)
-{
-    // Removing trailing slashes to simplify detecting the end for all cases.
-    const auto path_end = path.cend() - (path.back() == '/');
-
-    auto findNextSeparator =
-        [&path_end](const std::string::const_iterator &start) {
-            // Return where the next directory component in `path` ends.
-            const auto separator = '/';
-            return std::find(start + 1, path_end, separator);
-        };
-
-    auto subdir_start = path.cbegin();
-    auto subdir_end = findNextSeparator(subdir_start);
-
-    int current_dir_fd = root_dir_fd;
-    while (true) {
-        const auto subdir_path = std::string(subdir_start, subdir_end);
-
-        const int subdir_fd = openat(current_dir_fd, subdir_path.c_str(),
-                                     O_DIRECTORY | O_NOFOLLOW);
-
-        if (subdir_fd == -1) {
-            BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
-                std::system_error, errno, std::system_category,
-                "Error opening subdirectory " << subdir_path << " in path \""
-                                              << path << "\"");
-        }
-
-        if (subdir_end == path_end) { // We opened the last directory.
-            return subdir_fd;
-        }
-
-        // Going down to the next level:
-        if (current_dir_fd != root_dir_fd) {
-            close(current_dir_fd); // Do not close the fd given as an argument.
-        }
-        current_dir_fd = subdir_fd;
-
-        subdir_start = subdir_end + 1;
-        subdir_end = findNextSeparator(subdir_start);
-    }
+    return StagedDirectoryUtils::openFileInInputRoot(
+        this->d_stage_directory_fd, relative_path);
 }
 
 } // namespace buildboxcommon

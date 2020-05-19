@@ -15,8 +15,10 @@
  */
 #include <buildboxcommon_stageddirectory.h>
 
+#include <buildboxcommon_exception.h>
 #include <buildboxcommon_fileutils.h>
 #include <buildboxcommon_logging.h>
+
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -130,5 +132,125 @@ void StagedDirectory::captureAllOutputs(
                 result->add_output_directories();
             directory_entry->CopyFrom(outputDirectory);
         }
+    }
+}
+
+int StagedDirectoryUtils::openFileInInputRoot(const int root_dir_fd,
+                                              const std::string &relative_path)
+{
+    // Splitting the path into a path and a filename and opening the directory
+    // where the file is at:
+    const auto path = std::string(relative_path);
+    const auto lastSlash = path.find_last_of('/');
+
+    std::string filename;
+    int directory_fd;
+    if (lastSlash == std::string::npos) {
+        // The path is a file in the root of the stage directory, we already
+        // have that directory open:
+        directory_fd = root_dir_fd;
+        filename = path;
+    }
+    else {
+        // If not, we open the directory making sure that there are no
+        // symlinks in it:
+        const auto base_path = path.substr(0, lastSlash);
+        directory_fd = openDirectoryInInputRoot(root_dir_fd, base_path);
+
+        filename = path.substr(lastSlash + 1);
+    }
+
+    // Now that we have the directory that contains the file open, and we are
+    // certain that it is inside the input root, we can open the file (also
+    // making sure that it is not a symlink):
+    const int file_fd =
+        openat(directory_fd, filename.c_str(), O_RDONLY | O_NOFOLLOW);
+
+    if (directory_fd != root_dir_fd) {
+        // Do not close the FD given as argument.
+        close(directory_fd);
+    }
+
+    if (file_fd == -1) {
+        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+            std::system_error, errno, std::system_category,
+            "Error opening \"" << relative_path << "\"");
+    }
+
+    return file_fd;
+}
+
+int StagedDirectoryUtils::openDirectoryInInputRoot(const int root_dir_fd,
+                                                   const std::string &path)
+{
+    // Removing trailing slashes to simplify detecting the end for all cases.
+    const auto path_end = path.cend() - (path.back() == '/');
+
+    auto findNextSeparator =
+        [&path_end](const std::string::const_iterator &start) {
+            // Return where the next directory component in `path` ends.
+            const auto separator = '/';
+            return std::find(start + 1, path_end, separator);
+        };
+
+    auto subdir_start = path.cbegin();
+    auto subdir_end = findNextSeparator(subdir_start);
+
+    int current_dir_fd = root_dir_fd;
+    while (true) {
+        const auto subdir_path = std::string(subdir_start, subdir_end);
+
+        const int subdir_fd = openat(current_dir_fd, subdir_path.c_str(),
+                                     O_DIRECTORY | O_NOFOLLOW);
+
+        if (subdir_fd == -1) {
+            BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+                std::system_error, errno, std::system_category,
+                "Error opening subdirectory " << subdir_path << " in path \""
+                                              << path << "\"");
+        }
+
+        if (subdir_end == path_end) { // We opened the last directory.
+            return subdir_fd;
+        }
+
+        // Going down to the next level:
+        if (current_dir_fd != root_dir_fd) {
+            close(current_dir_fd); // Do not close the fd given as an argument.
+        }
+        current_dir_fd = subdir_fd;
+
+        subdir_start = subdir_end + 1;
+        subdir_end = findNextSeparator(subdir_start);
+    }
+}
+
+bool StagedDirectoryUtils::fileInInputRoot(const int root_dir_fd,
+                                           const std::string &path)
+{
+    try {
+        const int fd = openFileInInputRoot(root_dir_fd, path);
+        close(fd);
+        return true;
+    }
+    catch (const std::system_error &) {
+        return false;
+    }
+}
+
+bool StagedDirectoryUtils::directoryInInputRoot(const int root_dir_fd,
+                                                const std::string &path)
+{
+    if (path.empty()) {
+        return true;
+    }
+
+    try {
+        const int fd = openDirectoryInInputRoot(root_dir_fd, path);
+        close(fd);
+        return true;
+    }
+    catch (const std::system_error &) {
+        return false;
     }
 }

@@ -87,6 +87,31 @@ class StagedDirectory {
   protected:
     std::string d_path;
 };
+
+struct StagedDirectoryUtils {
+    // These helpers allow to open files and directories while making sure that
+    // they are located under the directory specified by `root_dir_fd` and
+    // without following symlinks.
+
+    // If successful, returns a file descriptor to the filed pointed to by
+    // `path`. Otherwise, throws `std::system_error`.
+    static int openFileInInputRoot(const int root_dir_fd,
+                                   const std::string &relative_path);
+
+    // If successful, returns a file descriptor to the last directory in
+    // `path`. Otherwise, throws `std::system_error`.
+    static int openDirectoryInInputRoot(const int root_dir_fd,
+                                        const std::string &path);
+
+    // Returns whether the path points to a regular file under the input root.
+    static bool fileInInputRoot(const int root_dir_fd,
+                                const std::string &path);
+
+    // Returns whether the path points to a directory under the input root.
+    static bool directoryInInputRoot(const int root_dir_fd,
+                                     const std::string &path);
+};
+
 } // namespace buildboxcommon
 
 #endif
