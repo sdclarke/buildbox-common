@@ -75,6 +75,12 @@ class FallbackStagedDirectory : public StagedDirectory {
                            const char *workingDirectory) const;
 
     Digest uploadDirectory(const std::string &path) const;
+
+    // Helper that opens a directory making sure that it is located under the
+    // directory specified by `root_dir_fd` and without following symlinks.
+    // If successful, returns a file descriptor to the last directory in
+    // `path`. Otherwise, throws `std::system_error`.
+    static int openDirAt(const int root_dir_fd, const std::string &path);
 };
 } // namespace buildboxcommon
 

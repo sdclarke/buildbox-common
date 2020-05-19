@@ -142,6 +142,49 @@ TEST_P(CaptureTestFixtureParameter, CaptureDirectoryTest)
     ASSERT_EQ(output_dir.path(), "upload_testx");
 }
 
+TEST_F(CaptureTestFixtureParameter, CaptureDirectoryEscapingInputRoot)
+{
+
+    // FallBackStagedDirectory will first download the contents using the CAS
+    // client:
+    EXPECT_CALL(*bytestreamClient, ReadRaw(_, _))
+        .WillRepeatedly(Return(reader));
+
+    EXPECT_CALL(*reader, Read(_))
+        .WillOnce(Return(true))
+        .WillOnce(Return(false));
+
+    EXPECT_CALL(*reader, Finish()).WillRepeatedly(Return(grpc::Status::OK));
+
+    // Setting up a directory structure with an escaping symlink:
+    // top_level/  <------------|
+    //    | input_root/         |
+    //          | symlink ------|
+    TemporaryDirectory top_level_directory;
+    TemporaryDirectory input_root(top_level_directory.name(), "tmp-test");
+
+    // This symlink goes above the input root, so it must not be followed when
+    // capturing:
+    const std::string symlink_path =
+        std::string(input_root.name()) + "/escaping-symlink";
+    ASSERT_EQ(symlink(top_level_directory.name(), symlink_path.c_str()), 0);
+
+    // Stage:
+    FallbackStagedDirectory fs(digest, input_root.name(), client);
+    const std::string staged_path = fs.getPath();
+
+    auto dummy_upload_directory_function = [](const std::string &) {
+        return make_digest("dummy-tree-digest");
+    };
+
+    // And attempt to capture the symlink:
+    const OutputDirectory output_dir =
+        fs.captureDirectory("symlink/", dummy_upload_directory_function);
+
+    ASSERT_TRUE(output_dir.path().empty());
+    ASSERT_EQ(output_dir.tree_digest(), Digest());
+}
+
 TemporaryFile createExecutableTestFile(const std::string &dir_path,
                                        Digest *file_digest)
 {
@@ -202,6 +245,49 @@ TEST_F(CaptureTestFixtureParameter, CaptureFileTest)
     ASSERT_EQ(output_file.path(), staged_file_name);
     ASSERT_EQ(output_file.digest(), staged_file_digest);
     ASSERT_TRUE(output_file.is_executable());
+}
+
+TEST_F(CaptureTestFixtureParameter, CaptureFileEscapingInputRootTest)
+{
+    // FallBackStagedDirectory will first download the contents using the CAS
+    // client:
+    EXPECT_CALL(*bytestreamClient, ReadRaw(_, _))
+        .WillRepeatedly(Return(reader));
+
+    EXPECT_CALL(*reader, Read(_))
+        .WillOnce(Return(true))
+        .WillOnce(Return(false));
+
+    EXPECT_CALL(*reader, Finish()).WillRepeatedly(Return(grpc::Status::OK));
+
+    // Setting up a directory structure with an escaping symlink:
+    // top_level/  <------------|
+    //    | input_root/         |
+    //          | symlink ------|
+    TemporaryDirectory top_level_directory;
+    TemporaryDirectory input_root(top_level_directory.name(), "tmp-test");
+
+    // This symlink goes above the input root, so it must not be followed when
+    // capturing:
+    const std::string symlink_path =
+        std::string(input_root.name()) + "/escaping-symlink";
+    ASSERT_EQ(symlink(top_level_directory.name(), symlink_path.c_str()), 0);
+
+    // Stage:
+    const std::string stage_location = input_root.name();
+    FallbackStagedDirectory fs(digest, stage_location, client);
+    const std::string staged_path = fs.getPath();
+
+    const auto dummy_upload_function = [](const int, const Digest &) {
+        return make_digest("dummy-digest");
+    };
+
+    // And attempt to capture:
+    const OutputFile output_file =
+        fs.captureFile("symlink", dummy_upload_function);
+
+    ASSERT_TRUE(output_file.path().empty());
+    ASSERT_EQ(output_file.digest(), Digest());
 }
 
 TEST_F(CaptureTestFixtureParameter, CaptureNonExistentFileDoesNotCallUpload)
@@ -275,3 +361,123 @@ std::string get_current_working_directory()
 INSTANTIATE_TEST_CASE_P(CaptureTests, CaptureTestFixtureParameter,
                         ::testing::Values("",
                                           get_current_working_directory()));
+
+class OpenDirectoryInInputRootFixture : public FallbackStagedDirectory,
+                                        public ::testing::Test {
+  protected:
+    OpenDirectoryInInputRootFixture() : root_directory_fd(-1)
+    {
+        // Testing with the following directory structure:
+        //
+        // * root_directory/      symlink
+        //      | subdir1/  <--------------------|
+        //           | subdir2/                  |
+        //               | file.txt              |
+        //               | symlink/ -------------|
+
+        const std::string root_directory_path = root_directory.name();
+
+        const auto subdir1_path = root_directory_path + "/subdir1/";
+        FileUtils::createDirectory(subdir1_path.c_str());
+
+        const auto subdir2_path = root_directory_path + "/subdir1/subdir2/";
+        FileUtils::createDirectory(subdir2_path.c_str());
+
+        const auto subdir3_path =
+            root_directory_path + "/subdir1/subdir2/symlink";
+
+        if (symlink(subdir1_path.c_str(), subdir3_path.c_str()) == -1) {
+            throw std::system_error(
+                errno, std::system_category(),
+                "Error creating symlink in the test directory structure.");
+        }
+
+        FileUtils::writeFileAtomically(
+            std::string(root_directory_path + "/subdir1/subdir2/file.txt")
+                .c_str(),
+            "Some data...");
+
+        root_directory_fd = open(root_directory.name(), O_DIRECTORY);
+    }
+
+    TemporaryDirectory root_directory;
+    int root_directory_fd;
+
+    ~OpenDirectoryInInputRootFixture() { close(root_directory_fd); }
+};
+
+void assertFileInDirectory(const int dir_fd, const std::string &filename)
+{
+    ASSERT_NE(dir_fd, -1);
+
+    int file_fd = openat(dir_fd, filename.c_str(), O_RDONLY);
+    ASSERT_NE(file_fd, -1);
+
+    close(file_fd);
+}
+
+TEST_F(OpenDirectoryInInputRootFixture, ValidPath)
+{
+    int directory_fd = -1;
+    ASSERT_NO_THROW(directory_fd = FallbackStagedDirectory::openDirAt(
+                        root_directory_fd, "subdir1/subdir2"));
+
+    assertFileInDirectory(directory_fd, "file.txt");
+
+    close(directory_fd);
+}
+
+TEST_F(OpenDirectoryInInputRootFixture, ValidPaths)
+{
+    int subdir1_fd = -1;
+    ASSERT_NO_THROW(subdir1_fd = FallbackStagedDirectory::openDirAt(
+                        root_directory_fd, "subdir1/"));
+    ASSERT_NE(subdir1_fd, -1);
+
+    int subdir2_fd = -1;
+    ASSERT_NO_THROW(subdir2_fd = FallbackStagedDirectory::openDirAt(
+                        subdir1_fd, "subdir2/"));
+    ASSERT_NE(subdir2_fd, -1);
+
+    assertFileInDirectory(subdir2_fd, "file.txt");
+
+    close(subdir1_fd);
+    close(subdir2_fd);
+}
+
+TEST_F(OpenDirectoryInInputRootFixture, RootFDArgumentIsNotClosed)
+{
+    const int directory_fd = FallbackStagedDirectory::openDirAt(
+        root_directory_fd, "subdir1/subdir2");
+
+    ASSERT_NE(fcntl(root_directory_fd, F_GETFD), -1);
+
+    close(directory_fd);
+}
+
+TEST_F(OpenDirectoryInInputRootFixture, OpenFile)
+{
+    ASSERT_THROW(FallbackStagedDirectory::openDirAt(
+                     root_directory_fd, "subdir1/subdir2/file.txt"),
+                 std::runtime_error);
+}
+
+TEST_F(OpenDirectoryInInputRootFixture, SymlinkInsideRoot)
+{
+    ASSERT_THROW(FallbackStagedDirectory::openDirAt(root_directory_fd,
+                                                    "subdir1/subdir2/symlink"),
+                 std::system_error);
+}
+
+TEST_F(OpenDirectoryInInputRootFixture, SymlinkEscapingRoot)
+{
+    // Trying to open "subdir1/subdir2/symlink" with `subdir2/` as the root.
+    // `symlink` points to `subdir1/` is one level above and
+    // therefore not allowed.
+    int subdir2_fd =
+        openat(root_directory_fd, "subdir1/subdir2/", O_DIRECTORY);
+
+    ASSERT_THROW(FallbackStagedDirectory::openDirAt(subdir2_fd,
+                                                    "subdir1/subdir2/symlink"),
+                 std::system_error);
+}
