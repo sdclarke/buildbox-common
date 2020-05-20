@@ -53,9 +53,17 @@ class StagedDirectory {
      */
     inline const char *getPath() const { return d_path.c_str(); }
 
+    // NOTE: The implementations of the capture methods below will assume that
+    // changes will not take place in the input root while they are running.
+    // This is generally true when they are called after a command finishes
+    // executing, but, to avoid race conditions, other processes should be kept
+    // from writing to those directories as well.
+
+    // Capture a file inside the `Command`'s input root.
     virtual OutputFile captureFile(const char *relative_path,
                                    const Command &command) const = 0;
 
+    // Capture a directory inside the `Command's` input root.
     virtual OutputDirectory captureDirectory(const char *relative_path,
                                              const Command &command) const = 0;
 
