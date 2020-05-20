@@ -38,8 +38,8 @@ LocalCasStagedDirectory::LocalCasStagedDirectory(
 {
     this->d_path = d_cas_client_staged_directory->path();
 
-    this->d_staged_directory_fd =
-        open(d_cas_client_staged_directory->path().c_str(), O_DIRECTORY);
+    this->d_staged_directory_fd = open(
+        d_cas_client_staged_directory->path().c_str(), O_DIRECTORY | O_RDONLY);
 
     if (d_staged_directory_fd == -1) {
         BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(

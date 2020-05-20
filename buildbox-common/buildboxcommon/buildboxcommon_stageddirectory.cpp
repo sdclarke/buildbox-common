@@ -201,7 +201,7 @@ int StagedDirectoryUtils::openDirectoryInInputRoot(const int root_dir_fd,
         const auto subdir_path = std::string(subdir_start, subdir_end);
 
         const int subdir_fd = openat(current_dir_fd, subdir_path.c_str(),
-                                     O_DIRECTORY | O_NOFOLLOW);
+                                     O_DIRECTORY | O_RDONLY | O_NOFOLLOW);
 
         if (subdir_fd == -1) {
             BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(

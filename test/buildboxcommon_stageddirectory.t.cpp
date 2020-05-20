@@ -206,7 +206,8 @@ class OpenDirectoryInInputRootFixture : public ::testing::Test {
                 .c_str(),
             "Some data...");
 
-        root_directory_fd = open(root_directory.name(), O_DIRECTORY);
+        root_directory_fd =
+            open(root_directory.name(), O_DIRECTORY | O_RDONLY);
     }
 
     TemporaryDirectory root_directory;
@@ -299,7 +300,7 @@ TEST_F(OpenDirectoryInInputRootFixture, SymlinkEscapingRoot)
     // `symlink` points to `subdir1/` is one level above and
     // therefore not allowed.
     int subdir2_fd =
-        openat(root_directory_fd, "subdir1/subdir2/", O_DIRECTORY);
+        openat(root_directory_fd, "subdir1/subdir2/", O_DIRECTORY | O_RDONLY);
 
     ASSERT_THROW(StagedDirectoryUtils::openDirectoryInInputRoot(
                      subdir2_fd, "subdir1/subdir2/symlink"),
