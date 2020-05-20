@@ -93,16 +93,10 @@ OutputDirectory FallbackStagedDirectory::captureDirectory(
         &upload_directory_function) const
 {
 
-    try {
-        // Attempting to open the directory without following symlinks.
-        // If this succeeds, it means that the path is valid: pointing to a
-        // directory inside the input root.
-        const int directory_fd =
-            StagedDirectoryUtils::openDirectoryInInputRoot(
-                this->d_stage_directory_fd, relative_path);
-        close(directory_fd);
-    }
-    catch (const std::system_error &) {
+    if (!StagedDirectoryUtils::directoryInInputRoot(this->d_stage_directory_fd,
+                                                    relative_path)) {
+        // The directory either does not exist or is not reachable without
+        // following symlinks.
         return OutputDirectory();
     }
 
