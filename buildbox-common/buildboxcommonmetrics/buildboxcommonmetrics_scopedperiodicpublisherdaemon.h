@@ -15,7 +15,7 @@
 #ifndef INCLUDED_BUILDBOXCOMMONMETRICS_SCOPEDPERIODICPUBLISHERDAEMON_H
 #define INCLUDED_BUILDBOXCOMMONMETRICS_SCOPEDPERIODICPUBLISHERDAEMON_H
 
-#include <atomic>
+#include <condition_variable>
 #include <thread>
 
 namespace buildboxcommon {
@@ -23,18 +23,33 @@ namespace buildboxcommonmetrics {
 
 template <class PublisherType> class ScopedPeriodicPublisherDaemon {
   private:
-    std::atomic<bool> d_shutDown;
+    std::condition_variable d_shutDownCondition;
+    std::mutex d_shutDownMutex;
+    bool d_shutDown;
+
     bool d_enabled;
-    const size_t d_publishIntervalSeconds;
+    const std::chrono::seconds d_publishIntervalSeconds;
     std::thread d_publisherThread;
     PublisherType d_publisher;
 
     void run()
     {
-        while (!d_shutDown) {
+        while (true) {
+            // Blocking while waiting `d_publishIntervalSeconds` to elapse or
+            // `d_shutDown` to be set...
+            std::unique_lock<std::mutex> shutDownLock(d_shutDownMutex);
+            const bool shutdown_requested = d_shutDownCondition.wait_for(
+                shutDownLock, d_publishIntervalSeconds,
+                [this]() { return this->d_shutDown; });
+
+            if (shutdown_requested) {
+                // We were signaled to stop: exit the thread immediately.
+                // (`~ScopedPeriodicPublisherDaemon()` will carry out the last
+                // publication.)
+                return;
+            }
+
             d_publisher.publish();
-            std::this_thread::sleep_for(
-                std::chrono::seconds(d_publishIntervalSeconds));
         }
     }
 
@@ -81,7 +96,13 @@ template <class PublisherType> class ScopedPeriodicPublisherDaemon {
             return;
         }
 
-        d_shutDown = true;
+        // Signaling the publisher thread and waiting for it to exit:
+        {
+            const std::lock_guard<std::mutex> lock(d_shutDownMutex);
+            d_shutDown = true;
+        }
+        d_shutDownCondition.notify_one();
+
         if (d_publisherThread.joinable()) {
             d_publisherThread.join();
         }

@@ -45,7 +45,10 @@ TEST(MergeTest, ScopedPeriodicPublisherDaemon_Enabled)
         std::this_thread::sleep_for(std::chrono::seconds(sleepSeconds));
     }
 
-    EXPECT_GE(numTimesPublishCalled, sleepSeconds);
+    EXPECT_GE(numTimesPublishCalled, sleepSeconds - 1);
+    // `ScopedPeriodicPublisherDaemon.run()` will sleep 1 second before the
+    // first publication.
+
     EXPECT_NE(std::this_thread::get_id(), publisherThreadId);
 }
 
