@@ -1374,7 +1374,7 @@ TEST_P(DownloadBlobsFixture, DownloadBlobsBatchWithMissingBlob)
     }
 }
 
-TEST_P(DownloadBlobsFixture, DownloadBlobsFails)
+TEST_P(DownloadBlobsFixture, DownloadBlobsHelperFails)
 {
     Digest digest;
     digest.set_hash("hash0");
@@ -1413,4 +1413,57 @@ TEST_P(DownloadBlobsFixture, DownloadBlobsFails)
         ASSERT_EQ(download_results.front().second.code(),
                   errorStatus.error_code());
     }
+}
+
+TEST_F(DownloadBlobsFixture, DownloadBlobsResultSuccessfulStatusAndData)
+{
+    // Test the public `downloadBlobs()` method to check that the returned map
+    // is correct.
+    const auto data = std::string(MAX_BATCH_SIZE_BYTES + 1, 'A');
+    readResponse.set_data(data);
+
+    const Digest digest = CASHash::hash(data);
+
+    EXPECT_CALL(*bytestreamClient, ReadRaw(_, _)).WillOnce(Return(reader));
+    EXPECT_CALL(*reader, Read(_))
+        .WillOnce(DoAll(SetArgPointee<0>(readResponse), Return(true)))
+        .WillOnce(Return(false));
+    EXPECT_CALL(*reader, Finish()).WillOnce(Return(grpc::Status::OK));
+
+    const Client::DownloadBlobsResult download_results =
+        this->downloadBlobs({digest});
+    ASSERT_EQ(download_results.count(digest.hash()), 1);
+    ASSERT_EQ(download_results.size(), 1);
+
+    const auto &result = download_results.at(digest.hash());
+    const auto &result_status = result.first;
+    const auto &result_data = result.second;
+
+    ASSERT_EQ(result_status.code(), grpc::StatusCode::OK);
+    ASSERT_EQ(result_data, data);
+}
+
+TEST_F(DownloadBlobsFixture, DownloadBlobsResultErrorCode)
+{
+    // Test the public `downloadBlobs()` method to check that the returned map
+    // is correct.
+    Digest digest;
+    digest.set_hash("hash0");
+    digest.set_size_bytes(3 * MAX_BATCH_SIZE_BYTES);
+
+    const auto errorStatus =
+        grpc::Status(grpc::StatusCode::NOT_FOUND, "Digest not found in CAS.");
+    EXPECT_CALL(*bytestreamClient, ReadRaw(_, _)).WillOnce(Return(reader));
+    EXPECT_CALL(*reader, Read(_)).WillOnce(Return(false));
+    EXPECT_CALL(*reader, Finish()).WillOnce(Return(errorStatus));
+
+    Client::DownloadBlobsResult download_results;
+    ASSERT_NO_THROW(download_results = this->downloadBlobs({digest}));
+
+    ASSERT_EQ(download_results.size(), 1);
+    ASSERT_EQ(download_results.count(digest.hash()), 1);
+
+    const auto result = download_results.at(digest.hash());
+    ASSERT_EQ(result.first.code(), errorStatus.error_code());
+    ASSERT_EQ(result.second, "");
 }

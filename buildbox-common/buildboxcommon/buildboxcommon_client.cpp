@@ -610,17 +610,33 @@ Client::uploadBlobs(const std::vector<UploadRequest> &requests,
     return results;
 }
 
-Client::DownloadedData
+Client::DownloadBlobsResult
 Client::downloadBlobs(const std::vector<Digest> &digests)
 {
+    Client::DownloadBlobsResult downloaded_data;
 
-    Client::DownloadedData downloaded_data;
-
+    // Writing the data directly into the result. (We know that the status code
+    // will be OK for each of these blobs.)
     auto write_blob = [&](const std::string &hash, const std::string &data) {
-        downloaded_data[hash] = data;
+        google::rpc::Status status;
+        status.set_code(grpc::StatusCode::OK);
+
+        downloaded_data.emplace(hash, std::make_pair(status, data));
     };
 
-    downloadBlobs(digests, write_blob, false);
+    const Client::DownloadResults download_results =
+        downloadBlobs(digests, write_blob, false);
+
+    // And adding the codes of the hashes that failed into the result:
+    for (const auto &entry : download_results) {
+        const Digest &digest = entry.first;
+        const google::rpc::Status &status = entry.second;
+
+        if (status.code() != grpc::StatusCode::OK) {
+            downloaded_data.emplace(digest.hash(), std::make_pair(status, ""));
+        }
+    }
+
     return downloaded_data;
 }
 

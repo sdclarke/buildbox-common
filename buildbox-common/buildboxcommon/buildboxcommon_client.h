@@ -143,15 +143,17 @@ class Client {
     std::vector<UploadResult>
     uploadBlobs(const std::vector<UploadRequest> &requests);
 
-    typedef std::unordered_map<std::string, std::string> DownloadedData;
+    typedef std::unordered_map<std::string,
+                               std::pair<google::rpc::Status, std::string>>
+        DownloadBlobsResult;
 
     /* Given a list of digests, download the data and return it in a map
      * indexed by hash. Allow each digest to potentially fail separately.
      *
-     * The hashes that could *not* be fetched will *not* be defined in the
-     * returned map.
+     * The returned map's values are pairs of (status, data) where the second
+     * component will be empty if the status contains an non-OK code.
      */
-    DownloadedData downloadBlobs(const std::vector<Digest> &digests);
+    DownloadBlobsResult downloadBlobs(const std::vector<Digest> &digests);
 
     /* Given a list of digests, download the data and store each blob in the
      * path specified by the entry's first member in the `outputs` map. If the
