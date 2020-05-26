@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if BUILDBOXCOMMON_CXX_STANDARD == 17
+#define BUILDBOXCOMMON_COMMANDLINE_USES_CXX17
+#endif
+
 #include <buildboxcommon_commandline.h>
 
 #include <buildboxcommon_fileutils.h>
@@ -26,10 +30,14 @@
 namespace buildboxcommon {
 
 using ArgumentSpec = buildboxcommon::CommandLineTypes::ArgumentSpec;
+using ArgumentValue = buildboxcommon::CommandLineTypes::ArgumentValue;
+using DataType = buildboxcommon::CommandLineTypes::DataType;
+using Type = buildboxcommon::CommandLineTypes::Type;
 using TypeInfo = buildboxcommon::CommandLineTypes::TypeInfo;
 
 namespace {
 
+// left pad 'str' including left padding any data after newlines
 std::string padString(const std::string &str, const int fill)
 {
     std::ostringstream oss;
@@ -134,31 +142,32 @@ bool CommandLine::buildArgumentValue(const std::string &optionValue,
                                      ArgumentValue *argumentValue)
 {
     try {
-        switch (spec.d_type.type()) {
-            case TypeInfo::DT_STRING:
+        switch (spec.dataType()) {
+            case DataType::DT_STRING:
                 *argumentValue = optionValue;
-                if (spec.d_type.isBindable()) {
-                    *(static_cast<std::string *>(spec.d_type.getBindable())) =
-                        optionValue;
+                if (spec.d_typeInfo.isBindable()) {
+                    *(static_cast<std::string *>(
+                        spec.d_typeInfo.getBindable())) = optionValue;
                 }
                 break;
-            case TypeInfo::DT_INT: {
+            case DataType::DT_INT: {
                 const int val = std::stoi(optionValue.c_str());
                 *argumentValue = val;
-                if (spec.d_type.isBindable()) {
-                    *(static_cast<int *>(spec.d_type.getBindable())) = val;
+                if (spec.d_typeInfo.isBindable()) {
+                    *(static_cast<int *>(spec.d_typeInfo.getBindable())) = val;
                 }
                 break;
             }
-            case TypeInfo::DT_DOUBLE: {
+            case DataType::DT_DOUBLE: {
                 const double val = std::stod(optionValue.c_str());
                 *argumentValue = val;
-                if (spec.d_type.isBindable()) {
-                    *(static_cast<double *>(spec.d_type.getBindable())) = val;
+                if (spec.d_typeInfo.isBindable()) {
+                    *(static_cast<double *>(spec.d_typeInfo.getBindable())) =
+                        val;
                 }
                 break;
             }
-            case TypeInfo::DT_BOOL: {
+            case DataType::DT_BOOL: {
                 std::string tmpVal(optionValue);
                 if (tmpVal.empty() &&
                     spec.d_constraint == ArgumentSpec::C_WITHOUT_ARG) {
@@ -166,64 +175,67 @@ bool CommandLine::buildArgumentValue(const std::string &optionValue,
                 }
                 const bool val = (tmpVal == "true");
                 *argumentValue = val;
-                if (spec.d_type.isBindable()) {
-                    *(static_cast<bool *>(spec.d_type.getBindable())) = val;
+                if (spec.d_typeInfo.isBindable()) {
+                    *(static_cast<bool *>(spec.d_typeInfo.getBindable())) =
+                        val;
                 }
                 break;
             }
-            case TypeInfo::DT_STRING_ARRAY: {
+            case DataType::DT_STRING_ARRAY: {
                 auto it = d_parsedArgs.find(spec.d_name);
                 if (it == d_parsedArgs.end()) {
-                    TypeInfo::VectorOfString vs = {optionValue};
+                    Type::VectorOfString vs = {optionValue};
                     *argumentValue = vs;
                 }
                 else {
 #ifdef BUILDBOXCOMMON_COMMANDLINE_USES_CXX17
-                    std::get<TypeInfo::VectorOfString>(
-                        it->second.d_argumentValue)
+                    std::get<Type::VectorOfString>(it->second.d_argumentValue)
                         .emplace_back(optionValue);
 #else
                     it->second.d_argumentValue.d_vs.emplace_back(optionValue);
 #endif
                 }
-                if (spec.d_type.isBindable()) {
-                    static_cast<TypeInfo::VectorOfString *>(
-                        spec.d_type.getBindable())
+                if (spec.d_typeInfo.isBindable()) {
+                    static_cast<Type::VectorOfString *>(
+                        spec.d_typeInfo.getBindable())
                         ->emplace_back(optionValue);
                 }
                 break;
             }
-            case TypeInfo::DT_STRING_PAIR_ARRAY: {
+            case DataType::DT_STRING_PAIR_ARRAY: {
                 std::string key, value;
                 split(optionValue, &key, &value);
                 auto it = d_parsedArgs.find(spec.d_name);
                 if (it == d_parsedArgs.end()) {
-                    TypeInfo::VectorOfPairOfString vps = {{key, value}};
+                    Type::VectorOfPairOfString vps = {{key, value}};
                     *argumentValue = vps;
                 }
                 else {
 #ifdef BUILDBOXCOMMON_COMMANDLINE_USES_CXX17
-                    std::get<TypeInfo::VectorOfPairOfString>(
+                    std::get<Type::VectorOfPairOfString>(
                         it->second.d_argumentValue)
-                        .emplace_back(TypeInfo::PairOfString{key, value});
+                        .emplace_back(Type::PairOfString{key, value});
 #else
                     it->second.d_argumentValue.d_vps.emplace_back(
-                        TypeInfo::PairOfString{key, value});
+                        Type::PairOfString{key, value});
 #endif
                 }
-                if (spec.d_type.isBindable()) {
-                    static_cast<TypeInfo::VectorOfPairOfString *>(
-                        spec.d_type.getBindable())
-                        ->emplace_back(TypeInfo::PairOfString{key, value});
+                if (spec.d_typeInfo.isBindable()) {
+                    static_cast<Type::VectorOfPairOfString *>(
+                        spec.d_typeInfo.getBindable())
+                        ->emplace_back(Type::PairOfString{key, value});
                 }
             } break;
+            case DataType::DT_UNKNOWN:
+                throw std::runtime_error(
+                    "unexpected type encountered: DT_UNKNOWN");
         }
     }
     catch (const std::invalid_argument &e) {
         out << prefix(__LINE__)
             << ": invalid_argument error caught converting argument \""
             << optionValue << "\" to "
-            << (spec.d_type.type() == TypeInfo::DT_DOUBLE ? "double" : "int")
+            << (spec.dataType() == DataType::DT_DOUBLE ? "double" : "int")
             << std::endl;
         return false;
     }
@@ -231,7 +243,7 @@ bool CommandLine::buildArgumentValue(const std::string &optionValue,
         out << prefix(__LINE__)
             << ": out_of_range error caught converting argument \""
             << optionValue << "\" to "
-            << (spec.d_type.type() == TypeInfo::DT_DOUBLE ? "double" : "int")
+            << (spec.dataType() == DataType::DT_DOUBLE ? "double" : "int")
             << std::endl;
         return false;
     }
@@ -325,6 +337,72 @@ bool CommandLine::parseOptions(std::ostream &out)
     return true;
 }
 
+bool CommandLine::applyDefaultValues(std::ostream &out)
+{
+    for (const auto &spec : d_spec) {
+        // does not apply to positionals(for now)
+        if (spec.d_name.empty()) {
+            continue;
+        }
+
+        // disallow
+        if (spec.isRequired() && spec.hasDefaultValue()) {
+            out << prefix(__LINE__) << ": parse error: option \""
+                << spec.d_name
+                << "\" is specified as REQUIRED and is specifying a default "
+                << "value which is not allowed(only optional arguments "
+                << "are allowed default values), please fix the specification"
+                << std::endl;
+            return false;
+        }
+
+        // nothing to do if it was provided on the command line
+        if (exists(spec.d_name)) {
+            continue;
+        }
+
+        // nothing to do if there is no default values
+        if (!spec.hasDefaultValue()) {
+            continue;
+        }
+
+        if (spec.dataType() != spec.defaultValue().dataType()) {
+            out << prefix(__LINE__) << ": parse error: option \""
+                << spec.d_name << "\" is specified as type " << spec.dataType()
+                << " but the default value is specified with type "
+                << spec.defaultValue().dataType()
+                << ", please fix the specification" << std::endl;
+            return false;
+        }
+
+        // we have a default value, so apply it to the container
+        ArgumentValue argumentValue;
+        switch (spec.dataType()) {
+            case DataType::DT_STRING:
+                argumentValue = spec.defaultValue().getString();
+                break;
+            case DataType::DT_INT:
+                argumentValue = spec.defaultValue().getInt();
+                break;
+            case DataType::DT_DOUBLE:
+                argumentValue = spec.defaultValue().getDouble();
+                break;
+            case DataType::DT_BOOL: {
+                argumentValue = spec.defaultValue().getBool();
+                break;
+            }
+            default:
+                break;
+        }
+
+        // add the default values to the container
+        d_parsedArgs.emplace(CommandLineArgs::value_type(
+            spec.d_name, ArgumentMetaData(argumentValue, spec)));
+    }
+
+    return true;
+}
+
 bool CommandLine::parsePositionals(std::ostream &out)
 {
     // sanity check for missing positionals
@@ -348,7 +426,7 @@ bool CommandLine::parsePositionals(std::ostream &out)
             continue;
         }
 
-        // add everything to the container
+        // bind values
         ArgumentValue argumentValue;
         if (!buildArgumentValue(positional, *spec, out, &argumentValue)) {
             return false;
@@ -445,6 +523,10 @@ bool CommandLine::parse(const int argc, const char *argv[], std::ostream &out)
         return false;
     }
 
+    if (!applyDefaultValues(out)) {
+        return false;
+    }
+
     // parse positionals
     return parsePositionals(out);
 }
@@ -460,17 +542,16 @@ bool CommandLine::validateRequiredArgs(std::string *out)
     const std::string filler(tmp.length() + 2, ' ');
     std::ostringstream oss;
     for (size_t i = 0; i < d_spec.size(); ++i) {
-        const ArgumentSpec *spec = &d_spec[i];
+        const ArgumentSpec &spec = d_spec[i];
 
         // do not count positionals
-        if (spec->d_name.empty()) {
+        if (spec.d_name.empty()) {
             continue;
         }
 
-        if (spec->isRequired() && d_parsedArgs.count(spec->d_name) == 0) {
-            oss << filler << "\"" << (spec->d_name.empty() ? "" : "--")
-                << (spec->d_name.empty() ? spec->d_desc : spec->d_name)
-                << "\"\n";
+        if (spec.isRequired() && d_parsedArgs.count(spec.d_name) == 0) {
+            oss << filler << "\"" << (spec.d_name.empty() ? "" : "--")
+                << (spec.d_name.empty() ? spec.d_desc : spec.d_name) << "\"\n";
             ++numMissing;
         }
     }
@@ -507,17 +588,37 @@ void CommandLine::usage(std::ostream &out)
     static const std::string prefixFill(prefixSize, ' ');
     out << "Usage: " << d_processName << "\n";
     for (size_t i = 0; i < d_spec.size(); ++i) {
-        const ArgumentSpec *spec = &d_spec[i];
+        const ArgumentSpec &spec = d_spec[i];
         const int fill = static_cast<int>(
-            maxPadding - (spec->d_name.empty() ? spec->d_desc.length()
-                                               : spec->d_name.length()));
+            maxPadding - (spec.d_name.empty() ? spec.d_desc.length()
+                                              : spec.d_name.length()));
         const std::string paddedDesc =
-            padString(spec->d_desc, (int)(maxPadding + prefixSize + gapSize));
-        out << prefixFill << (spec->d_name.empty() ? "  " : "--")
-            << (spec->d_name.empty() ? paddedDesc : spec->d_name)
+            padString(spec.d_desc, (int)(maxPadding + prefixSize + gapSize));
+        out << prefixFill << (spec.d_name.empty() ? "  " : "--")
+            << (spec.d_name.empty() ? paddedDesc : spec.d_name)
             << std::setw(fill) << " "
-            << (spec->d_name.empty() ? "POSITIONAL" : paddedDesc)
-            << (spec->isOptional() ? " [optional]" : "") << "\n";
+            << (spec.d_name.empty() ? "POSITIONAL" : paddedDesc) << " ["
+            << (spec.isOptional() ? "optional" : "required");
+        if (spec.hasDefaultValue()) {
+            out << ", default = ";
+            switch (spec.dataType()) {
+                case DataType::DT_STRING:
+                    out << "\"" << spec.defaultValue().getString() << "\"";
+                    break;
+                case DataType::DT_INT:
+                    out << spec.defaultValue().getInt();
+                    break;
+                case DataType::DT_DOUBLE:
+                    out << std::fixed << spec.defaultValue().getDouble();
+                    break;
+                case DataType::DT_BOOL:
+                    out << std::boolalpha << spec.defaultValue().getBool();
+                    break;
+                default:
+                    break;
+            }
+        }
+        out << "]\n";
     }
 
     out << std::endl;
@@ -528,12 +629,16 @@ template <typename T> const T &CommandLine::get(const std::string &name) const
 {
     const auto it = d_parsedArgs.find(name);
     if (it == d_parsedArgs.end()) {
-        throw std::runtime_error("argument \"" + name + "\" not found");
+        std::ostringstream oss;
+        oss << prefix(__LINE__) << " argument \"" << name << "\" not found";
+        throw std::runtime_error(oss.str());
     }
 
     if (!std::holds_alternative<T>(it->second.d_argumentValue)) {
-        throw std::runtime_error("mismatched types in lookup of arg \"" +
-                                 name + "\"");
+        std::ostringstream oss;
+        oss << prefix(__LINE__) << " mismatched types in lookup of arg \""
+            << name << "\"";
+        throw std::runtime_error(oss.str());
     }
 
     return std::get<T>(it->second.d_argumentValue);
@@ -549,8 +654,10 @@ const T &CommandLine::get(const std::string &name,
     }
 
     if (!std::holds_alternative<T>(it->second.d_argumentValue)) {
-        throw std::runtime_error("mismatched types in lookup of arg \"" +
-                                 name + "\"");
+        std::ostringstream oss;
+        oss << prefix(__LINE__) << " mismatched types in lookup of arg \""
+            << name << "\"";
+        throw std::runtime_error(oss.str());
     }
 
     return std::get<T>(it->second.d_argumentValue);
@@ -561,11 +668,10 @@ CommandLine::get<std::string>(const std::string &name) const;
 template const int &CommandLine::get<int>(const std::string &name) const;
 template const double &CommandLine::get<double>(const std::string &name) const;
 template const bool &CommandLine::get<bool>(const std::string &name) const;
-template const TypeInfo::VectorOfString &
-CommandLine::get<TypeInfo::VectorOfString>(const std::string &name) const;
-template const TypeInfo::VectorOfPairOfString &
-CommandLine::get<TypeInfo::VectorOfPairOfString>(
-    const std::string &name) const;
+template const Type::VectorOfString &
+CommandLine::get<Type::VectorOfString>(const std::string &name) const;
+template const Type::VectorOfPairOfString &
+CommandLine::get<Type::VectorOfPairOfString>(const std::string &name) const;
 
 #endif
 
@@ -677,11 +783,10 @@ double CommandLine::getDouble(const std::string &name,
 #endif
 }
 
-const TypeInfo::VectorOfString &
-CommandLine::getVS(const std::string &name) const
+const Type::VectorOfString &CommandLine::getVS(const std::string &name) const
 {
 #ifdef BUILDBOXCOMMON_COMMANDLINE_USES_CXX17
-    return this->get<TypeInfo::VectorOfString>(name);
+    return this->get<Type::VectorOfString>(name);
 #else
     const auto it = d_parsedArgs.find(name);
     if (it == d_parsedArgs.end()) {
@@ -691,11 +796,11 @@ CommandLine::getVS(const std::string &name) const
 #endif
 }
 
-const TypeInfo::VectorOfPairOfString &
+const Type::VectorOfPairOfString &
 CommandLine::getVPS(const std::string &name) const
 {
 #ifdef BUILDBOXCOMMON_COMMANDLINE_USES_CXX17
-    return this->get<TypeInfo::VectorOfPairOfString>(name);
+    return this->get<Type::VectorOfPairOfString>(name);
 #else
     const auto it = d_parsedArgs.find(name);
     if (it == d_parsedArgs.end()) {
@@ -704,50 +809,5 @@ CommandLine::getVPS(const std::string &name) const
     return it->second.d_argumentValue.d_vps;
 #endif
 }
-
-#ifndef BUILDBOXCOMMON_COMMANDLINE_USES_CXX17
-CommandLine::ArgumentValue &CommandLine::ArgumentValue::
-operator=(const std::string &rhs)
-{
-    this->d_str = rhs;
-    return *this;
-}
-
-CommandLine::ArgumentValue &CommandLine::ArgumentValue::
-operator=(const int rhs)
-{
-    this->d_int = rhs;
-    return *this;
-}
-
-CommandLine::ArgumentValue &CommandLine::ArgumentValue::
-operator=(const double rhs)
-{
-    this->d_double = rhs;
-    return *this;
-}
-
-CommandLine::ArgumentValue &CommandLine::ArgumentValue::
-operator=(const bool rhs)
-{
-    this->d_bool = rhs;
-    return *this;
-}
-
-CommandLine::ArgumentValue &CommandLine::ArgumentValue::
-operator=(const TypeInfo::VectorOfString &rhs)
-{
-    this->d_vs = rhs;
-    return *this;
-}
-
-CommandLine::ArgumentValue &CommandLine::ArgumentValue::
-operator=(const TypeInfo::VectorOfPairOfString &rhs)
-{
-    this->d_vps = rhs;
-    return *this;
-}
-
-#endif
 
 } // namespace buildboxcommon
