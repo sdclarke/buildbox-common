@@ -161,6 +161,7 @@ install(
 install(
     FILES cmake/BuildboxCommonConfig.cmake
           cmake/BuildboxGTestSetup.cmake
+          cmake/BuildboxBenchmarkSetup.cmake
           "${CMAKE_CURRENT_BINARY_DIR}/BuildboxCommon/BuildboxCommonConfigVersion.cmake"
     DESTINATION lib/cmake/BuildboxCommon
 )
