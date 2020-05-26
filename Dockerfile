@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
     git \
     googletest \
     grpc++ \
+    libbenchmark-dev \
     libssl-dev \
     pkg-config \
     uuid-dev \
