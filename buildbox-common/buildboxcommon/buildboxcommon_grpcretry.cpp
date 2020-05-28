@@ -47,8 +47,8 @@ void GrpcRetry::retry(
         if (status.ok()) {
             return;
         }
-        else {
-            /* The call failed. */
+        else if (status.error_code() == grpc::StatusCode::UNAVAILABLE) {
+            /* The call failed and is retryable on its own. */
             if (nAttempts < grpcRetryLimit) {
                 /* Delay the next call based on the number of attempts made */
                 int timeDelay = static_cast<int>(
@@ -67,6 +67,12 @@ void GrpcRetry::retry(
                     std::chrono::milliseconds(timeDelay));
             }
             nAttempts++;
+        }
+        else {
+            /* The call failed and is not retryable on its own. */
+            throw GrpcError(std::to_string(status.error_code()) + ": " +
+                                status.error_message(),
+                            status);
         }
     } while (nAttempts < grpcRetryLimit + 1);
 

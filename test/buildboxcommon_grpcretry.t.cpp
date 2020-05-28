@@ -21,7 +21,7 @@ TEST(GrpcRetry, SimpleSucceedTest)
             return grpc::Status::OK;
         }
         else {
-            return grpc::Status(grpc::FAILED_PRECONDITION, "failing in test");
+            return grpc::Status(grpc::UNAVAILABLE, "failing in test");
         }
     };
 
@@ -38,7 +38,7 @@ TEST(GrpcRetry, SimpleRetrySucceedTest)
     auto lambda = [&](grpc::ClientContext &context) {
         if (failures < 1) {
             failures++;
-            return grpc::Status(grpc::FAILED_PRECONDITION, "failing in test");
+            return grpc::Status(grpc::UNAVAILABLE, "failing in test");
         }
         else {
             return grpc::Status::OK;
@@ -58,7 +58,7 @@ TEST(GrpcRetry, SimpleRetryFailTest)
     auto lambda = [&](grpc::ClientContext &context) {
         if (failures < 3) {
             failures++;
-            return grpc::Status(grpc::FAILED_PRECONDITION, "failing in test");
+            return grpc::Status(grpc::UNAVAILABLE, "failing in test");
         }
         else {
             return grpc::Status::OK;
