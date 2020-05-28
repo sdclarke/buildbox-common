@@ -210,8 +210,8 @@ void ConnectionOptions::printArgHelp(int padWidth, const char *serviceName,
     printPadded(padWidth, "--" + p + "retry-limit=INT");
     std::clog << "Number of times to retry on grpc errors\n";
 
-    printPadded(padWidth, "--" + p + "retry-delay=SECONDS");
-    std::clog << "How long to wait between grpc retries\n";
+    printPadded(padWidth, "--" + p + "retry-delay=MILLISECONDS");
+    std::clog << "How long to wait before the first grpc retry\n";
 }
 
 } // namespace buildboxcommon
