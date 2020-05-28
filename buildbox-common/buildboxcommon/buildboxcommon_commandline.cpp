@@ -143,14 +143,14 @@ bool CommandLine::buildArgumentValue(const std::string &optionValue,
 {
     try {
         switch (spec.dataType()) {
-            case DataType::DT_STRING:
+            case DataType::COMMANDLINE_DT_STRING:
                 *argumentValue = optionValue;
                 if (spec.d_typeInfo.isBindable()) {
                     *(static_cast<std::string *>(
                         spec.d_typeInfo.getBindable())) = optionValue;
                 }
                 break;
-            case DataType::DT_INT: {
+            case DataType::COMMANDLINE_DT_INT: {
                 const int val = std::stoi(optionValue.c_str());
                 *argumentValue = val;
                 if (spec.d_typeInfo.isBindable()) {
@@ -158,7 +158,7 @@ bool CommandLine::buildArgumentValue(const std::string &optionValue,
                 }
                 break;
             }
-            case DataType::DT_DOUBLE: {
+            case DataType::COMMANDLINE_DT_DOUBLE: {
                 const double val = std::stod(optionValue.c_str());
                 *argumentValue = val;
                 if (spec.d_typeInfo.isBindable()) {
@@ -167,7 +167,7 @@ bool CommandLine::buildArgumentValue(const std::string &optionValue,
                 }
                 break;
             }
-            case DataType::DT_BOOL: {
+            case DataType::COMMANDLINE_DT_BOOL: {
                 std::string tmpVal(optionValue);
                 if (tmpVal.empty() &&
                     spec.d_constraint == ArgumentSpec::C_WITHOUT_ARG) {
@@ -181,7 +181,7 @@ bool CommandLine::buildArgumentValue(const std::string &optionValue,
                 }
                 break;
             }
-            case DataType::DT_STRING_ARRAY: {
+            case DataType::COMMANDLINE_DT_STRING_ARRAY: {
                 auto it = d_parsedArgs.find(spec.d_name);
                 if (it == d_parsedArgs.end()) {
                     Type::VectorOfString vs = {optionValue};
@@ -202,7 +202,7 @@ bool CommandLine::buildArgumentValue(const std::string &optionValue,
                 }
                 break;
             }
-            case DataType::DT_STRING_PAIR_ARRAY: {
+            case DataType::COMMANDLINE_DT_STRING_PAIR_ARRAY: {
                 std::string key, value;
                 split(optionValue, &key, &value);
                 auto it = d_parsedArgs.find(spec.d_name);
@@ -226,16 +226,17 @@ bool CommandLine::buildArgumentValue(const std::string &optionValue,
                         ->emplace_back(Type::PairOfString{key, value});
                 }
             } break;
-            case DataType::DT_UNKNOWN:
+            case DataType::COMMANDLINE_DT_UNKNOWN:
                 throw std::runtime_error(
-                    "unexpected type encountered: DT_UNKNOWN");
+                    "unexpected type encountered: COMMANDLINE_DT_UNKNOWN");
         }
     }
     catch (const std::invalid_argument &e) {
         out << prefix(__LINE__)
             << ": invalid_argument error caught converting argument \""
             << optionValue << "\" to "
-            << (spec.dataType() == DataType::DT_DOUBLE ? "double" : "int")
+            << (spec.dataType() == DataType::COMMANDLINE_DT_DOUBLE ? "double"
+                                                                   : "int")
             << std::endl;
         return false;
     }
@@ -243,7 +244,8 @@ bool CommandLine::buildArgumentValue(const std::string &optionValue,
         out << prefix(__LINE__)
             << ": out_of_range error caught converting argument \""
             << optionValue << "\" to "
-            << (spec.dataType() == DataType::DT_DOUBLE ? "double" : "int")
+            << (spec.dataType() == DataType::COMMANDLINE_DT_DOUBLE ? "double"
+                                                                   : "int")
             << std::endl;
         return false;
     }
@@ -378,16 +380,16 @@ bool CommandLine::applyDefaultValues(std::ostream &out)
         // we have a default value, so apply it to the container
         ArgumentValue argumentValue;
         switch (spec.dataType()) {
-            case DataType::DT_STRING:
+            case DataType::COMMANDLINE_DT_STRING:
                 argumentValue = spec.defaultValue().getString();
                 break;
-            case DataType::DT_INT:
+            case DataType::COMMANDLINE_DT_INT:
                 argumentValue = spec.defaultValue().getInt();
                 break;
-            case DataType::DT_DOUBLE:
+            case DataType::COMMANDLINE_DT_DOUBLE:
                 argumentValue = spec.defaultValue().getDouble();
                 break;
-            case DataType::DT_BOOL: {
+            case DataType::COMMANDLINE_DT_BOOL: {
                 argumentValue = spec.defaultValue().getBool();
                 break;
             }
@@ -602,16 +604,16 @@ void CommandLine::usage(std::ostream &out)
         if (spec.hasDefaultValue()) {
             out << ", default = ";
             switch (spec.dataType()) {
-                case DataType::DT_STRING:
+                case DataType::COMMANDLINE_DT_STRING:
                     out << "\"" << spec.defaultValue().getString() << "\"";
                     break;
-                case DataType::DT_INT:
+                case DataType::COMMANDLINE_DT_INT:
                     out << spec.defaultValue().getInt();
                     break;
-                case DataType::DT_DOUBLE:
+                case DataType::COMMANDLINE_DT_DOUBLE:
                     out << std::fixed << spec.defaultValue().getDouble();
                     break;
-                case DataType::DT_BOOL:
+                case DataType::COMMANDLINE_DT_BOOL:
                     out << std::boolalpha << spec.defaultValue().getBool();
                     break;
                 default:

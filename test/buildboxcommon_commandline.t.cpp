@@ -39,90 +39,90 @@ Type::VectorOfPairOfString platformProperties;
 
 // clang-format off
 ArgumentSpec defaultSpec[] = {
-    {"help", "Display usage and exit", TypeInfo(DataType::DT_BOOL)},
-    {"instance", "Name of instance", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"cas-remote", "IP/port of remote CAS server", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"bots-remote", "IP/port of remote BOTS server", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"log-level", "Log verbosity level", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG},
-    {"request-timeout", "Request timeout", TypeInfo(DataType::DT_INT), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"buildbox-run", "Absolute path to runner exectuable", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"platform", "Set a platform property(repeated):\n--platform KEY=VALUE\n--platform KEY=VALUE", TypeInfo(DataType::DT_STRING_PAIR_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"runner-arg", "Args to pass to the runner", TypeInfo(DataType::DT_STRING_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"help", "Display usage and exit", TypeInfo(DataType::COMMANDLINE_DT_BOOL)},
+    {"instance", "Name of instance", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"cas-remote", "IP/port of remote CAS server", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"bots-remote", "IP/port of remote BOTS server", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"log-level", "Log verbosity level", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG},
+    {"request-timeout", "Request timeout", TypeInfo(DataType::COMMANDLINE_DT_INT), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"buildbox-run", "Absolute path to runner exectuable", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"platform", "Set a platform property(repeated):\n--platform KEY=VALUE\n--platform KEY=VALUE", TypeInfo(DataType::COMMANDLINE_DT_STRING_PAIR_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"runner-arg", "Args to pass to the runner", TypeInfo(DataType::COMMANDLINE_DT_STRING_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
     {"metrics-mode", "Metrics Mode: --metrics-mode=MODE - options for MODE are\n"
-     "udp://<hostname>:<port>\nfile:///path/to/file\nstderr", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"metrics-publish-interval", "Metrics publishing interval", TypeInfo(DataType::DT_INT), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"config-file", "Absolute path to config file", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"verbose", "Adjust log verbosity", TypeInfo(DataType::DT_BOOL)},
+     "udp://<hostname>:<port>\nfile:///path/to/file\nstderr", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"metrics-publish-interval", "Metrics publishing interval", TypeInfo(DataType::COMMANDLINE_DT_INT), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"config-file", "Absolute path to config file", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"verbose", "Adjust log verbosity", TypeInfo(DataType::COMMANDLINE_DT_BOOL)},
     {"", "BOT Id", TypeInfo(&botId), ArgumentSpec::O_REQUIRED}
 };
 
 ArgumentSpec noPositionalsSpec[] = {
-    {"help", "Display usage and exit", TypeInfo(DataType::DT_BOOL)},
-    {"instance", "Name of instance", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"cas-remote", "IP/port of remote CAS server", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"bots-remote", "IP/port of remote BOTS server", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"log-level", "Log verbosity level", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG},
-    {"request-timeout", "Request timeout", TypeInfo(DataType::DT_INT), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"buildbox-run", "Absolute path to runner exectuable", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"platform", "Set a platform property(repeated):\n--platform KEY=VALUE\n--platform KEY=VALUE", TypeInfo(DataType::DT_STRING_PAIR_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"runner-arg", "Args to pass to the runner", TypeInfo(DataType::DT_STRING_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"help", "Display usage and exit", TypeInfo(DataType::COMMANDLINE_DT_BOOL)},
+    {"instance", "Name of instance", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"cas-remote", "IP/port of remote CAS server", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"bots-remote", "IP/port of remote BOTS server", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"log-level", "Log verbosity level", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG},
+    {"request-timeout", "Request timeout", TypeInfo(DataType::COMMANDLINE_DT_INT), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"buildbox-run", "Absolute path to runner exectuable", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"platform", "Set a platform property(repeated):\n--platform KEY=VALUE\n--platform KEY=VALUE", TypeInfo(DataType::COMMANDLINE_DT_STRING_PAIR_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"runner-arg", "Args to pass to the runner", TypeInfo(DataType::COMMANDLINE_DT_STRING_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
     {"metrics-mode", "Metrics Mode: --metrics-mode=MODE - options for MODE are\n"
-     "udp://<hostname>:<port>\nfile:///path/to/file\nstderr", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"metrics-publish-interval", "Metrics publishing interval", TypeInfo(DataType::DT_INT), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"config-file", "Absolute path to config file", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"verbose", "Adjust log verbosity", TypeInfo(DataType::DT_BOOL)}
+     "udp://<hostname>:<port>\nfile:///path/to/file\nstderr", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"metrics-publish-interval", "Metrics publishing interval", TypeInfo(DataType::COMMANDLINE_DT_INT), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"config-file", "Absolute path to config file", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"verbose", "Adjust log verbosity", TypeInfo(DataType::COMMANDLINE_DT_BOOL)}
 };
 
 ArgumentSpec positionalNotRequiredSpec[] = {
-    {"help", "Display usage and exit", TypeInfo(DataType::DT_BOOL)},
-    {"instance", "Name of instance", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"cas-remote", "IP/port of remote CAS server", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"bots-remote", "IP/port of remote BOTS server", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"log-level", "Log verbosity level", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG},
-    {"request-timeout", "Request timeout", TypeInfo(DataType::DT_INT), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"buildbox-run", "Absolute path to runner exectuable", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"platform", "Set a platform property(repeated):\n--platform KEY=VALUE\n--platform KEY=VALUE", TypeInfo(DataType::DT_STRING_PAIR_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"runner-arg", "Args to pass to the runner", TypeInfo(DataType::DT_STRING_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"help", "Display usage and exit", TypeInfo(DataType::COMMANDLINE_DT_BOOL)},
+    {"instance", "Name of instance", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"cas-remote", "IP/port of remote CAS server", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"bots-remote", "IP/port of remote BOTS server", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"log-level", "Log verbosity level", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG},
+    {"request-timeout", "Request timeout", TypeInfo(DataType::COMMANDLINE_DT_INT), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"buildbox-run", "Absolute path to runner exectuable", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"platform", "Set a platform property(repeated):\n--platform KEY=VALUE\n--platform KEY=VALUE", TypeInfo(DataType::COMMANDLINE_DT_STRING_PAIR_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"runner-arg", "Args to pass to the runner", TypeInfo(DataType::COMMANDLINE_DT_STRING_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
     {"metrics-mode", "Metrics Mode: --metrics-mode=MODE - options for MODE are\n"
-     "udp://<hostname>:<port>\nfile:///path/to/file\nstderr", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"metrics-publish-interval", "Metrics publishing interval", TypeInfo(DataType::DT_INT), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"config-file", "Absolute path to config file", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"verbose", "Adjust log verbosity", TypeInfo(DataType::DT_BOOL)},
+     "udp://<hostname>:<port>\nfile:///path/to/file\nstderr", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"metrics-publish-interval", "Metrics publishing interval", TypeInfo(DataType::COMMANDLINE_DT_INT), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"config-file", "Absolute path to config file", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"verbose", "Adjust log verbosity", TypeInfo(DataType::COMMANDLINE_DT_BOOL)},
     {"", "BOT Id", TypeInfo(&botId), ArgumentSpec::O_OPTIONAL}
 };
 
 ArgumentSpec bindSpec[] = {
-    {"help", "Display usage and exit", TypeInfo(DataType::DT_BOOL)},
-    {"instance", "Name of instance", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"cas-remote", "IP/port of remote CAS server", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"bots-remote", "IP/port of remote BOTS server", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"log-level", "Log verbosity level", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG},
-    {"request-timeout", "Request timeout", TypeInfo(DataType::DT_INT), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"buildbox-run", "Absolute path to runner exectuable", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"help", "Display usage and exit", TypeInfo(DataType::COMMANDLINE_DT_BOOL)},
+    {"instance", "Name of instance", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"cas-remote", "IP/port of remote CAS server", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"bots-remote", "IP/port of remote BOTS server", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"log-level", "Log verbosity level", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG},
+    {"request-timeout", "Request timeout", TypeInfo(DataType::COMMANDLINE_DT_INT), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"buildbox-run", "Absolute path to runner exectuable", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
     {"platform", "Platform properties", TypeInfo(&platformProperties), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
     {"runner-arg", "Args to pass to the runner", TypeInfo(&runnerArgs), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"metrics-mode", "Metrics Mode", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"metrics-publish-interval", "Metrics publishing interval", TypeInfo(DataType::DT_INT), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"config-file", "Absolute path to config file", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"verbose", "Adjust log verbosity", TypeInfo(DataType::DT_BOOL)},
+    {"metrics-mode", "Metrics Mode", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"metrics-publish-interval", "Metrics publishing interval", TypeInfo(DataType::COMMANDLINE_DT_INT), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"config-file", "Absolute path to config file", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"verbose", "Adjust log verbosity", TypeInfo(DataType::COMMANDLINE_DT_BOOL)},
     {"", "BOT Id", TypeInfo(&botId), ArgumentSpec::O_REQUIRED}
 };
 
 ArgumentSpec twoPositionalSpec[] = {
-    {"help", "Display usage and exit", TypeInfo(DataType::DT_BOOL)},
-    {"instance", "Name of instance", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"cas-remote", "IP/port of remote CAS server", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"bots-remote", "IP/port of remote BOTS server", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"log-level", "Log verbosity level", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG},
-    {"request-timeout", "Request timeout", TypeInfo(DataType::DT_INT), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"buildbox-run", "Absolute path to runner exectuable", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"platform", "Set a platform property(repeated):\n--platform KEY=VALUE\n--platform KEY=VALUE", TypeInfo(DataType::DT_STRING_PAIR_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"runner-arg", "Args to pass to the runner", TypeInfo(DataType::DT_STRING_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"help", "Display usage and exit", TypeInfo(DataType::COMMANDLINE_DT_BOOL)},
+    {"instance", "Name of instance", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"cas-remote", "IP/port of remote CAS server", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"bots-remote", "IP/port of remote BOTS server", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"log-level", "Log verbosity level", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG},
+    {"request-timeout", "Request timeout", TypeInfo(DataType::COMMANDLINE_DT_INT), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"buildbox-run", "Absolute path to runner exectuable", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"platform", "Set a platform property(repeated):\n--platform KEY=VALUE\n--platform KEY=VALUE", TypeInfo(DataType::COMMANDLINE_DT_STRING_PAIR_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"runner-arg", "Args to pass to the runner", TypeInfo(DataType::COMMANDLINE_DT_STRING_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
     {"metrics-mode", "Metrics Mode: --metrics-mode=MODE - options for MODE are\n"
-     "udp://<hostname>:<port>\nfile:///path/to/file\nstderr", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"metrics-publish-interval", "Metrics publishing interval", TypeInfo(DataType::DT_INT), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"config-file", "Absolute path to config file", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"verbose", "Adjust log verbosity", TypeInfo(DataType::DT_BOOL)},
+     "udp://<hostname>:<port>\nfile:///path/to/file\nstderr", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"metrics-publish-interval", "Metrics publishing interval", TypeInfo(DataType::COMMANDLINE_DT_INT), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"config-file", "Absolute path to config file", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"verbose", "Adjust log verbosity", TypeInfo(DataType::COMMANDLINE_DT_BOOL)},
     {"", "Positional1", TypeInfo(&positional1), ArgumentSpec::O_REQUIRED},
     {"", "Positional2", TypeInfo(&positional2), ArgumentSpec::O_REQUIRED}
 };
@@ -134,86 +134,86 @@ ArgumentSpec positionalOnlySpec[] = {
 };
 
 ArgumentSpec booleanSpecWithArgs[] = {
-    {"use-sockets", "include on CML to enable networked logging", TypeInfo(DataType::DT_BOOL), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"use-file", "Set to 'true' to use file logging", TypeInfo(DataType::DT_BOOL), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"verbose", "Set to 'true' to enable DEBUG level logging", TypeInfo(DataType::DT_BOOL), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG}
+    {"use-sockets", "include on CML to enable networked logging", TypeInfo(DataType::COMMANDLINE_DT_BOOL), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"use-file", "Set to 'true' to use file logging", TypeInfo(DataType::COMMANDLINE_DT_BOOL), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"verbose", "Set to 'true' to enable DEBUG level logging", TypeInfo(DataType::COMMANDLINE_DT_BOOL), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG}
 };
 
 ArgumentSpec booleanSpecWithoutArgs[] = {
-    {"use-sockets", "include on CML to enable networked logging", TypeInfo(DataType::DT_BOOL), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITHOUT_ARG},
-    {"use-file", "Set to 'true' to use file logging", TypeInfo(DataType::DT_BOOL), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITHOUT_ARG},
-    {"verbose", "Set to 'true' to enable DEBUG level logging", TypeInfo(DataType::DT_BOOL), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITHOUT_ARG}
+    {"use-sockets", "include on CML to enable networked logging", TypeInfo(DataType::COMMANDLINE_DT_BOOL), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITHOUT_ARG},
+    {"use-file", "Set to 'true' to use file logging", TypeInfo(DataType::COMMANDLINE_DT_BOOL), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITHOUT_ARG},
+    {"verbose", "Set to 'true' to enable DEBUG level logging", TypeInfo(DataType::COMMANDLINE_DT_BOOL), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITHOUT_ARG}
 };
 
 ArgumentSpec booleanSpecWithoutArgsOptional[] = {
-    {"use-sockets", "include on CML to enable networked logging", TypeInfo(DataType::DT_BOOL), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITHOUT_ARG},
-    {"use-file", "Set to 'true' to use file logging", TypeInfo(DataType::DT_BOOL), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITHOUT_ARG},
-    {"verbose", "Set to 'true' to enable DEBUG level logging", TypeInfo(DataType::DT_BOOL), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITHOUT_ARG}
+    {"use-sockets", "include on CML to enable networked logging", TypeInfo(DataType::COMMANDLINE_DT_BOOL), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITHOUT_ARG},
+    {"use-file", "Set to 'true' to use file logging", TypeInfo(DataType::COMMANDLINE_DT_BOOL), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITHOUT_ARG},
+    {"verbose", "Set to 'true' to enable DEBUG level logging", TypeInfo(DataType::COMMANDLINE_DT_BOOL), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITHOUT_ARG}
 };
 
 ArgumentSpec booleanSpecMixed[] = {
-    {"use-sockets", "include on CML to enable networked logging", TypeInfo(DataType::DT_BOOL), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITHOUT_ARG},
-    {"use-file", "Set to 'true' to use file logging", TypeInfo(DataType::DT_BOOL), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"verbose", "Set to 'true' to enable DEBUG level logging", TypeInfo(DataType::DT_BOOL), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITHOUT_ARG}
+    {"use-sockets", "include on CML to enable networked logging", TypeInfo(DataType::COMMANDLINE_DT_BOOL), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITHOUT_ARG},
+    {"use-file", "Set to 'true' to use file logging", TypeInfo(DataType::COMMANDLINE_DT_BOOL), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"verbose", "Set to 'true' to enable DEBUG level logging", TypeInfo(DataType::COMMANDLINE_DT_BOOL), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITHOUT_ARG}
 };
 
 ArgumentSpec specWithDefaultValues[] = {
-    {"help", "Display usage and exit", TypeInfo(DataType::DT_BOOL)},
-    {"instance", "Name of instance", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG, CMLDefaultValue("dev")},
-    {"cas-remote", "IP/port of remote CAS server", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"bots-remote", "IP/port of remote BOTS server", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"log-level", "Log verbosity level", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG, CMLDefaultValue("debug")},
-    {"request-timeout", "Request timeout", TypeInfo(DataType::DT_INT), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG, CMLDefaultValue(30)},
-    {"buildbox-run", "Absolute path to runner exectuable", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"platform", "Set a platform property(repeated):\n--platform KEY=VALUE\n--platform KEY=VALUE", TypeInfo(DataType::DT_STRING_PAIR_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"runner-arg", "Args to pass to the runner", TypeInfo(DataType::DT_STRING_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"help", "Display usage and exit", TypeInfo(DataType::COMMANDLINE_DT_BOOL)},
+    {"instance", "Name of instance", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG, CMLDefaultValue("dev")},
+    {"cas-remote", "IP/port of remote CAS server", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"bots-remote", "IP/port of remote BOTS server", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"log-level", "Log verbosity level", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG, CMLDefaultValue("debug")},
+    {"request-timeout", "Request timeout", TypeInfo(DataType::COMMANDLINE_DT_INT), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG, CMLDefaultValue(30)},
+    {"buildbox-run", "Absolute path to runner exectuable", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"platform", "Set a platform property(repeated):\n--platform KEY=VALUE\n--platform KEY=VALUE", TypeInfo(DataType::COMMANDLINE_DT_STRING_PAIR_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"runner-arg", "Args to pass to the runner", TypeInfo(DataType::COMMANDLINE_DT_STRING_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
     {"metrics-mode", "Metrics Mode: --metrics-mode=MODE - options for MODE are\n"
-     "udp://<hostname>:<port>\nfile:///path/to/file\nstderr", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG, CMLDefaultValue("udp://127.0.0.1:8125")},
-    {"metrics-publish-interval", "Metrics publishing interval", TypeInfo(DataType::DT_INT), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG, CMLDefaultValue(10)},
-    {"config-file", "Absolute path to config file", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG},
-    {"verbose", "Adjust log verbosity", TypeInfo(DataType::DT_BOOL), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITHOUT_ARG, CMLDefaultValue(false)},
+     "udp://<hostname>:<port>\nfile:///path/to/file\nstderr", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG, CMLDefaultValue("udp://127.0.0.1:8125")},
+    {"metrics-publish-interval", "Metrics publishing interval", TypeInfo(DataType::COMMANDLINE_DT_INT), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG, CMLDefaultValue(10)},
+    {"config-file", "Absolute path to config file", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG},
+    {"verbose", "Adjust log verbosity", TypeInfo(DataType::COMMANDLINE_DT_BOOL), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITHOUT_ARG, CMLDefaultValue(false)},
     {"", "BOT Id", TypeInfo(&botId), ArgumentSpec::O_OPTIONAL}
 };
 
 // test an option that is set as required and has a default option
 ArgumentSpec specWithDefaultValuesFail[] = {
-    {"help", "Display usage and exit", TypeInfo(DataType::DT_BOOL)},
-    {"instance", "Name of instance", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG, CMLDefaultValue("dev")},
-    {"cas-remote", "IP/port of remote CAS server", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"bots-remote", "IP/port of remote BOTS server", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"log-level", "Log verbosity level", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG, CMLDefaultValue("debug")},
-    {"request-timeout", "Request timeout", TypeInfo(DataType::DT_INT), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG, CMLDefaultValue(30)},
-    {"buildbox-run", "Absolute path to runner exectuable", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"platform", "Set a platform property(repeated):\n--platform KEY=VALUE\n--platform KEY=VALUE", TypeInfo(DataType::DT_STRING_PAIR_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"runner-arg", "Args to pass to the runner", TypeInfo(DataType::DT_STRING_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"help", "Display usage and exit", TypeInfo(DataType::COMMANDLINE_DT_BOOL)},
+    {"instance", "Name of instance", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG, CMLDefaultValue("dev")},
+    {"cas-remote", "IP/port of remote CAS server", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"bots-remote", "IP/port of remote BOTS server", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"log-level", "Log verbosity level", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG, CMLDefaultValue("debug")},
+    {"request-timeout", "Request timeout", TypeInfo(DataType::COMMANDLINE_DT_INT), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG, CMLDefaultValue(30)},
+    {"buildbox-run", "Absolute path to runner exectuable", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"platform", "Set a platform property(repeated):\n--platform KEY=VALUE\n--platform KEY=VALUE", TypeInfo(DataType::COMMANDLINE_DT_STRING_PAIR_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"runner-arg", "Args to pass to the runner", TypeInfo(DataType::COMMANDLINE_DT_STRING_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
     {"metrics-mode", "Metrics Mode: --metrics-mode=MODE - options for MODE are\n"
-     "udp://<hostname>:<port>\nfile:///path/to/file\nstderr", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG, CMLDefaultValue("udp://127.0.0.1:8125")},
-    {"metrics-publish-interval", "Metrics publishing interval", TypeInfo(DataType::DT_INT), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG, CMLDefaultValue(10)},
-    {"config-file", "Absolute path to config file", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG},
-    {"verbose", "Adjust log verbosity", TypeInfo(DataType::DT_BOOL), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITHOUT_ARG, CMLDefaultValue(false)},
+     "udp://<hostname>:<port>\nfile:///path/to/file\nstderr", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG, CMLDefaultValue("udp://127.0.0.1:8125")},
+    {"metrics-publish-interval", "Metrics publishing interval", TypeInfo(DataType::COMMANDLINE_DT_INT), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG, CMLDefaultValue(10)},
+    {"config-file", "Absolute path to config file", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG},
+    {"verbose", "Adjust log verbosity", TypeInfo(DataType::COMMANDLINE_DT_BOOL), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITHOUT_ARG, CMLDefaultValue(false)},
     {"", "BOT Id", TypeInfo(&botId), ArgumentSpec::O_OPTIONAL}
 };
 
 /*
-    {"instance", "Name of instance", Meta(TypeInfo(DataType::DT_STRING), 2.3), ArgumentSpec::O_OPTIONAL,
+    {"instance", "Name of instance", Meta(TypeInfo(DataType::COMMANDLINE_DT_STRING), 2.3), ArgumentSpec::O_OPTIONAL,
      ArgumentSpec::C_WITH_ARG, CMLDefaultValue("dev")},
 */
 // test type mismatch between option type
 ArgumentSpec specWithMisMatchedTypes[] = {
-    {"help", "Display usage and exit", TypeInfo(DataType::DT_BOOL)},
-    {"instance", "Name of instance", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG, CMLDefaultValue(42)},
-    {"cas-remote", "IP/port of remote CAS server", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"bots-remote", "IP/port of remote BOTS server", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"log-level", "Log verbosity level", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG, CMLDefaultValue("debug")},
-    {"request-timeout", "Request timeout", TypeInfo(DataType::DT_INT), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG, CMLDefaultValue(30.0)},
-    {"buildbox-run", "Absolute path to runner exectuable", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"platform", "Set a platform property(repeated):\n--platform KEY=VALUE\n--platform KEY=VALUE", TypeInfo(DataType::DT_STRING_PAIR_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-    {"runner-arg", "Args to pass to the runner", TypeInfo(DataType::DT_STRING_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"help", "Display usage and exit", TypeInfo(DataType::COMMANDLINE_DT_BOOL)},
+    {"instance", "Name of instance", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG, CMLDefaultValue(42)},
+    {"cas-remote", "IP/port of remote CAS server", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"bots-remote", "IP/port of remote BOTS server", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"log-level", "Log verbosity level", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG, CMLDefaultValue("debug")},
+    {"request-timeout", "Request timeout", TypeInfo(DataType::COMMANDLINE_DT_INT), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG, CMLDefaultValue(30.0)},
+    {"buildbox-run", "Absolute path to runner exectuable", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"platform", "Set a platform property(repeated):\n--platform KEY=VALUE\n--platform KEY=VALUE", TypeInfo(DataType::COMMANDLINE_DT_STRING_PAIR_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"runner-arg", "Args to pass to the runner", TypeInfo(DataType::COMMANDLINE_DT_STRING_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
     {"metrics-mode", "Metrics Mode: --metrics-mode=MODE - options for MODE are\n"
-     "udp://<hostname>:<port>\nfile:///path/to/file\nstderr", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG, CMLDefaultValue("udp://127.0.0.1:8125")},
-    {"metrics-publish-interval", "Metrics publishing interval", TypeInfo(DataType::DT_INT), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG, CMLDefaultValue(10)},
-    {"config-file", "Absolute path to config file", TypeInfo(DataType::DT_STRING), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG},
-    {"verbose", "Adjust log verbosity", TypeInfo(DataType::DT_BOOL), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITHOUT_ARG, CMLDefaultValue(false)},
+     "udp://<hostname>:<port>\nfile:///path/to/file\nstderr", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG, CMLDefaultValue("udp://127.0.0.1:8125")},
+    {"metrics-publish-interval", "Metrics publishing interval", TypeInfo(DataType::COMMANDLINE_DT_INT), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG, CMLDefaultValue(10)},
+    {"config-file", "Absolute path to config file", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG},
+    {"verbose", "Adjust log verbosity", TypeInfo(DataType::COMMANDLINE_DT_BOOL), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITHOUT_ARG, CMLDefaultValue(false)},
     {"", "BOT Id", TypeInfo(&botId), ArgumentSpec::O_OPTIONAL}
 };
 
@@ -626,57 +626,58 @@ const std::string expectedUsageWithDefaults(
 void initVectorOfSpecs(std::vector<ArgumentSpec> &spec)
 {
     spec.emplace_back("help", "Display usage and exit",
-                      TypeInfo(DataType::DT_BOOL));
+                      TypeInfo(DataType::COMMANDLINE_DT_BOOL));
     spec.emplace_back("instance", "Name of instance",
-                      TypeInfo(DataType::DT_STRING), ArgumentSpec::O_OPTIONAL,
-                      ArgumentSpec::C_WITH_ARG);
+                      TypeInfo(DataType::COMMANDLINE_DT_STRING),
+                      ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG);
     spec.emplace_back("concurrent-jobs", "Stop after running this many jobs",
-                      TypeInfo(DataType::DT_INT), ArgumentSpec::O_OPTIONAL,
-                      ArgumentSpec::C_WITH_ARG);
+                      TypeInfo(DataType::COMMANDLINE_DT_INT),
+                      ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG);
     spec.emplace_back("stop-after", "Stop after running this many jobs",
-                      TypeInfo(DataType::DT_INT), ArgumentSpec::O_OPTIONAL,
-                      ArgumentSpec::C_WITH_ARG);
+                      TypeInfo(DataType::COMMANDLINE_DT_INT),
+                      ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG);
     spec.emplace_back("cas-remote", "IP/port of remote CAS server",
-                      TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED,
-                      ArgumentSpec::C_WITH_ARG);
+                      TypeInfo(DataType::COMMANDLINE_DT_STRING),
+                      ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG);
     spec.emplace_back("bots-remote", "IP/port of remote BOTS server",
-                      TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED,
-                      ArgumentSpec::C_WITH_ARG);
+                      TypeInfo(DataType::COMMANDLINE_DT_STRING),
+                      ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG);
     spec.emplace_back("request-timeout", "Request timeout",
-                      TypeInfo(DataType::DT_INT), ArgumentSpec::O_OPTIONAL,
-                      ArgumentSpec::C_WITH_ARG);
+                      TypeInfo(DataType::COMMANDLINE_DT_INT),
+                      ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG);
     spec.emplace_back("buildbox-run", "Absolute path to runner exectuable",
-                      TypeInfo(DataType::DT_STRING), ArgumentSpec::O_REQUIRED,
-                      ArgumentSpec::C_WITH_ARG);
+                      TypeInfo(DataType::COMMANDLINE_DT_STRING),
+                      ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG);
     spec.emplace_back("runner-arg", "Args to pass to the runner",
-                      TypeInfo(DataType::DT_STRING_ARRAY),
+                      TypeInfo(DataType::COMMANDLINE_DT_STRING_ARRAY),
                       ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG);
     spec.emplace_back("platform",
                       "Set a platform property(repeated):\n--platform "
                       "KEY=VALUE\n--platform KEY=VALUE",
-                      TypeInfo(DataType::DT_STRING_PAIR_ARRAY),
+                      TypeInfo(DataType::COMMANDLINE_DT_STRING_PAIR_ARRAY),
                       ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG);
     spec.emplace_back(
         "metrics-mode",
         "Metrics Mode: --metrics-mode=MODE - options for MODE are\n"
         "udp://<hostname>:<port>\nfile:///path/to/file\nstderr",
-        TypeInfo(DataType::DT_STRING), ArgumentSpec::O_OPTIONAL,
+        TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_OPTIONAL,
         ArgumentSpec::C_WITH_ARG);
     spec.emplace_back("metrics-publish-interval",
                       "Metrics publishing interval",
-                      TypeInfo(DataType::DT_INT), ArgumentSpec::O_OPTIONAL,
-                      ArgumentSpec::C_WITH_ARG);
+                      TypeInfo(DataType::COMMANDLINE_DT_INT),
+                      ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG);
     spec.emplace_back("log-level", "Log verbosity level",
-                      TypeInfo(DataType::DT_STRING), ArgumentSpec::O_OPTIONAL,
-                      ArgumentSpec::C_WITH_ARG);
+                      TypeInfo(DataType::COMMANDLINE_DT_STRING),
+                      ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG);
     spec.emplace_back("verbose", "Set log level to debug",
-                      TypeInfo(DataType::DT_BOOL), ArgumentSpec::O_OPTIONAL);
+                      TypeInfo(DataType::COMMANDLINE_DT_BOOL),
+                      ArgumentSpec::O_OPTIONAL);
     spec.emplace_back("log-file", "Log file name",
-                      TypeInfo(DataType::DT_STRING), ArgumentSpec::O_OPTIONAL,
-                      ArgumentSpec::C_WITH_ARG);
+                      TypeInfo(DataType::COMMANDLINE_DT_STRING),
+                      ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG);
     spec.emplace_back("config-file", "Absolute path to config file",
-                      TypeInfo(DataType::DT_STRING), ArgumentSpec::O_OPTIONAL,
-                      ArgumentSpec::C_WITH_ARG);
+                      TypeInfo(DataType::COMMANDLINE_DT_STRING),
+                      ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG);
     spec.emplace_back("", "BOT Id", TypeInfo(&botId),
                       ArgumentSpec::O_OPTIONAL);
 }
@@ -938,10 +939,10 @@ TEST(CommandLineTests, TestNoPositionals2)
 TEST(CommandLineTests, GettersWithFallbackValuesPresent)
 {
     const ArgumentSpec testSpec[] = {
-        {"bool-option", "", TypeInfo(DataType::DT_BOOL)},
-        {"int-option", "", TypeInfo(DataType::DT_INT)},
-        {"double-option", "", TypeInfo(DataType::DT_DOUBLE)},
-        {"string-option", "", TypeInfo(DataType::DT_STRING)},
+        {"bool-option", "", TypeInfo(DataType::COMMANDLINE_DT_BOOL)},
+        {"int-option", "", TypeInfo(DataType::COMMANDLINE_DT_INT)},
+        {"double-option", "", TypeInfo(DataType::COMMANDLINE_DT_DOUBLE)},
+        {"string-option", "", TypeInfo(DataType::COMMANDLINE_DT_STRING)},
     };
 
     const char *argvOptions[] = {

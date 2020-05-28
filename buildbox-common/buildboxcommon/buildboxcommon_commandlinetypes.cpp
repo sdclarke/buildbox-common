@@ -135,16 +135,16 @@ void CommandLineTypes::DefaultValue::print(std::ostream &out,
 {
     out << "[";
     switch (dataType) {
-        case CommandLineTypes::DataType::DT_STRING:
+        case CommandLineTypes::DataType::COMMANDLINE_DT_STRING:
             out << "\"" << getString() << "\"";
             break;
-        case CommandLineTypes::DataType::DT_INT:
+        case CommandLineTypes::DataType::COMMANDLINE_DT_INT:
             out << getInt();
             break;
-        case CommandLineTypes::DataType::DT_DOUBLE:
+        case CommandLineTypes::DataType::COMMANDLINE_DT_DOUBLE:
             out << std::fixed << getDouble();
             break;
-        case CommandLineTypes::DataType::DT_BOOL: {
+        case CommandLineTypes::DataType::COMMANDLINE_DT_BOOL: {
             out << std::boolalpha << getBool();
             break;
         }

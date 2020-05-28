@@ -31,14 +31,14 @@ namespace buildboxcommon {
 struct CommandLineTypes {
 
     enum DataType {
-        DT_STRING,
-        DT_INT,
-        DT_DOUBLE,
-        DT_BOOL,
-        DT_STRING_ARRAY,
-        DT_STRING_PAIR_ARRAY,
+        COMMANDLINE_DT_STRING,
+        COMMANDLINE_DT_INT,
+        COMMANDLINE_DT_DOUBLE,
+        COMMANDLINE_DT_BOOL,
+        COMMANDLINE_DT_STRING_ARRAY,
+        COMMANDLINE_DT_STRING_PAIR_ARRAY,
 
-        DT_UNKNOWN
+        COMMANDLINE_DT_UNKNOWN
     };
 
     struct Type {
@@ -65,27 +65,28 @@ struct CommandLineTypes {
         std::optional<std::any> d_value;
 #else
         DefaultValue()
-            : d_dataType(DT_UNKNOWN), d_int(0), d_double(0.0), d_bool(false)
+            : d_dataType(COMMANDLINE_DT_UNKNOWN), d_int(0), d_double(0.0),
+              d_bool(false)
         {
         }
         DefaultValue(const char *defaultValue)
-            : d_dataType(DT_STRING), d_str(defaultValue)
+            : d_dataType(COMMANDLINE_DT_STRING), d_str(defaultValue)
         {
         }
         DefaultValue(const std::string &defaultValue)
-            : d_dataType(DT_STRING), d_str(defaultValue)
+            : d_dataType(COMMANDLINE_DT_STRING), d_str(defaultValue)
         {
         }
         DefaultValue(const int defaultValue)
-            : d_dataType(DT_INT), d_int(defaultValue)
+            : d_dataType(COMMANDLINE_DT_INT), d_int(defaultValue)
         {
         }
         DefaultValue(const double defaultValue)
-            : d_dataType(DT_DOUBLE), d_double(defaultValue)
+            : d_dataType(COMMANDLINE_DT_DOUBLE), d_double(defaultValue)
         {
         }
         DefaultValue(const bool defaultValue)
-            : d_dataType(DT_BOOL), d_bool(defaultValue)
+            : d_dataType(COMMANDLINE_DT_BOOL), d_bool(defaultValue)
         {
         }
 
@@ -105,7 +106,7 @@ struct CommandLineTypes {
 #if BUILDBOXCOMMON_CXX_STANDARD == 17
             return d_value.has_value();
 #else
-            return (d_dataType != DT_UNKNOWN);
+            return (d_dataType != COMMANDLINE_DT_UNKNOWN);
 #endif
         }
 
@@ -123,16 +124,24 @@ struct CommandLineTypes {
             : d_dataType(dataType), d_variable(nullptr)
         {
         }
-        TypeInfo(std::string *var) : d_dataType(DT_STRING), d_variable(var) {}
-        TypeInfo(int *var) : d_dataType(DT_INT), d_variable(var) {}
-        TypeInfo(double *var) : d_dataType(DT_DOUBLE), d_variable(var) {}
-        TypeInfo(bool *var) : d_dataType(DT_BOOL), d_variable(var) {}
+        TypeInfo(std::string *var)
+            : d_dataType(COMMANDLINE_DT_STRING), d_variable(var)
+        {
+        }
+        TypeInfo(int *var) : d_dataType(COMMANDLINE_DT_INT), d_variable(var) {}
+        TypeInfo(double *var)
+            : d_dataType(COMMANDLINE_DT_DOUBLE), d_variable(var)
+        {
+        }
+        TypeInfo(bool *var) : d_dataType(COMMANDLINE_DT_BOOL), d_variable(var)
+        {
+        }
         TypeInfo(Type::VectorOfString *var)
-            : d_dataType(DT_STRING_ARRAY), d_variable(var)
+            : d_dataType(COMMANDLINE_DT_STRING_ARRAY), d_variable(var)
         {
         }
         TypeInfo(Type::VectorOfPairOfString *var)
-            : d_dataType(DT_STRING_PAIR_ARRAY), d_variable(var)
+            : d_dataType(COMMANDLINE_DT_STRING_PAIR_ARRAY), d_variable(var)
         {
         }
 

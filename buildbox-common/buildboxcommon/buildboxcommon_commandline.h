@@ -24,9 +24,9 @@
 //      main which defines the command line argument names, their types and
 //      whether or not it's optional or required. An example spec could be:
 //        ArgumentSpec spec[] = {
-//            {"help", "Display usage and exit", TypeInfo(Type::DT_BOOL)},
-//            {"hostname", "Name of host to connect to", TypeInfo(Type::DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
-//            {"request-timeout", "Number of seconds to wait for connection to complete", TypeInfo(Type::DT_INT), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG}
+//            {"help", "Display usage and exit", TypeInfo(Type::COMMANDLINE_DT_BOOL)},
+//            {"hostname", "Name of host to connect to", TypeInfo(Type::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+//            {"request-timeout", "Number of seconds to wait for connection to complete", TypeInfo(Type::COMMANDLINE_DT_INT), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG}
 //        };
 //
 //   2. Applications would then create the component, passing in the specification to the constructor and invoke the parser.
@@ -46,8 +46,8 @@
 //   1. More complex types are supported by the spec which are required by some applications. For example if a
 //      command line argument semantically represents a vector of strings, you can modify your spec as follows:
 //        ArgumentSpec spec[] = {
-//            {"help", "Display usage and exit", TypeInfo(Type::DT_BOOL)},
-//            {"runner-arg", "Args to pass to the runner", TypeInfo(Type::DT_STRING_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+//            {"help", "Display usage and exit", TypeInfo(Type::COMMANDLINE_DT_BOOL)},
+//            {"runner-arg", "Args to pass to the runner", TypeInfo(Type::COMMANDLINE_DT_STRING_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
 //        };
 //        CommandLine commandLine(spec);
 //        const char argv[] = { "--runner-arg", "arg1", "--runner-arg", "arg2" };
@@ -64,8 +64,8 @@
 //
 //   2. Another supported usage is for a vector of a pair of strings.
 //        ArgumentSpec spec[] = {
-//            {"help", "Display usage and exit", TypeInfo(Type::DT_BOOL)},
-//            {"platform", "Set a platform property(repeated):\n--platform KEY=VALUE\n--platform KEY=VALUE", TypeInfo(Type::DT_STRING_PAIR_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+//            {"help", "Display usage and exit", TypeInfo(Type::COMMANDLINE_DT_BOOL)},
+//            {"platform", "Set a platform property(repeated):\n--platform KEY=VALUE\n--platform KEY=VALUE", TypeInfo(Type::COMMANDLINE_DT_STRING_PAIR_ARRAY), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
 //        };
 //        CommandLine commandLine(spec);
 //        const char argv[] = { "--platform", "OSFamily=linux", "--platform", "ISA=x86-64", "--platform",
