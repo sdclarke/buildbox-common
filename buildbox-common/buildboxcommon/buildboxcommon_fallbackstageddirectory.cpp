@@ -19,6 +19,7 @@
 #include <buildboxcommon_exception.h>
 #include <buildboxcommon_fileutils.h>
 #include <buildboxcommon_logging.h>
+#include <buildboxcommon_timeutils.h>
 
 #include <cstring>
 #include <dirent.h>
@@ -64,7 +65,7 @@ FallbackStagedDirectory::~FallbackStagedDirectory()
 }
 
 OutputFile FallbackStagedDirectory::captureFile(const char *relative_path,
-                                                const Command &) const
+                                                const Command &command) const
 {
 
     const auto upload_file_function = [this](const int fd,
@@ -72,7 +73,14 @@ OutputFile FallbackStagedDirectory::captureFile(const char *relative_path,
         this->d_casClient->upload(fd, digest);
     };
 
-    return captureFile(relative_path, upload_file_function);
+    bool capture_mtime = false;
+    for (const auto &property : command.output_node_properties()) {
+        if (property == "mtime") {
+            capture_mtime = true;
+        }
+    }
+
+    return captureFile(relative_path, upload_file_function, capture_mtime);
 }
 
 OutputDirectory
@@ -125,7 +133,8 @@ Digest FallbackStagedDirectory::uploadDirectory(const std::string &path) const
 OutputFile FallbackStagedDirectory::captureFile(
     const char *relative_path,
     const std::function<void(const int fd, const Digest &digest)>
-        &upload_file_function) const
+        &upload_file_function,
+    const bool capture_mtime) const
 {
     int fd;
     try {
@@ -153,6 +162,13 @@ OutputFile FallbackStagedDirectory::captureFile(
     output_file.set_path(relative_path);
     output_file.mutable_digest()->CopyFrom(digest);
     output_file.set_is_executable(FileUtils::isExecutable(fd));
+
+    if (capture_mtime) {
+        const auto mtime = FileUtils::getFileMtime(fd);
+        const auto mtime_timestamp = TimeUtils::make_timestamp(mtime);
+        output_file.mutable_node_properties()->mutable_mtime()->CopyFrom(
+            mtime_timestamp);
+    }
 
     close(fd);
 

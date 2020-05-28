@@ -20,6 +20,7 @@
 #include <buildboxcommon_client.h>
 #include <buildboxcommon_protos.h>
 #include <buildboxcommon_temporaryfile.h>
+#include <buildboxcommon_timeutils.h>
 
 #include <gtest/gtest.h>
 
@@ -231,20 +232,49 @@ TEST_F(CaptureTestFixtureParameter, CaptureFileTest)
     const std::string staged_file_name =
         staged_file_path.substr(staged_file_path.rfind('/') + 1);
 
-    Digest captured_digest;
-    const auto dummy_upload_function =
-        [&captured_digest](const int, const Digest &digest) {
-            captured_digest = digest;
-            return;
-        };
-    const OutputFile output_file =
-        fs.captureFile(staged_file_name.c_str(), dummy_upload_function);
+    // Capturing file without properties (default behavior):
+    {
+        Digest captured_digest;
+        const auto dummy_upload_function =
+            [&captured_digest](const int, const Digest &digest) {
+                captured_digest = digest;
+                return;
+            };
 
-    ASSERT_EQ(captured_digest, staged_file_digest);
+        const OutputFile output_file_no_mtime =
+            fs.captureFile(staged_file_name.c_str(), dummy_upload_function);
+        ASSERT_EQ(captured_digest, staged_file_digest);
 
-    ASSERT_EQ(output_file.path(), staged_file_name);
-    ASSERT_EQ(output_file.digest(), staged_file_digest);
-    ASSERT_TRUE(output_file.is_executable());
+        ASSERT_EQ(output_file_no_mtime.path(), staged_file_name);
+        ASSERT_EQ(output_file_no_mtime.digest(), staged_file_digest);
+        ASSERT_TRUE(output_file_no_mtime.is_executable());
+        ASSERT_EQ(output_file_no_mtime.node_properties().mtime().seconds(), 0);
+        ASSERT_EQ(output_file_no_mtime.node_properties().mtime().nanos(), 0);
+    }
+
+    {
+        Digest captured_digest;
+        const auto dummy_upload_function =
+            [&captured_digest](const int, const Digest &digest) {
+                captured_digest = digest;
+                return;
+            };
+
+        // Capturing the file and its mtime:
+        const OutputFile output_file_with_mtime = fs.captureFile(
+            staged_file_name.c_str(), dummy_upload_function, true);
+
+        ASSERT_EQ(captured_digest, staged_file_digest);
+
+        ASSERT_EQ(output_file_with_mtime.path(), staged_file_name);
+        ASSERT_EQ(output_file_with_mtime.digest(), staged_file_digest);
+        ASSERT_TRUE(output_file_with_mtime.is_executable());
+
+        const auto expected_mtime = TimeUtils::make_timestamp(
+            FileUtils::getFileMtime(staged_file_path.c_str()));
+        ASSERT_EQ(output_file_with_mtime.node_properties().mtime(),
+                  expected_mtime);
+    }
 }
 
 TEST_F(CaptureTestFixtureParameter, CaptureFileEscapingInputRootTest)

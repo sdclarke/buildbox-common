@@ -56,7 +56,8 @@ class FallbackStagedDirectory : public StagedDirectory {
     OutputFile
     captureFile(const char *relative_path,
                 const std::function<void(const int fd, const Digest &digest)>
-                    &upload_file_function) const;
+                    &upload_file_function,
+                const bool capture_mtime = false) const;
 
     OutputDirectory
     captureDirectory(const char *relative_path,
