@@ -1036,15 +1036,16 @@ Client::findMissingBlobs(const std::vector<Digest> &digests)
 
     std::vector<Digest> missing_blobs;
     for (const auto &request_to_issue : requests_to_issue) {
-        grpc::ClientContext context;
         FindMissingBlobsResponse response;
-        const auto status = this->d_casClient->FindMissingBlobs(
-            &context, request_to_issue, &response);
+        auto findMissingBlobsLambda = [&](grpc::ClientContext &context) {
+            const auto status = this->d_casClient->FindMissingBlobs(
+                &context, request_to_issue, &response);
+            return status;
+        };
 
-        if (!status.ok()) {
-            BUILDBOXCOMMON_THROW_EXCEPTION(
-                std::runtime_error, "FindMissingBlobs() request failed");
-        }
+        GrpcRetry::retry(findMissingBlobsLambda, this->d_grpcRetryLimit,
+                         this->d_grpcRetryDelay,
+                         this->d_metadata_attach_function);
 
         missing_blobs.insert(missing_blobs.end(),
                              response.missing_blob_digests().cbegin(),
