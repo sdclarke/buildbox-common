@@ -51,8 +51,8 @@ void GrpcRetry::retry(
             /* The call failed and is retryable on its own. */
             if (nAttempts < grpcRetryLimit) {
                 /* Delay the next call based on the number of attempts made */
-                int timeDelay = static_cast<int>(
-                    grpcRetryDelay * pow(static_cast<double>(2), nAttempts));
+                const int timeDelay =
+                    static_cast<int>(grpcRetryDelay * pow(1.6, nAttempts));
 
                 std::ostringstream errorMsg;
                 errorMsg << "Attempt " << nAttempts + 1 << "/"

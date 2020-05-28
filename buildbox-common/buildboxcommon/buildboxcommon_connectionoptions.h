@@ -38,8 +38,8 @@ struct ConnectionOptions {
      * These are strings to allow for easier
      * propagation from the worker to the runner.
      */
-    const char *d_retryLimit = "0";
-    const char *d_retryDelay = "100";
+    const char *d_retryLimit = "4";    /* Number of times to retry */
+    const char *d_retryDelay = "1000"; /* Initial delay in milliseconds */
 
     /**
      * If the given argument is a server option, update this struct with

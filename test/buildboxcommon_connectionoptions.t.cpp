@@ -123,8 +123,8 @@ TEST(ConnectionOptionsTest, PutArgsEmpty)
 
     opts.putArgs(&result, "cas-");
     std::vector<std::string> expected = {
-        "--retry-limit=0", "--retry-delay=100", "--cas-retry-limit=0",
-        "--cas-retry-delay=100"};
+        "--retry-limit=4", "--retry-delay=1000", "--cas-retry-limit=4",
+        "--cas-retry-delay=1000"};
     EXPECT_EQ(result, expected);
 }
 
