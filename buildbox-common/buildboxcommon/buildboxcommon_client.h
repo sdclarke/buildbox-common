@@ -42,8 +42,7 @@ class Client {
            std::shared_ptr<LocalContentAddressableStorage::StubInterface>
                localCasClient,
            std::shared_ptr<Capabilities::StubInterface> capabilitiesClient,
-           int64_t maxBatchTotalSizeBytes =
-               static_cast<int64_t>(s_bytestreamChunkSizeBytes))
+           size_t maxBatchTotalSizeBytes = s_bytestreamChunkSizeBytes)
         : d_bytestreamClient(bytestreamClient), d_casClient(casClient),
           d_localCasClient(localCasClient),
           d_capabilitiesClient(capabilitiesClient),
@@ -365,7 +364,7 @@ class Client {
     int d_grpcRetryLimit = 0;
     int d_grpcRetryDelay = 100;
 
-    int64_t d_maxBatchTotalSizeBytes;
+    size_t d_maxBatchTotalSizeBytes;
 
     std::string d_uuid;
     std::string d_instanceName;

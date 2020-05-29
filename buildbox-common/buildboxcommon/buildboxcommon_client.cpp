@@ -34,6 +34,9 @@
 #include <uuid/uuid.h>
 
 namespace buildboxcommon {
+namespace {
+const size_t MAX_GRPC_MESSAGE_SIZE = 4 * 1024 * 1024;
+}
 
 const size_t Client::s_bytestreamChunkSizeBytes = 1024 * 1024;
 // The default limit for gRPC messages is 4 MiB.
@@ -74,8 +77,9 @@ void Client::init(
     this->d_localCasClient = localCasClient;
     this->d_capabilitiesClient = capabilitiesClient;
 
-    this->d_maxBatchTotalSizeBytes =
-        static_cast<int64_t>(bytestreamChunkSizeBytes());
+    // Allow up to 75% of the MAX gRPC size for payload
+    // leaving remaining 25% for meta data
+    this->d_maxBatchTotalSizeBytes = MAX_GRPC_MESSAGE_SIZE * .75;
 
     auto getCapabilitiesLambda = [&](grpc::ClientContext &context) {
         GetCapabilitiesRequest request;
@@ -85,7 +89,7 @@ void Client::init(
         auto status = this->d_capabilitiesClient->GetCapabilities(
             &context, request, &response);
         if (status.ok()) {
-            int64_t serverMaxBatchTotalSizeBytes =
+            const size_t serverMaxBatchTotalSizeBytes =
                 response.cache_capabilities().max_batch_total_size_bytes();
             // 0 means no server limit
             if (serverMaxBatchTotalSizeBytes > 0 &&
@@ -896,17 +900,12 @@ Client::batchUpload(const std::vector<UploadRequest> &requests,
     request.set_instance_name(d_instanceName);
 
     for (auto d = start_index; d < end_index; d++) {
-        std::string data;
-        if (requests[d].path.empty()) {
-            data = requests[d].data;
-        }
-        else {
-            data = FileUtils::getFileContents(requests[d].path.c_str());
-        }
-
         auto entry = request.add_requests();
         entry->mutable_digest()->CopyFrom(requests[d].digest);
-        entry->set_data(data);
+        entry->set_data(
+            requests[d].path.empty()
+                ? requests[d].data
+                : FileUtils::getFileContents(requests[d].path.c_str()));
     }
 
     BatchUpdateBlobsResponse response;
@@ -976,17 +975,17 @@ Client::batchDownload(const std::vector<Digest> &digests,
 std::vector<std::pair<size_t, size_t>>
 Client::makeBatches(const std::vector<Digest> &digests)
 {
+    // A batch is a pair of indexes into the vector of `digests` that
+    // can all fit in one `d_maxBatchTotalSizeBytes` sized buffer;
+    // The indices are semantically represented by [batch_start, batch_end)
     std::vector<std::pair<size_t, size_t>> batches;
-
-    const auto max_batch_size = d_maxBatchTotalSizeBytes;
-
+    const size_t max_batch_size = d_maxBatchTotalSizeBytes;
     size_t batch_start = 0;
     size_t batch_end = 0;
-    // A batch is contains digests inside [batch_start, batch_end).
-
     while (batch_end < digests.size()) {
-        long bytes_in_batch = 0;
-        if (digests[batch_end].size_bytes() > max_batch_size) {
+        size_t bytes_in_batch = 0;
+        if (static_cast<size_t>(digests[batch_end].size_bytes()) >
+            max_batch_size) {
             // All digests from `batch_end` to the end of the list are
             // larger than what we can request; stop.
             return batches;
@@ -1001,12 +1000,9 @@ Client::makeBatches(const std::vector<Digest> &digests)
             batch_end++;
         }
 
-        batches.push_back(std::make_pair(batch_start, batch_end));
-
+        batches.emplace_back(std::make_pair(batch_start, batch_end));
         batch_start = batch_end;
-        batch_end = batch_start;
-        bytes_in_batch = 0;
-    };
+    }
 
     return batches;
 }
