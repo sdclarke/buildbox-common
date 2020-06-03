@@ -54,14 +54,12 @@ void GrpcRetry::retry(
                 const int timeDelay =
                     static_cast<int>(grpcRetryDelay * pow(1.6, nAttempts));
 
-                std::ostringstream errorMsg;
-                errorMsg << "Attempt " << nAttempts + 1 << "/"
-                         << grpcRetryLimit + 1 << " failed with gRPC error "
-                         << status.error_code() << ": "
-                         << status.error_message() << ". Retrying in "
-                         << timeDelay << " ms...";
-
-                BUILDBOX_LOG_ERROR(errorMsg.str());
+                BUILDBOX_LOG_ERROR(
+                    "Attempt " << nAttempts + 1 << "/" << grpcRetryLimit + 1
+                               << " failed with gRPC error "
+                               << status.error_code() << ": "
+                               << status.error_message() << ". Retrying in "
+                               << timeDelay << " ms...");
 
                 std::this_thread::sleep_for(
                     std::chrono::milliseconds(timeDelay));
