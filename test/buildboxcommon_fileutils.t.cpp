@@ -1064,6 +1064,21 @@ TEST(FileUtilsTests, PathBasenameTests)
     EXPECT_EQ("", FileUtils::pathBasename("/"));
 }
 
+TEST(FileUtilsTests, GetFileSize)
+{
+    TemporaryDirectory tmpdir;
+
+    const std::string file_path = std::string(tmpdir.name()) + "/data.txt";
+
+    const std::string s("hello, world\n");
+
+    std::ofstream file(file_path);
+    file << s;
+    file.close();
+
+    ASSERT_EQ(FileUtils::getFileSize(file_path.c_str()), s.size());
+}
+
 TEST(FileUtilsTests, GetFileMtime)
 {
     TemporaryDirectory tmpdir;
