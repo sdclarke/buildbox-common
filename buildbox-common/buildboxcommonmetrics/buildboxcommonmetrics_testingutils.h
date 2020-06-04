@@ -203,54 +203,6 @@ void clearAllMetricCollection()
     InternalTemplatedMethods::clearAllMetricValueTypes<0>();
 }
 
-// Deprecated templates
-template <typename MetricType>
-bool __attribute__((deprecated))
-validateMetricCollection(const std::string &metric)
-{
-    typedef decltype(std::declval<MetricType>().value()) ValueType;
-    return collectedByName<ValueType>(metric);
-}
-
-template <typename ValueType>
-bool __attribute__((deprecated))
-validateMetricCollection(const std::string &name, const ValueType &value)
-{
-    return collectedByNameWithValue<ValueType>(name, value);
-}
-
-template <typename MetricType>
-bool __attribute__((deprecated))
-validateMetricCollection(const std::vector<std::string> &metrics)
-{
-    typedef decltype(std::declval<MetricType>().value()) ValueType;
-    return allCollectedByName<ValueType>(metrics);
-}
-
-template <typename MetricType>
-bool __attribute__((deprecated))
-validateMetricCollection(const std::initializer_list<std::string> &metrics)
-{
-    typedef decltype(std::declval<MetricType>().value()) ValueType;
-    return allCollectedByName<ValueType>(metrics);
-}
-
-template <typename ValueType>
-bool __attribute__((deprecated)) validateMetricCollection(
-    const std::vector<std::pair<std::string, ValueType>> &name_values)
-{
-    return allCollectedByNameWithValues<ValueType>(name_values);
-}
-
-template <typename ValueType>
-bool __attribute__((deprecated)) validateMetricCollection(
-    const std::vector<std::pair<std::string, ValueType>> &expectedMetrics,
-    const std::vector<std::string> &expectedMissingMetrics)
-{
-    return allCollectedByNameWithValuesAndAllMissingByName<ValueType>(
-        expectedMetrics, expectedMissingMetrics);
-}
-
 } // namespace buildboxcommonmetrics
 } // namespace buildboxcommon
 #endif

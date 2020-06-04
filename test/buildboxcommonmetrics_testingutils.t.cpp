@@ -80,9 +80,9 @@ TEST_F(MetricTestingUtilsTest, ValidateSingleMetric)
 {
     d_collector->store("metric1", MockMetricValue(1));
 
-    ASSERT_TRUE(validateMetricCollection<MockMetric>("metric1"));
+    ASSERT_TRUE(collectedByName<MockMetricValue>("metric1"));
 
-    ASSERT_FALSE(validateMetricCollection<MockMetric>("metric10"));
+    ASSERT_FALSE(collectedByName<MockMetricValue>("metric10"));
 }
 
 TEST_F(MetricTestingUtilsTest, ValidateTwoMetricsInitializerList)
@@ -90,7 +90,7 @@ TEST_F(MetricTestingUtilsTest, ValidateTwoMetricsInitializerList)
     d_collector->store("metric1", MockMetricValue(1));
     d_collector->store("metric2", MockMetricValue(2));
 
-    ASSERT_TRUE(validateMetricCollection<MockMetric>({"metric1", "metric2"}));
+    ASSERT_TRUE(allCollectedByName<MockMetricValue>({"metric1", "metric2"}));
 }
 
 TEST_F(MetricTestingUtilsTest, ValidateMultipleMetricsPositive)
@@ -99,7 +99,7 @@ TEST_F(MetricTestingUtilsTest, ValidateMultipleMetricsPositive)
     d_collector->store("metric2", MockMetricValue(2));
 
     const std::vector<std::string> metrics = {"metric1", "metric2"};
-    ASSERT_TRUE(validateMetricCollection<MockMetric>(metrics));
+    ASSERT_TRUE(allCollectedByName<MockMetricValue>(metrics));
 }
 
 TEST_F(MetricTestingUtilsTest, ValidateMultipleMetricsNegative)
@@ -109,7 +109,7 @@ TEST_F(MetricTestingUtilsTest, ValidateMultipleMetricsNegative)
     d_collector->store("metric4", MockMetricValue(4));
 
     const std::vector<std::string> metrics = {"metric3", "metric4", "metric5"};
-    ASSERT_FALSE(validateMetricCollection<MockMetric>(metrics));
+    ASSERT_FALSE(allCollectedByName<MockMetricValue>(metrics));
 }
 
 TEST_F(MetricTestingUtilsTest, ValidateMetricValue)
@@ -121,7 +121,7 @@ TEST_F(MetricTestingUtilsTest, ValidateMetricValue)
     d_collector->store(metric_name, metric_value);
 
     ASSERT_TRUE(
-        validateMetricCollection<MockMetricValue>(metric_name, metric_value));
+        collectedByNameWithValue<MockMetricValue>(metric_name, metric_value));
     // (This version takes the metric's `ValueType` directly)
 }
 
@@ -137,7 +137,7 @@ TEST_F(MetricTestingUtilsTest, ValidateMetricValuesPositive)
         d_collector->store(entry.first, entry.second);
     }
 
-    ASSERT_TRUE(validateMetricCollection<MockMetricValue>(entries));
+    ASSERT_TRUE(allCollectedByNameWithValues<MockMetricValue>(entries));
     // (This version takes the metric's `ValueType` directly)
 }
 
@@ -146,7 +146,7 @@ TEST_F(MetricTestingUtilsTest, ValidateMetricValuesPositiveNegative)
 
     d_collector->store("metric400", MockMetricValue(400));
 
-    ASSERT_FALSE(validateMetricCollection<MockMetricValue>(
+    ASSERT_FALSE(allCollectedByNameWithValues<MockMetricValue>(
         {{"metric400", MockMetricValue(400)},
          {"metric500", MockMetricValue(500)}}));
     // (This version takes the metric's `ValueType` directly)
@@ -157,8 +157,9 @@ TEST_F(MetricTestingUtilsTest, ValidateMetricValuesMissing)
     d_collector->store("metric400", MockMetricValue(400));
 
     // this returns true now because metric500 was not collected
-    ASSERT_TRUE(validateMetricCollection<MockMetricValue>(
-        {{"metric400", MockMetricValue(400)}}, {"metric500"}));
+    ASSERT_TRUE(
+        allCollectedByNameWithValuesAndAllMissingByName<MockMetricValue>(
+            {{"metric400", MockMetricValue(400)}}, {"metric500"}));
 }
 
 TEST_F(MetricTestingUtilsTest, ValidateMetricValuesMissingFail)
@@ -167,8 +168,9 @@ TEST_F(MetricTestingUtilsTest, ValidateMetricValuesMissingFail)
     d_collector->store("metric500", MockMetricValue(500));
 
     // this returns false because metric500 does appear.
-    ASSERT_FALSE(validateMetricCollection<MockMetricValue>(
-        {{"metric400", MockMetricValue(400)}}, {"metric500"}));
+    ASSERT_FALSE(
+        allCollectedByNameWithValuesAndAllMissingByName<MockMetricValue>(
+            {{"metric400", MockMetricValue(400)}}, {"metric500"}));
 }
 
 TEST_F(MetricTestingUtilsTest, ClearMetricValues)
@@ -181,7 +183,7 @@ TEST_F(MetricTestingUtilsTest, ClearMetricValues)
     clearMetricCollection<MockMetricValue>();
 
     ASSERT_FALSE(
-        validateMetricCollection<MockMetricValue>(metric_name, metric_value));
+        collectedByNameWithValue<MockMetricValue>(metric_name, metric_value));
 }
 
 TEST_F(MetricTestingUtilsTest, AddMetricsAfterClearing)
@@ -194,7 +196,7 @@ TEST_F(MetricTestingUtilsTest, AddMetricsAfterClearing)
     d_collector->store(metric_name, metric_value);
 
     ASSERT_TRUE(
-        validateMetricCollection<MockMetricValue>(metric_name, metric_value));
+        collectedByNameWithValue<MockMetricValue>(metric_name, metric_value));
 }
 
 TEST_F(MetricTestingUtilsTest, ClearAllMetricsTest)
@@ -218,12 +220,11 @@ TEST_F(MetricTestingUtilsTest, ClearAllMetricsTest)
     clearAllMetricCollection();
 
     // verify all metrics have been cleared
-    EXPECT_FALSE(validateMetricCollection<CountingMetric>(count_metric_name));
+    EXPECT_FALSE(collectedByName<CountingMetricValue>(count_metric_name));
+    EXPECT_FALSE(collectedByName<DurationMetricValue>(duration_metric_name));
     EXPECT_FALSE(
-        validateMetricCollection<DurationMetricTimer>(duration_metric_name));
-    EXPECT_FALSE(validateMetricCollection<TotalDurationMetricTimer>(
-        total_duration_metric_name));
-    EXPECT_FALSE(validateMetricCollection<GaugeMetric>(gauge_metric_name));
+        collectedByName<TotalDurationMetricValue>(total_duration_metric_name));
+    EXPECT_FALSE(collectedByName<GaugeMetricValue>(gauge_metric_name));
 }
 
 TEST_F(MetricTestingUtilsTest, ClearAllMetricsTestBeforeInserts)
@@ -247,12 +248,11 @@ TEST_F(MetricTestingUtilsTest, ClearAllMetricsTestBeforeInserts)
     GaugeMetricUtil::setGauge(gauge_metric_name, metric_value);
 
     // verify recently inserted metrics have not been cleared
-    EXPECT_TRUE(validateMetricCollection<CountingMetric>(count_metric_name));
+    EXPECT_TRUE(collectedByName<CountingMetricValue>(count_metric_name));
+    EXPECT_TRUE(collectedByName<DurationMetricValue>(duration_metric_name));
     EXPECT_TRUE(
-        validateMetricCollection<DurationMetricTimer>(duration_metric_name));
-    EXPECT_TRUE(validateMetricCollection<TotalDurationMetricTimer>(
-        total_duration_metric_name));
-    EXPECT_TRUE(validateMetricCollection<GaugeMetric>(gauge_metric_name));
+        collectedByName<TotalDurationMetricValue>(total_duration_metric_name));
+    EXPECT_TRUE(collectedByName<GaugeMetricValue>(gauge_metric_name));
 }
 
 TEST_F(MetricTestingUtilsTest, ValidateSingleMetricMultipleValuesPositive)
@@ -266,7 +266,7 @@ TEST_F(MetricTestingUtilsTest, ValidateSingleMetricMultipleValuesPositive)
         d_collector->store(metric_pair.first, metric_pair.second);
     }
 
-    ASSERT_TRUE(validateMetricCollection<MockMetricValue>(metrics));
+    ASSERT_TRUE(allCollectedByNameWithValues<MockMetricValue>(metrics));
 }
 
 TEST_F(MetricTestingUtilsTest, ValidateSingleMetricMultipleValuesNegative)
@@ -286,5 +286,5 @@ TEST_F(MetricTestingUtilsTest, ValidateSingleMetricMultipleValuesNegative)
             std::make_pair("metric2", MockMetricValue(5)),
         };
 
-    ASSERT_FALSE(validateMetricCollection<MockMetricValue>(wrong_metrics));
+    ASSERT_FALSE(allCollectedByNameWithValues<MockMetricValue>(wrong_metrics));
 }
