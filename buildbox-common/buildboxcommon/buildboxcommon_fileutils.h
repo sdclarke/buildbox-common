@@ -123,6 +123,17 @@ struct FileUtils {
     static bool isExecutable(int fd);
 
     /**
+     * Return the size in bytes of the file specified by the given path.
+     */
+    static int64_t getFileSize(const char *path);
+
+    /**
+     * Return the size in bytes of the file specified by the given file
+     * descriptor.
+     */
+    static int64_t getFileSize(int fd);
+
+    /**
      * Return a time point in seconds representing the mtime of the file
      * specified by the given path.
      */

@@ -179,6 +179,18 @@ struct stat FileUtils::getFileStat(const int fd)
     return statResult;
 }
 
+int64_t FileUtils::getFileSize(const char *path)
+{
+    struct stat statResult = getFileStat(path);
+    return statResult.st_size;
+}
+
+int64_t FileUtils::getFileSize(int fd)
+{
+    struct stat statResult = getFileStat(fd);
+    return statResult.st_size;
+}
+
 std::chrono::system_clock::time_point FileUtils::getFileMtime(const char *path)
 {
     struct stat statResult = getFileStat(path);
