@@ -31,16 +31,29 @@
 
 namespace buildboxcommon {
 
+namespace {
+
+Digest hashFile(int fd) { return CASHash::hash(fd); }
+
+} // namespace
+
 File::File(const char *path,
            const std::vector<std::string> &capture_properties)
-    : File(AT_FDCWD, path, capture_properties)
+    : File(path, hashFile, capture_properties)
+{
+}
+
+File::File(const char *path, const FileDigestFunction &fileDigestFunc,
+           const std::vector<std::string> &capture_properties)
+    : File(AT_FDCWD, path, fileDigestFunc, capture_properties)
 {
 }
 
 File::File(int dirfd, const char *path,
+           const FileDigestFunction &fileDigestFunc,
            const std::vector<std::string> &capture_properties)
 {
-    int fd = openat(dirfd, path, O_RDONLY);
+    const int fd = openat(dirfd, path, O_RDONLY);
     if (fd < 0) {
         BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
             std::system_error, errno, std::system_category,
@@ -48,7 +61,7 @@ File::File(int dirfd, const char *path,
     }
     try {
         d_executable = FileUtils::isExecutable(fd);
-        d_digest = CASHash::hash(fd);
+        d_digest = fileDigestFunc(fd);
         for (const std::string &property : capture_properties) {
             if (property == "mtime") {
                 d_mtime = FileUtils::getFileMtime(fd);
@@ -196,6 +209,7 @@ Digest make_digest(const std::string &blob) { return CASHash::hash(blob); }
 
 static NestedDirectory
 make_nesteddirectory(int basedirfd, const std::string prefix, const char *path,
+                     const FileDigestFunction &fileDigestFunc,
                      digest_string_map *fileMap,
                      const std::vector<std::string> &capture_properties);
 
@@ -203,12 +217,22 @@ NestedDirectory
 make_nesteddirectory(const char *path, digest_string_map *fileMap,
                      const std::vector<std::string> &capture_properties)
 {
-    return make_nesteddirectory(AT_FDCWD, "", path, fileMap,
+    return make_nesteddirectory(path, hashFile, fileMap, capture_properties);
+}
+
+NestedDirectory
+make_nesteddirectory(const char *path,
+                     const FileDigestFunction &fileDigestFunc,
+                     digest_string_map *fileMap,
+                     const std::vector<std::string> &capture_properties)
+{
+    return make_nesteddirectory(AT_FDCWD, "", path, fileDigestFunc, fileMap,
                                 capture_properties);
 }
 
 NestedDirectory
 make_nesteddirectory(int basedirfd, const std::string prefix, const char *path,
+                     const FileDigestFunction &fileDigestFunc,
                      digest_string_map *fileMap,
                      const std::vector<std::string> &capture_properties)
 {
@@ -246,10 +270,12 @@ make_nesteddirectory(int basedirfd, const std::string prefix, const char *path,
 
         if (S_ISDIR(statResult.st_mode)) {
             (*result.d_subdirs)[entityName] = make_nesteddirectory(
-                dirfd, newprefix, dirent->d_name, fileMap, capture_properties);
+                dirfd, newprefix, dirent->d_name, fileDigestFunc, fileMap,
+                capture_properties);
         }
         else if (S_ISREG(statResult.st_mode)) {
-            const File file(dirfd, dirent->d_name, capture_properties);
+            const File file(dirfd, dirent->d_name, fileDigestFunc,
+                            capture_properties);
             result.d_files[entityName] = file;
 
             if (fileMap != nullptr) {

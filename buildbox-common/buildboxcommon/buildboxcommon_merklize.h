@@ -31,6 +31,8 @@ typedef std::unordered_map<buildboxcommon::Digest, std::string>
 typedef std::unordered_map<buildboxcommon::Digest, std::string>::iterator
     digest_string_map_it;
 
+typedef std::function<Digest(int fd)> FileDigestFunction;
+
 /**
  * Represents a single file.
  */
@@ -50,7 +52,9 @@ struct File {
      */
     File(const char *path,
          const std::vector<std::string> &capture_properties = {});
-    File(int dirfd, const char *path,
+    File(const char *path, const FileDigestFunction &fileDigestFunc,
+         const std::vector<std::string> &capture_properties = {});
+    File(int dirfd, const char *path, const FileDigestFunction &fileDigestFunc,
          const std::vector<std::string> &capture_properties = {});
 
     /**
@@ -132,6 +136,12 @@ inline Digest make_digest(const google::protobuf::MessageLite &message)
  */
 NestedDirectory
 make_nesteddirectory(const char *path, digest_string_map *fileMap = nullptr,
+                     const std::vector<std::string> &capture_properties =
+                         std::vector<std::string>());
+NestedDirectory
+make_nesteddirectory(const char *path,
+                     const FileDigestFunction &fileDigestFunc,
+                     digest_string_map *fileMap = nullptr,
                      const std::vector<std::string> &capture_properties =
                          std::vector<std::string>());
 
