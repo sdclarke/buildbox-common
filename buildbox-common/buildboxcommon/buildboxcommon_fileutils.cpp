@@ -617,7 +617,7 @@ FileUtils::joinPathSegmentsNoEscape(const std::string &basedir,
     const std::string normalizedBaseDir =
         FileUtils::normalizePath(basedir.c_str());
 
-    std::string normalizedPathWithinBaseDir =
+    const std::string normalizedPathWithinBaseDir =
         FileUtils::normalizePath(pathWithinBasedir.c_str());
 
     // Join paths using`joinPathSegments`
@@ -629,22 +629,21 @@ FileUtils::joinPathSegmentsNoEscape(const std::string &basedir,
     // for the known cases we are certain it doesn't escape
     bool escapes = true;
 
-    // Do not allow any `..`, there shouldn't be any after normalizations
-    // unless an escape is happening
-    if (joinedPath.find("..") != std::string::npos) {
-        escapes = true;
-    }
-    else if (joinedPath == normalizedBaseDir) {
+    // Do not allow any escaping.
+    if (joinedPath == normalizedBaseDir) {
         // Normalized path is the base directory
         escapes = false;
     }
-    else if (normalizedBaseDir == "/" || normalizedBaseDir == "") {
-        // Normalized baseDir is `/` or `` (root or relative to cwd)
+    else if (normalizedBaseDir == "/" || normalizedBaseDir == "" ||
+             normalizedBaseDir == ".") {
+        // Normalized baseDir is `/` or `` or `.` (root or relative to cwd)
 
-        // In these cases not having `..` in the combinedPath is enough
-        // to make sure it doesn't escape
-        // (We checked for `..` above)
-        escapes = false;
+        // In these cases not having `..` in the normalizedPathWithinBaseDir is
+        // enough to make sure it doesn't escape
+        if (normalizedPathWithinBaseDir != ".." &&
+            normalizedPathWithinBaseDir.substr(0, 3) != "../") {
+            escapes = false;
+        }
     }
     else if (joinedPath.find(normalizedBaseDir) == 0) {
         // Normalized path is within base directory

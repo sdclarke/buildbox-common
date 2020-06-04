@@ -458,6 +458,12 @@ TEST(JoinPathSegmentsTest, JoinPaths)
     EXPECT_EQ("/a/c/d/e/f", FileUtils::joinPathSegments("/a/b/../c", "d/e/f"));
     EXPECT_EQ("/b/c", FileUtils::joinPathSegments("/a", "../b/c"));
     EXPECT_EQ("/c", FileUtils::joinPathSegments("/a", "/b/../c"));
+
+    // Base dir escapes
+    EXPECT_EQ("../b",
+              FileUtils::FileUtils::joinPathSegmentsNoEscape("a/../..", "b"));
+    EXPECT_EQ("../b", FileUtils::FileUtils::joinPathSegmentsNoEscape(
+                          "a/b/../../..", "b"));
 }
 
 TEST(JoinPathSegmentsTest, JoinPathsForceSecondSegmentRelative)
@@ -594,7 +600,7 @@ TEST(JoinPathSegmentsNoEscapeTest, JoinPathsNoEscape)
 
     // paths containing '..' (Escapes outside first dir NOT allowed)
     EXPECT_EQ("/a", FileUtils::joinPathSegmentsNoEscape("/a", "b/c/../../"));
-    ;
+
     EXPECT_EQ("/a/b/f",
               FileUtils::joinPathSegmentsNoEscape("/a", "b/c/../d/../e/../f"));
     EXPECT_EQ("/a/c/d/e/f",
@@ -663,6 +669,22 @@ TEST(JoinPathSegmentsNoEscapeTest,
                             "/a", "b/c/../d/../e/../f", true));
     EXPECT_EQ("/a/c/d/e/f",
               FileUtils::joinPathSegmentsNoEscape("/a/b/../c", "d/e/f", true));
+    // Directory name with dots in
+    EXPECT_EQ("/a/c/d/e../f..", FileUtils::joinPathSegmentsNoEscape(
+                                    "/a/b/../c", "d/e../f..", true));
+    EXPECT_EQ("/..a/c/..d/..e../..f",
+              FileUtils::joinPathSegmentsNoEscape("/..a/..b/../c",
+                                                  "..d/..e../..f", true));
+    // paths containing '..' as part of a filename
+    EXPECT_EQ("/a/b/c/file..txt",
+              FileUtils::joinPathSegmentsNoEscape("/a/b", "c/file..txt"));
+    EXPECT_EQ("a/b/file..txt",
+              FileUtils::joinPathSegmentsNoEscape("a", "b/file..txt"));
+    EXPECT_EQ("a/file..txt",
+              FileUtils::joinPathSegmentsNoEscape("a", "b/../file..txt"));
+    EXPECT_EQ("/a/file..txt",
+              FileUtils::joinPathSegmentsNoEscape("/a", "/a/b/../file..txt"));
+
     EXPECT_EQ("/c/d/e",
               FileUtils::joinPathSegmentsNoEscape("/a/../", "c/d/e", true));
 
@@ -705,6 +727,28 @@ TEST(JoinPathSegmentsNoEscapeTest,
     EXPECT_EQ("a/b", FileUtils::joinPathSegmentsNoEscape("a/.", "/./b", true));
     EXPECT_EQ("/a/c",
               FileUtils::joinPathSegmentsNoEscape("/a", "/b/../c", true));
+
+    // paths containing '..' as part of a filename
+    EXPECT_EQ("/a/b/c/file..txt",
+              FileUtils::joinPathSegments("/a/b", "c/file..txt", true));
+    EXPECT_EQ("a/b/file..txt",
+              FileUtils::joinPathSegments("a", "b/file..txt", true));
+    EXPECT_EQ("a/file..txt",
+              FileUtils::joinPathSegments("a", "/b/../file..txt", true));
+    EXPECT_EQ("/a/file..txt",
+              FileUtils::joinPathSegments("/a", "/b/../file..txt", true));
+
+    // Base dir escapes
+    EXPECT_EQ("../b", FileUtils::FileUtils::joinPathSegmentsNoEscape(
+                          "a/../..", "/b", true));
+    EXPECT_EQ("../b", FileUtils::FileUtils::joinPathSegmentsNoEscape(
+                          "a/../..", "b", true));
+    EXPECT_EQ("../b", FileUtils::FileUtils::joinPathSegmentsNoEscape(
+                          "a/b/../../..", "/b", true));
+    EXPECT_EQ("../b", FileUtils::FileUtils::joinPathSegmentsNoEscape(
+                          "a/b/../../..", "b", true));
+    EXPECT_EQ("c/d/e",
+              FileUtils::joinPathSegmentsNoEscape("a/../", "c/d/e", true));
 }
 
 TEST(JoinPathSegmentsNoEscapeTestEscapesThrow, JoinPathsNoEscape)
@@ -714,16 +758,8 @@ TEST(JoinPathSegmentsNoEscapeTestEscapesThrow, JoinPathsNoEscape)
         FileUtils::FileUtils::joinPathSegmentsNoEscape("a/../..", "/b"),
         std::runtime_error);
     EXPECT_THROW(
-        FileUtils::FileUtils::joinPathSegmentsNoEscape("a/../..", "b"),
-        std::runtime_error);
-    EXPECT_THROW(
         FileUtils::FileUtils::joinPathSegmentsNoEscape("a/b/../../..", "/b"),
         std::runtime_error);
-    EXPECT_THROW(
-        FileUtils::FileUtils::joinPathSegmentsNoEscape("a/b/../../..", "b"),
-        std::runtime_error);
-    EXPECT_THROW(FileUtils::joinPathSegmentsNoEscape("a/../", "c/d/e"),
-                 std::runtime_error);
 
     // Path within basedir escapes
     EXPECT_THROW(FileUtils::FileUtils::joinPathSegmentsNoEscape("/a", "../b"),
@@ -748,8 +784,12 @@ TEST(JoinPathSegmentsNoEscapeTestEscapesThrow, JoinPathsNoEscape)
                  std::runtime_error);
     EXPECT_THROW(FileUtils::joinPathSegmentsNoEscape("/a", "/b/../c"),
                  std::runtime_error);
+    EXPECT_THROW(FileUtils::joinPathSegmentsNoEscape("/a", "/b/.."),
+                 std::runtime_error);
+    EXPECT_THROW(FileUtils::joinPathSegmentsNoEscape("/a", ".."),
+                 std::runtime_error);
 
-    // Escaping due to absolue paths
+    // Escaping due to absolute paths
     EXPECT_THROW(FileUtils::joinPathSegmentsNoEscape("a", "/b/"),
                  std::runtime_error);
     EXPECT_THROW(FileUtils::joinPathSegmentsNoEscape("a/", "/b/"),
@@ -797,22 +837,6 @@ TEST(JoinPathSegmentsNoEscapeTestEscapesThrow, JoinPathsNoEscape)
 TEST(JoinPathSegmentsNoEscapeTestForceRelativePathWithinBaseDirEscapesThrow,
      JoinPathsNoEscape)
 {
-    // Base dir escapes
-    EXPECT_THROW(
-        FileUtils::FileUtils::joinPathSegmentsNoEscape("a/../..", "/b", true),
-        std::runtime_error);
-    EXPECT_THROW(
-        FileUtils::FileUtils::joinPathSegmentsNoEscape("a/../..", "b", true),
-        std::runtime_error);
-    EXPECT_THROW(FileUtils::FileUtils::joinPathSegmentsNoEscape("a/b/../../..",
-                                                                "/b", true),
-                 std::runtime_error);
-    EXPECT_THROW(FileUtils::FileUtils::joinPathSegmentsNoEscape("a/b/../../..",
-                                                                "b", true),
-                 std::runtime_error);
-    EXPECT_THROW(FileUtils::joinPathSegmentsNoEscape("a/../", "c/d/e", true),
-                 std::runtime_error);
-
     // Path within basedir escapes
     EXPECT_THROW(
         FileUtils::FileUtils::joinPathSegmentsNoEscape("/a", "../b", true),
