@@ -50,6 +50,8 @@ struct File {
      */
     File(const char *path,
          const std::vector<std::string> &capture_properties = {});
+    File(int dirfd, const char *path,
+         const std::vector<std::string> &capture_properties = {});
 
     /**
      * Converts a File to a FileNode with the given name.

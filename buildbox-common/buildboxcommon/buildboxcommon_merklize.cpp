@@ -33,16 +33,34 @@ namespace buildboxcommon {
 
 File::File(const char *path,
            const std::vector<std::string> &capture_properties)
+    : File(AT_FDCWD, path, capture_properties)
 {
-    d_executable = FileUtils::isExecutable(path);
-    d_digest = CASHash::hashFile(path);
-    for (const std::string &property : capture_properties) {
-        if (property == "mtime") {
-            d_mtime = FileUtils::getFileMtime(path);
-            d_mtime_set = true;
-        }
+}
+
+File::File(int dirfd, const char *path,
+           const std::vector<std::string> &capture_properties)
+{
+    int fd = openat(dirfd, path, O_RDONLY);
+    if (fd < 0) {
+        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+            std::system_error, errno, std::system_category,
+            "Failed to open path \"" << path << "\"");
     }
-    return;
+    try {
+        d_executable = FileUtils::isExecutable(fd);
+        d_digest = CASHash::hash(fd);
+        for (const std::string &property : capture_properties) {
+            if (property == "mtime") {
+                d_mtime = FileUtils::getFileMtime(fd);
+                d_mtime_set = true;
+            }
+        }
+        close(fd);
+    }
+    catch (...) {
+        close(fd);
+        throw;
+    }
 }
 
 FileNode File::to_filenode(const std::string &name) const
@@ -176,19 +194,40 @@ Tree NestedDirectory::to_tree() const
 
 Digest make_digest(const std::string &blob) { return CASHash::hash(blob); }
 
+static NestedDirectory
+make_nesteddirectory(int basedirfd, const std::string prefix, const char *path,
+                     digest_string_map *fileMap,
+                     const std::vector<std::string> &capture_properties);
+
 NestedDirectory
 make_nesteddirectory(const char *path, digest_string_map *fileMap,
                      const std::vector<std::string> &capture_properties)
 {
+    return make_nesteddirectory(AT_FDCWD, "", path, fileMap,
+                                capture_properties);
+}
+
+NestedDirectory
+make_nesteddirectory(int basedirfd, const std::string prefix, const char *path,
+                     digest_string_map *fileMap,
+                     const std::vector<std::string> &capture_properties)
+{
     NestedDirectory result;
-    const auto dir = opendir(path);
+    const int dirfd = openat(basedirfd, path, O_RDONLY | O_DIRECTORY);
+    if (dirfd < 0) {
+        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+            std::system_error, errno, std::system_category,
+            "Failed to open path \"" << path << "\"");
+    }
+    const auto dir = fdopendir(dirfd);
     if (dir == nullptr) {
+        close(dirfd);
         BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
             std::system_error, errno, std::system_category,
             "Failed to open path \"" << path << "\"");
     }
 
-    const std::string pathString(path);
+    const std::string newprefix(prefix + path + "/");
     for (auto dirent = readdir(dir); dirent != nullptr;
          dirent = readdir(dir)) {
         if (strcmp(dirent->d_name, ".") == 0 ||
@@ -197,19 +236,20 @@ make_nesteddirectory(const char *path, digest_string_map *fileMap,
         }
 
         const std::string entityName(dirent->d_name);
-        const std::string entityPath = pathString + "/" + entityName;
+        const std::string entityPath = newprefix + entityName;
 
         struct stat statResult;
-        if (lstat(entityPath.c_str(), &statResult) != 0) {
+        if (fstatat(dirfd, dirent->d_name, &statResult, AT_SYMLINK_NOFOLLOW) !=
+            0) {
             continue;
         }
 
         if (S_ISDIR(statResult.st_mode)) {
             (*result.d_subdirs)[entityName] = make_nesteddirectory(
-                entityPath.c_str(), fileMap, capture_properties);
+                dirfd, newprefix, dirent->d_name, fileMap, capture_properties);
         }
         else if (S_ISREG(statResult.st_mode)) {
-            const File file(entityPath.c_str(), capture_properties);
+            const File file(dirfd, dirent->d_name, capture_properties);
             result.d_files[entityName] = file;
 
             if (fileMap != nullptr) {
@@ -219,7 +259,8 @@ make_nesteddirectory(const char *path, digest_string_map *fileMap,
         else if (S_ISLNK(statResult.st_mode)) {
             std::string target(static_cast<size_t>(statResult.st_size), '\0');
 
-            if (readlink(entityPath.c_str(), &target[0], target.size()) < 0) {
+            if (readlinkat(dirfd, dirent->d_name, &target[0], target.size()) <
+                0) {
                 closedir(dir);
                 BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
                     std::system_error, errno, std::system_category,
@@ -231,6 +272,7 @@ make_nesteddirectory(const char *path, digest_string_map *fileMap,
         }
     }
 
+    // This will implicitly close `dirfd`.
     closedir(dir);
     return result;
 }
