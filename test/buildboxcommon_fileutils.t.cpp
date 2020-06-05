@@ -30,6 +30,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <system_error>
 #include <unistd.h>
 
 using namespace buildboxcommon;
@@ -170,7 +171,7 @@ TEST(FileUtilsTests, IsNotFileFD)
 TEST(FileUtilsTests, IsDirectoryBadFdReturnsFalse)
 {
     const int bad_fd = -1;
-    ASSERT_FALSE(FileUtils::isDirectory(bad_fd));
+    ASSERT_THROW(FileUtils::isDirectory(bad_fd), std::system_error);
 }
 
 TEST(FileUtilsTests, ExecutableTests)
@@ -242,7 +243,8 @@ TEST(FileUtilsTest, RemoveSymlinkToDirectory)
     buildboxcommontest::TestUtils::touchFile(file_in_dir.c_str());
     ASSERT_TRUE(FileUtils::isRegularFile(file_in_dir.c_str()));
 
-    // Follow the path make sure target is directory.
+    // Assert it is a symlink
+    ASSERT_FALSE(FileUtils::isDirectoryNoFollow(symlink_to_dir.c_str()));
     ASSERT_TRUE(FileUtils::isDirectory(symlink_to_dir.c_str()));
     ASSERT_FALSE(FileUtils::directoryIsEmpty(dir.name()));
 
@@ -277,7 +279,8 @@ TEST(FileUtilsTests, ClearDirectoryTest)
     const auto symlink_in_subdir = subdirectory_path + "/file2.txt";
     ASSERT_EQ(0, symlink(file_in_subdirectory_path.c_str(),
                          symlink_in_subdir.c_str()));
-    // stat on a symlink will follow the target.
+    // Assert it is a symlink
+    ASSERT_FALSE(FileUtils::isRegularFileNoFollow(symlink_in_subdir.c_str()));
     ASSERT_TRUE(FileUtils::isRegularFile(symlink_in_subdir.c_str()));
 
     ASSERT_FALSE(FileUtils::directoryIsEmpty(directory.name()));
@@ -1217,4 +1220,51 @@ TEST(FileUtilsTests, CopyFile)
     // It have the correct permissions:
     const auto file_permissions = stat_buf.st_mode & 0777;
     ASSERT_EQ(file_permissions, 0744);
+}
+
+TEST(FileUtilsTests, ThrowOnPermissionsError)
+{
+    TemporaryDirectory top_level;
+    TemporaryDirectory test_dir(top_level.name(),
+                                "FileUtils_ThrowOnPermissionsError");
+    TemporaryFile test_file(top_level.name(),
+                            "FileUtils_ThrowOnPermissionsError");
+
+    // Test will not work if run as root
+    if (getuid() != 0) {
+        ASSERT_EQ(chmod(top_level.name(), !S_IRWXU), 0);
+
+        EXPECT_THROW(FileUtils::isDirectory(test_dir.name()),
+                     std::system_error);
+        EXPECT_THROW(FileUtils::isDirectoryNoFollow(test_dir.name()),
+                     std::system_error);
+        EXPECT_THROW(FileUtils::isRegularFile(test_file.name()),
+                     std::system_error);
+        EXPECT_THROW(FileUtils::isRegularFileNoFollow(test_file.name()),
+                     std::system_error);
+
+        chmod(top_level.name(), S_IRWXU);
+    }
+}
+
+TEST(FileUtilsTests, DoNotThrowIfNotExist)
+{
+    const char *file_name;
+    const char *dir_name;
+    {
+        TemporaryDirectory test_dir;
+        TemporaryFile test_file;
+
+        file_name = test_file.name();
+        dir_name = test_dir.name();
+
+        EXPECT_TRUE(FileUtils::isDirectory(dir_name));
+        EXPECT_TRUE(FileUtils::isDirectoryNoFollow(dir_name));
+        EXPECT_TRUE(FileUtils::isRegularFile(file_name));
+        EXPECT_TRUE(FileUtils::isRegularFileNoFollow(file_name));
+    }
+    EXPECT_FALSE(FileUtils::isDirectory(dir_name));
+    EXPECT_FALSE(FileUtils::isDirectoryNoFollow(dir_name));
+    EXPECT_FALSE(FileUtils::isRegularFile(file_name));
+    EXPECT_FALSE(FileUtils::isRegularFileNoFollow(file_name));
 }

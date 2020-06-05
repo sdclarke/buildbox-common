@@ -44,13 +44,46 @@
 
 namespace buildboxcommon {
 
+bool FileUtils::isRegularFileNoFollow(const char *path)
+{
+    struct stat statResult;
+    if (lstat(path, &statResult) == 0) {
+        return S_ISREG(statResult.st_mode);
+    }
+    if (errno == ENOENT || errno == ENOTDIR) {
+        return false;
+    }
+    BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+        std::system_error, errno, std::system_category,
+        "Error in lstat for path \"" << path << "\"");
+}
+
 bool FileUtils::isRegularFile(const char *path)
 {
     struct stat statResult;
     if (stat(path, &statResult) == 0) {
         return S_ISREG(statResult.st_mode);
     }
-    return false;
+    if (errno == ENOENT || errno == ENOTDIR) {
+        return false;
+    }
+    BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+        std::system_error, errno, std::system_category,
+        "Error in stat for path \"" << path << "\"");
+}
+
+bool FileUtils::isDirectoryNoFollow(const char *path)
+{
+    struct stat statResult;
+    if (lstat(path, &statResult) == 0) {
+        return S_ISDIR(statResult.st_mode);
+    }
+    if (errno == ENOENT || errno == ENOTDIR) {
+        return false;
+    }
+    BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+        std::system_error, errno, std::system_category,
+        "Error in lstat for path \"" << path << "\"");
 }
 
 bool FileUtils::isDirectory(const char *path)
@@ -59,7 +92,12 @@ bool FileUtils::isDirectory(const char *path)
     if (stat(path, &statResult) == 0) {
         return S_ISDIR(statResult.st_mode);
     }
-    return false;
+    if (errno == ENOENT || errno == ENOTDIR) {
+        return false;
+    }
+    BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+        std::system_error, errno, std::system_category,
+        "Error in stat for path \"" << path << "\"");
 }
 
 bool FileUtils::isDirectory(int fd)
@@ -68,7 +106,9 @@ bool FileUtils::isDirectory(int fd)
     if (fstat(fd, &statResult) == 0) {
         return S_ISDIR(statResult.st_mode);
     }
-    return false;
+    BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+        std::system_error, errno, std::system_category,
+        "Error in fstat for file descriptor: " << fd);
 }
 
 bool FileUtils::isSymlink(const char *path)
@@ -77,7 +117,12 @@ bool FileUtils::isSymlink(const char *path)
     if (lstat(path, &statResult) == 0) {
         return S_ISLNK(statResult.st_mode);
     }
-    return false;
+    if (errno == ENOENT || errno == ENOTDIR) {
+        return false;
+    }
+    BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+        std::system_error, errno, std::system_category,
+        "Error in lstat for path \"" << path << "\"");
 }
 
 bool FileUtils::directoryIsEmpty(const char *path)

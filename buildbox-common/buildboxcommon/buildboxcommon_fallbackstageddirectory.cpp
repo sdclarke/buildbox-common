@@ -141,7 +141,7 @@ OutputFile FallbackStagedDirectory::captureFile(
         fd = this->openFile(relative_path);
     }
     catch (const std::system_error &e) {
-        if (e.code().value() == ENOENT) {
+        if (e.code().value() == ENOENT || e.code().value() == ENOTDIR) {
             return OutputFile();
         }
 

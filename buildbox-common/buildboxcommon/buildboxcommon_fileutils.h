@@ -46,6 +46,10 @@ struct FileUtils {
         return isDirectory(fd);
     };
     static bool isDirectory(int fd);
+    /**
+     * Do not follow symlinks
+     */
+    static bool isDirectoryNoFollow(const char *path);
 
     /**
      * Return true if the given path represents a regular file.
@@ -55,6 +59,10 @@ struct FileUtils {
         return isRegularFile(path);
     }
     static bool isRegularFile(const char *path);
+    /**
+     * Do not follow symlinks
+     */
+    static bool isRegularFileNoFollow(const char *path);
 
     /**
      * Return true if the given path represents a symlink.
