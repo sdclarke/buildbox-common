@@ -206,12 +206,12 @@ TEST(FooTest, FooTiming)
 {
   doTimedStuff();
   // Tests that the metric was collected
-  ASSERT_TRUE(validateMetricCollection<DurationMetricTimer>("foo_timer"));
-  // After a call to validateMetricCollection, the metrics for that ValueType are cleared
-  ASSERT_FALSE(validateMetricCollection<DurationMetricTimer>("foo_timer"));
+  ASSERT_TRUE(collectedByName<DurationMetricValue>("foo_timer"));
+  // After a call to collectedByName, the metrics for that ValueType are cleared
+  ASSERT_FALSE(collectedByName<DurationMetricValue>("foo_timer"));
 
   // Validate that multiple metrics of the same type were collected
-  ASSERT_TRUE(validateMetricCollection<CountingMetric>({"foo_count1", "foo_count2"}))
+  ASSERT_TRUE(allCollectedByName<CountingMetricValue>({"foo_count1", "foo_count2"}))
 }
 ```
 

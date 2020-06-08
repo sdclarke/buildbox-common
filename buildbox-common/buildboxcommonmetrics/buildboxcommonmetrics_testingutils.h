@@ -73,10 +73,8 @@ struct InternalTemplatedMethods {
     }
 };
 
-template <typename MetricType>
-bool validateMetricCollection(const std::string &metric)
+template <typename ValueType> bool collectedByName(const std::string &metric)
 {
-    typedef decltype(std::declval<MetricType>().value()) ValueType;
     MetricCollector<ValueType> *collector =
         MetricCollectorFactory::getCollector<ValueType>();
     const auto metrics_container = collector->getSnapshot();
@@ -89,7 +87,7 @@ bool validateMetricCollection(const std::string &metric)
 }
 
 template <typename ValueType>
-bool validateMetricCollection(const std::string &name, const ValueType &value)
+bool collectedByNameWithValue(const std::string &name, const ValueType &value)
 {
     MetricCollector<ValueType> *collector =
         MetricCollectorFactory::getCollector<ValueType>();
@@ -106,10 +104,9 @@ bool validateMetricCollection(const std::string &name, const ValueType &value)
            entry_iterator->second == value;
 }
 
-template <typename MetricType>
-bool validateMetricCollection(const std::vector<std::string> &metrics)
+template <typename ValueType>
+bool allCollectedByName(const std::vector<std::string> &metrics)
 {
-    typedef decltype(std::declval<MetricType>().value()) ValueType;
     MetricCollector<ValueType> *collector =
         MetricCollectorFactory::getCollector<ValueType>();
     const auto metrics_container = collector->getSnapshot();
@@ -127,16 +124,15 @@ bool validateMetricCollection(const std::vector<std::string> &metrics)
     return true;
 }
 
-template <typename MetricType>
-bool validateMetricCollection(
-    const std::initializer_list<std::string> &metrics)
+template <typename ValueType>
+bool allCollectedByName(const std::initializer_list<std::string> &metrics)
 {
     const std::vector<std::string> vecMetrics(metrics.begin(), metrics.end());
-    return validateMetricCollection<MetricType>(vecMetrics);
+    return allCollectedByName<ValueType>(vecMetrics);
 }
 
 template <typename ValueType>
-bool validateMetricCollection(
+bool allCollectedByNameWithValues(
     const std::vector<std::pair<std::string, ValueType>> &name_values)
 {
     MetricCollector<ValueType> *collector =
@@ -161,7 +157,7 @@ bool validateMetricCollection(
 }
 
 template <typename ValueType>
-bool validateMetricCollection(
+bool allCollectedByNameWithValuesAndAllMissingByName(
     const std::vector<std::pair<std::string, ValueType>> &expectedMetrics,
     const std::vector<std::string> &expectedMissingMetrics)
 {
@@ -205,6 +201,54 @@ template <typename ValueType> void clearMetricCollection()
 void clearAllMetricCollection()
 {
     InternalTemplatedMethods::clearAllMetricValueTypes<0>();
+}
+
+// Deprecated templates
+template <typename MetricType>
+bool __attribute__((deprecated))
+validateMetricCollection(const std::string &metric)
+{
+    typedef decltype(std::declval<MetricType>().value()) ValueType;
+    return collectedByName<ValueType>(metric);
+}
+
+template <typename ValueType>
+bool __attribute__((deprecated))
+validateMetricCollection(const std::string &name, const ValueType &value)
+{
+    return collectedByNameWithValue<ValueType>(name, value);
+}
+
+template <typename MetricType>
+bool __attribute__((deprecated))
+validateMetricCollection(const std::vector<std::string> &metrics)
+{
+    typedef decltype(std::declval<MetricType>().value()) ValueType;
+    return allCollectedByName<ValueType>(metrics);
+}
+
+template <typename MetricType>
+bool __attribute__((deprecated))
+validateMetricCollection(const std::initializer_list<std::string> &metrics)
+{
+    typedef decltype(std::declval<MetricType>().value()) ValueType;
+    return allCollectedByName<ValueType>(metrics);
+}
+
+template <typename ValueType>
+bool __attribute__((deprecated)) validateMetricCollection(
+    const std::vector<std::pair<std::string, ValueType>> &name_values)
+{
+    return allCollectedByNameWithValues<ValueType>(name_values);
+}
+
+template <typename ValueType>
+bool __attribute__((deprecated)) validateMetricCollection(
+    const std::vector<std::pair<std::string, ValueType>> &expectedMetrics,
+    const std::vector<std::string> &expectedMissingMetrics)
+{
+    return allCollectedByNameWithValuesAndAllMissingByName<ValueType>(
+        expectedMetrics, expectedMissingMetrics);
 }
 
 } // namespace buildboxcommonmetrics
