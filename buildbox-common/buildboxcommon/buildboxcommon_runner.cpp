@@ -58,7 +58,12 @@ static void usage(const char *name)
     std::clog << "    --verbose                   Set log level to debug\n";
     std::clog << "    --log-file=FILE             File to write log to\n";
     std::clog
-        << "    --use-localcas              Use LocalCAS protocol methods\n";
+        << "    --use-localcas              Use LocalCAS protocol methods "
+           "(default behavior)\n"
+        << "                                NOTE: this option will be "
+           "deprecated.\n";
+    std::clog << "    --disable-localcas          Do not use LocalCAS "
+                 "protocol methods\n";
     std::clog << "    --workspace-path=PATH       Location on disk which "
                  "runner will use as root when executing jobs\n";
     std::clog << "    --no-logs-capture           Do not upload the "
@@ -509,7 +514,13 @@ bool Runner::parseArguments(int argc, char *argv[])
                     exit(0);
                 }
                 else if (strcmp(arg, "use-localcas") == 0) {
+                    BUILDBOX_LOG_WARNING(
+                        "The --use-localcas option will be deprecated. "
+                        "LocalCAS support is now enabled by default.");
                     this->d_use_localcas_protocol = true;
+                }
+                else if (strcmp(arg, "disable-localcas") == 0) {
+                    this->d_use_localcas_protocol = false;
                 }
                 else if (strcmp(arg, "no-logs-capture") == 0) {
                     this->d_skip_standard_outputs_capture = true;

@@ -140,7 +140,7 @@ class Runner {
         std::shared_ptr<Client>(new Client());
 
     bool d_verbose;
-    bool d_use_localcas_protocol = false;
+    bool d_use_localcas_protocol = true; // Use LocalCAS by default.
     std::string d_stage_path = "";
 
     Digest d_action_digest;
