@@ -92,8 +92,8 @@ DigestGenerator::DigestGenerator(DigestFunction_Value digest_function)
 Digest DigestGenerator::hash(const std::string &data) const
 {
     auto digest_context = createDigestContext();
-    digestUpdate(digest_context, data.c_str(), data.size());
-    return makeDigest(digest_context.get(), data.size());
+    digest_context.update(data.c_str(), data.size());
+    return digest_context.finalizeDigest();
 }
 
 Digest DigestGenerator::hash(int fd) const
@@ -103,12 +103,12 @@ Digest DigestGenerator::hash(int fd) const
     // Reading file in chunks and computing the hash incrementally:
     const auto update_function = [&digest_context](const char *buffer,
                                                    size_t data_size) {
-        digestUpdate(digest_context, buffer, data_size);
+        digest_context.update(buffer, data_size);
     };
-    const size_t bytes_read = processFile(fd, update_function);
+    processFile(fd, update_function);
 
     // Generating hash string:
-    return makeDigest(digest_context.get(), bytes_read);
+    return digest_context.finalizeDigest();
 }
 
 const EVP_MD *DigestGenerator::getDigestFunctionStruct(
@@ -133,34 +133,45 @@ const EVP_MD *DigestGenerator::getDigestFunctionStruct(
     }
 }
 
-void DigestGenerator::digestUpdate(const EVP_MD_CTX_ptr &digest_context,
-                                   const char *data, size_t data_size)
+void DigestContext::update(const char *data, size_t data_size)
 {
-    throwIfNotSuccessful(
-        EVP_DigestUpdate(digest_context.get(), data, data_size),
-        "EVP_DigestUpdate()");
+    if (d_finalized) {
+        BUILDBOXCOMMON_THROW_EXCEPTION(std::runtime_error,
+                                       "Cannot update finalized digest");
+    }
+
+    throwIfNotSuccessful(EVP_DigestUpdate(d_context, data, data_size),
+                         "EVP_DigestUpdate()");
+
+    d_data_size += data_size;
 }
 
-Digest DigestGenerator::makeDigest(EVP_MD_CTX *digest_context,
-                                   const size_t data_size)
+Digest DigestContext::finalizeDigest()
 {
+    if (d_finalized) {
+        BUILDBOXCOMMON_THROW_EXCEPTION(std::runtime_error,
+                                       "Digest already finalized");
+    }
+
     unsigned char hash_buffer[EVP_MAX_MD_SIZE];
 
     unsigned int message_length;
     throwIfNotSuccessful(
-        EVP_DigestFinal_ex(digest_context, hash_buffer, &message_length),
+        EVP_DigestFinal_ex(d_context, hash_buffer, &message_length),
         "EVP_DigestFinal_ex()");
+
+    d_finalized = true;
 
     const std::string hash = hashToHex(hash_buffer, message_length);
 
     Digest digest;
     digest.set_hash(hash);
-    digest.set_size_bytes(static_cast<google::protobuf::int64>(data_size));
+    digest.set_size_bytes(static_cast<google::protobuf::int64>(d_data_size));
     return digest;
 }
 
-std::string DigestGenerator::hashToHex(const unsigned char *hash_buffer,
-                                       unsigned int hash_size)
+std::string DigestContext::hashToHex(const unsigned char *hash_buffer,
+                                     unsigned int hash_size)
 {
     std::ostringstream ss;
     for (unsigned int i = 0; i < hash_size; i++) {
@@ -193,8 +204,8 @@ DigestGenerator::processFile(int fd,
     return total_bytes_read;
 }
 
-void DigestGenerator::throwIfNotSuccessful(int status_code,
-                                           const std::string &function_name)
+void DigestContext::throwIfNotSuccessful(int status_code,
+                                         const std::string &function_name)
 {
     if (status_code == 0) {
         throw std::runtime_error(function_name + " failed.");
@@ -204,29 +215,33 @@ void DigestGenerator::throwIfNotSuccessful(int status_code,
     // https://openssl.org/docs/man1.1.0/man3/EVP_DigestInit.html
 }
 
-DigestGenerator::EVP_MD_CTX_ptr DigestGenerator::createDigestContext() const
+DigestContext DigestGenerator::createDigestContext() const
 {
-    EVP_MD_CTX_ptr digest_context(EVP_MD_CTX_create(),
-                                  &DigestGenerator::deleteDigestContext);
-    // `EVP_MD_CTX_ptr` is an alias for `unique_ptr`, it will make sure that
-    // the context object is freed if something goes wrong and we need to
-    // throw.
+    DigestContext context;
+    context.init(d_digestFunctionStruct);
+    return context;
+}
 
-    if (!digest_context) {
+DigestContext::DigestContext()
+{
+    d_context = EVP_MD_CTX_create();
+
+    if (!d_context) {
         BUILDBOXCOMMON_THROW_EXCEPTION(
             std::runtime_error, "Error creating `EVP_MD_CTX` context struct");
     }
-
-    throwIfNotSuccessful(EVP_DigestInit_ex(digest_context.get(),
-                                           d_digestFunctionStruct, nullptr),
-                         "EVP_DigestInit_ex()");
-
-    return digest_context;
 }
 
-void DigestGenerator::deleteDigestContext(EVP_MD_CTX *context)
+void DigestContext::init(const EVP_MD *digestFunctionStruct)
 {
-    EVP_MD_CTX_destroy(context);
+    throwIfNotSuccessful(
+        EVP_DigestInit_ex(d_context, digestFunctionStruct, nullptr),
+        "EVP_DigestInit_ex()");
+}
+
+DigestContext::~DigestContext()
+{
+    EVP_MD_CTX_destroy(d_context);
     // ^ Calling this macro ensures compatibility with OpenSSL 1.0.2:
     // "EVP_MD_CTX_create() and EVP_MD_CTX_destroy() were
     // renamed to EVP_MD_CTX_new() and EVP_MD_CTX_free() in OpenSSL 1.1."

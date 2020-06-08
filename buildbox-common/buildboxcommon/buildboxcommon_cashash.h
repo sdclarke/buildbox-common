@@ -62,6 +62,42 @@ class CASHash {
     static const DigestFunction_Value s_digestFunctionValue;
 };
 
+class DigestContext {
+  public:
+    virtual ~DigestContext();
+
+    // Finish calculating a digest and generate the result.
+    Digest finalizeDigest();
+
+    // Calculate the hash of a portion of a file. This allows to read a
+    // file from disk in chunks to avoid storing it wholly in memory.
+    void update(const char *data, size_t data_size);
+
+  private:
+    EVP_MD_CTX *d_context;
+    size_t d_data_size = 0;
+    bool d_finalized = false;
+
+    // Create and initialize an OpenSSL digest context to be used during a
+    // call to `hash()`.
+    DigestContext();
+    void init(const EVP_MD *digestFunctionStruct);
+
+    // Take a hash value produced by OpenSSL and return a string with its
+    // representation in hexadecimal.
+    static std::string hashToHex(const unsigned char *hash_buffer,
+                                 unsigned int hash_size);
+
+    // If `status_code` is 0, throw an `std::runtime_error` exception with
+    // a description containing `function_name`. Otherwise, do nothing.
+    // (Note that this considers 0 an error, following the OpenSSL
+    // convention.)
+    static void throwIfNotSuccessful(int status_code,
+                                     const std::string &function_name);
+
+    friend class DigestGenerator;
+};
+
 class DigestGenerator {
     /**
      * This class allows to generate `Digest` messages from blobs using
@@ -90,6 +126,8 @@ class DigestGenerator {
         return s_supportedDigestFunctions;
     }
 
+    DigestContext createDigestContext() const;
+
   private:
     const DigestFunction_Value d_digestFunction;
     const EVP_MD *d_digestFunctionStruct;
@@ -102,45 +140,10 @@ class DigestGenerator {
     static const size_t HASH_BUFFER_SIZE_BYTES;
 
   private:
-    // Helpers to initialize and manipulate OpenSSL structures.
-    // On errors they throw `std::runtime_error` exceptions.
-
-    // Create and initialize an OpenSSL digest context to be used during a
-    // call to `hash()`.
-    // The context needs to be freed after use, so by storing it in an
-    // `unique_ptr` we ensure it is destroyed automatically even if we
-    // throw.
-    static void deleteDigestContext(EVP_MD_CTX *context);
-
-    typedef std::unique_ptr<EVP_MD_CTX, decltype(&deleteDigestContext)>
-        EVP_MD_CTX_ptr;
-    EVP_MD_CTX_ptr createDigestContext() const;
-
     // Return the OpenSSL structure that represents the digest function to
     // use.
     static const EVP_MD *
     getDigestFunctionStruct(DigestFunction_Value digest_function_value);
-
-    // Finish calculating a digest and generate the result.
-    static Digest makeDigest(EVP_MD_CTX *digest_context,
-                             const size_t data_size);
-
-    // Calculate the hash of a portion of a file. This allows to read a
-    // file from disk in chunks to avoid storing it wholly in memory.
-    static void digestUpdate(const EVP_MD_CTX_ptr &digest_context,
-                             const char *data, size_t size);
-
-    // Take a hash value produced by OpenSSL and return a string with its
-    // representation in hexadecimal.
-    static std::string hashToHex(const unsigned char *hash_buffer,
-                                 unsigned int hash_size);
-
-    // If `status_code` is 0, throw an `std::runtime_error` exception with
-    // a description containing `function_name`. Otherwise, do nothing.
-    // (Note that this considers 0 an error, following the OpenSSL
-    // convention.)
-    static void throwIfNotSuccessful(int status_code,
-                                     const std::string &function_name);
 
     // Helper to read a file in chunks and for each of them invoke an
     // update function.
