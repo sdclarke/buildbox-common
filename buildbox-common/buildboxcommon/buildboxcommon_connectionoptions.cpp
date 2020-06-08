@@ -48,13 +48,54 @@ static void printPadded(int padWidth, const std::string &str)
 }
 } // namespace
 
-void ConnectionOptions::setUrl(const std::string &url)
+void ConnectionOptions::setClientCert(const std::string &value)
 {
-    this->d_url = url.c_str();
+    this->d_clientCert = value.c_str();
 }
-void ConnectionOptions::setInstanceName(const std::string &instanceName)
+
+void ConnectionOptions::setServerCertPath(const std::string &value)
 {
-    this->d_instanceName = instanceName.c_str();
+    this->d_serverCertPath = value.c_str();
+}
+
+void ConnectionOptions::setClientKey(const std::string &value)
+{
+    this->d_clientKey = value.c_str();
+}
+
+void ConnectionOptions::setClientKeyPath(const std::string &value)
+{
+    this->d_clientKeyPath = value.c_str();
+}
+
+void ConnectionOptions::setInstanceName(const std::string &value)
+{
+    this->d_instanceName = value.c_str();
+}
+
+void ConnectionOptions::setRetryDelay(const std::string &value)
+{
+    this->d_retryDelay = value.c_str();
+}
+
+void ConnectionOptions::setRetryLimit(const std::string &value)
+{
+    this->d_retryLimit = value.c_str();
+}
+
+void ConnectionOptions::setServerCert(const std::string &value)
+{
+    this->d_serverCert = value.c_str();
+}
+
+void ConnectionOptions::setClientCertPath(const std::string &value)
+{
+    this->d_clientCertPath = value.c_str();
+}
+
+void ConnectionOptions::setUrl(const std::string &value)
+{
+    this->d_url = value.c_str();
 }
 
 bool ConnectionOptions::parseArg(const char *arg, const char *prefix)

@@ -25,14 +25,14 @@
 namespace buildboxcommon {
 
 struct ConnectionOptions {
-    const char *d_url = nullptr;
+    const char *d_clientCert = nullptr;
+    const char *d_clientCertPath = nullptr;
+    const char *d_clientKey = nullptr;
+    const char *d_clientKeyPath = nullptr;
     const char *d_instanceName = nullptr;
     const char *d_serverCert = nullptr;
     const char *d_serverCertPath = nullptr;
-    const char *d_clientKey = nullptr;
-    const char *d_clientKeyPath = nullptr;
-    const char *d_clientCert = nullptr;
-    const char *d_clientCertPath = nullptr;
+    const char *d_url = nullptr;
 
     /*
      * These are strings to allow for easier
@@ -54,8 +54,16 @@ struct ConnectionOptions {
      */
     bool parseArg(const char *arg, const char *prefix = nullptr);
 
-    void setUrl(const std::string &url);
-    void setInstanceName(const std::string &instanceName);
+    void setClientCert(const std::string &value);
+    void setClientCertPath(const std::string &value);
+    void setClientKey(const std::string &value);
+    void setClientKeyPath(const std::string &value);
+    void setInstanceName(const std::string &value);
+    void setRetryDelay(const std::string &value);
+    void setRetryLimit(const std::string &value);
+    void setServerCert(const std::string &value);
+    void setServerCertPath(const std::string &value);
+    void setUrl(const std::string &value);
 
     /**
      * Add arguments corresponding to this struct's settings to the given
