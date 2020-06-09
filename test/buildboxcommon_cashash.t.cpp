@@ -190,6 +190,42 @@ TEST(DigestGeneratorTest, VSONotImplemented)
                  std::runtime_error);
 }
 
+TEST(DigestContextTest, TestStringSha256)
+{
+    DigestGenerator dg =
+        DigestGenerator(DigestFunction::Value::DigestFunction_Value_SHA256);
+    DigestContext context = dg.createDigestContext();
+    context.update(TEST_STRING.c_str(), TEST_STRING.size());
+    const Digest d = context.finalizeDigest();
+
+    const std::string expected_sha256_hash =
+        "b1c4daf6e3812505064c07f1ad0b1d6693d93b1b28c452e55ad17e38c30e89aa";
+
+    EXPECT_EQ(d.hash(), expected_sha256_hash);
+    EXPECT_EQ(d.size_bytes(), TEST_STRING.size());
+}
+
+TEST(DigestContextTest, TestUpdateFinalized)
+{
+    DigestGenerator dg =
+        DigestGenerator(DigestFunction::Value::DigestFunction_Value_SHA256);
+    DigestContext context = dg.createDigestContext();
+    context.finalizeDigest();
+
+    ASSERT_THROW(context.update(TEST_STRING.c_str(), TEST_STRING.size()),
+                 std::runtime_error);
+}
+
+TEST(DigestContextTest, TestFinalizeFinalized)
+{
+    DigestGenerator dg =
+        DigestGenerator(DigestFunction::Value::DigestFunction_Value_SHA256);
+    DigestContext context = dg.createDigestContext();
+    context.finalizeDigest();
+
+    ASSERT_THROW(context.finalizeDigest(), std::runtime_error);
+}
+
 class DigestGeneratorFixture : public ::testing::Test {
   protected:
     DigestGeneratorFixture()
