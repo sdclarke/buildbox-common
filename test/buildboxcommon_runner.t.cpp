@@ -49,6 +49,21 @@ class TestRunner : public Runner {
                               CASHash::hashFile(stderr_file));
     }
 
+    void setStdOutFile(const std::string &path)
+    {
+        this->d_standard_outputs_capture_config.stdout_file_path = path;
+    }
+
+    void setStdErrFile(const std::string &path)
+    {
+        this->d_standard_outputs_capture_config.stderr_file_path = path;
+    }
+
+    void skipStandardOutputCapture()
+    {
+        this->d_standard_outputs_capture_config.skip_capture = true;
+    }
+
     using Runner::executeAndStore;
 };
 
@@ -79,16 +94,35 @@ void assert_metadata_execution_timestamps_set(const ActionResult &result)
               result.execution_metadata().worker_start_timestamp());
 }
 
-TEST(RunnerTest, ExecuteAndStoreHelloWorld)
+class TestOutputCaptureFixture : public ::testing::TestWithParam<bool> {
+
+  protected:
+    TestOutputCaptureFixture(){};
+
+    TestRunner test_runner;
+};
+
+TEST_P(TestOutputCaptureFixture, ExecuteAndStoreHelloWorld)
 {
-    TestRunner runner;
     ActionResult result;
+
+    std::unique_ptr<buildboxcommon::TemporaryFile> stdout_file;
+    std::unique_ptr<buildboxcommon::TemporaryFile> stderr_file;
+    const auto standard_outputs_redirected_to_custom_paths = GetParam();
+    if (standard_outputs_redirected_to_custom_paths) {
+        // We redirect the command's standard outputs to specific files.
+        // Otherwise the runner will create and use its own temporay ones.
+        stdout_file = std::make_unique<buildboxcommon::TemporaryFile>();
+        stderr_file = std::make_unique<buildboxcommon::TemporaryFile>();
+
+        test_runner.setStdOutFile(stdout_file->strname());
+        test_runner.setStdErrFile(stderr_file->strname());
+    }
 
     const auto path_to_echo = SystemUtils::getPathToCommand("echo");
     ASSERT_FALSE(path_to_echo.empty());
-
-    runner.executeAndStore({path_to_echo, "hello", "world"},
-                           TestRunner::dummyUploadFunction, &result);
+    test_runner.executeAndStore({path_to_echo, "hello", "world"},
+                                TestRunner::dummyUploadFunction, &result);
 
     const auto expected_stdout = "hello world\n";
     EXPECT_EQ(result.stdout_digest(), CASHash::hash(expected_stdout));
@@ -99,7 +133,15 @@ TEST(RunnerTest, ExecuteAndStoreHelloWorld)
     EXPECT_EQ(result.exit_code(), 0);
 
     assert_metadata_execution_timestamps_set(result);
+
+    if (standard_outputs_redirected_to_custom_paths) {
+        EXPECT_EQ(FileUtils::getFileContents(stdout_file->name()),
+                  expected_stdout);
+        EXPECT_EQ(FileUtils::getFileContents(stderr_file->name()), "");
+    }
 }
+INSTANTIATE_TEST_CASE_P(OutputRedirectionTest, TestOutputCaptureFixture,
+                        ::testing::Values(false, true));
 
 TEST(RunnerTest, TestEmptyOutputsNotUploaded)
 {
@@ -261,4 +303,33 @@ TEST(RunnerTest, ChmodDirectory)
 
     stat(subdirectory_path.c_str(), &sb);
     ASSERT_EQ((unsigned long)sb.st_mode & 0777, perm);
+}
+
+TEST(RunnerTest, CustomStandardOutputDestinations)
+{
+    TestRunner runner;
+
+    // Redirecting standard outputs to files:
+    TemporaryFile stdout_file;
+    runner.setStdOutFile(stdout_file.strname());
+    TemporaryFile stderr_file;
+    runner.setStdErrFile(stderr_file.strname());
+
+    ActionResult result;
+
+    const auto path_to_echo = SystemUtils::getPathToCommand("echo");
+    ASSERT_FALSE(path_to_echo.empty());
+
+    runner.executeAndStore({path_to_echo, "hello", "world"},
+                           TestRunner::dummyUploadFunction, &result);
+
+    const auto expected_stdout = "hello world\n";
+    EXPECT_EQ(result.stdout_digest(), CASHash::hash(expected_stdout));
+    EXPECT_TRUE(result.stdout_raw().empty()); // `Runner` does not inline.
+    ASSERT_EQ(FileUtils::getFileContents(stdout_file.name()), expected_stdout);
+
+    EXPECT_EQ(result.stderr_digest(), CASHash::hash(""));
+    ASSERT_EQ(FileUtils::getFileContents(stderr_file.name()), "");
+
+    EXPECT_EQ(result.exit_code(), 0);
 }

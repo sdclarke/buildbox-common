@@ -175,6 +175,18 @@ class Runner {
             metadata->mutable_output_upload_completed_timestamp());
     }
 
+    struct StandardOutputsCaptureConfig {
+        // If not empty, redirect the command's standard output to that file.
+        std::string stdout_file_path;
+        std::string stderr_file_path;
+
+        // If set, skips capturing and uploading the outputs written by the
+        // command to stdout and stderr.
+        bool skip_capture;
+    };
+
+    StandardOutputsCaptureConfig d_standard_outputs_capture_config;
+
   private:
     /**
      * Attempt to parse all of the given arguments and update this object
@@ -195,7 +207,6 @@ class Runner {
                   const std::string &stderr_file) const;
 
     ConnectionOptions d_casRemote;
-    bool d_skip_standard_outputs_capture;
 
     std::string d_inputPath;
     std::string d_outputPath;
@@ -226,6 +237,9 @@ class Runner {
 
     // exec()'s the given command (does not return).
     static void execute(const std::vector<std::string> &command);
+
+    static void redirectStandardOutputs(const std::string &stdoutFilePath,
+                                        const std::string &stderrFilePath);
 
 }; // namespace buildboxcommon
 
