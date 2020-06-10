@@ -25,7 +25,7 @@ macro(add_buildboxcommon_test TEST_NAME TEST_SOURCE)
     endif()
 
     add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME} WORKING_DIRECTORY ${TEST_WORKING_DIRECTORY})
-    target_link_libraries(${TEST_NAME} PUBLIC buildboxcommon ${GTEST_TARGET} ${GMOCK_TARGET} gtest_main)
+    target_link_libraries(${TEST_NAME} PUBLIC buildboxcommon ${GTEST_MAIN_TARGET} ${GMOCK_TARGET})
 endmacro()
 
 add_buildboxcommon_test(client_test buildboxcommon_client.t.cpp)
