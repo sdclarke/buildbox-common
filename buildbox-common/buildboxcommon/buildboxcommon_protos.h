@@ -17,6 +17,7 @@
 #ifndef INCLUDED_BUILDBOXCOMMON_PROTOS
 #define INCLUDED_BUILDBOXCOMMON_PROTOS
 
+#include <build/bazel/remote/asset/v1/remote_asset.grpc.pb.h>
 #include <build/bazel/remote/execution/v2/remote_execution.grpc.pb.h>
 #include <build/buildgrid/local_cas.grpc.pb.h>
 #include <google/bytestream/bytestream.grpc.pb.h>
@@ -24,6 +25,7 @@
 namespace buildboxcommon {
 
 using namespace google::bytestream;
+using namespace build::bazel::remote::asset::v1;
 using namespace build::bazel::remote::execution::v2;
 using namespace build::buildgrid;
 

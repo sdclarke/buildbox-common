@@ -15,6 +15,7 @@ endif()
 set(PROTO_GEN_DIR ${CMAKE_CURRENT_BINARY_DIR})
 set(PROTO_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(PROTOS
+    build/bazel/remote/asset/v1/remote_asset
     build/bazel/remote/execution/v2/remote_execution
     build/bazel/semver/semver
     build/buildgrid/local_cas
