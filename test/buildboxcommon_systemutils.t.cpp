@@ -163,3 +163,31 @@ TEST(SystemUtilsTests, ExecuteIgnoresPathEnvVar)
     ASSERT_EQ(SystemUtils::executeCommand({command_name}),
               127); // 127 == "command not found" as in Bash
 }
+
+TEST(SystemUtilsTests, RedirectStandardOutputs)
+{
+    TemporaryFile stdout_file, stderr_file;
+
+    const auto pid = fork();
+    ASSERT_NE(pid, -1);
+
+    if (pid == 0) { // Child process
+        ASSERT_NO_THROW(SystemUtils::redirectStandardOutputToFile(
+            STDOUT_FILENO, stdout_file.strname()));
+
+        ASSERT_NO_THROW(SystemUtils::redirectStandardOutputToFile(
+            STDERR_FILENO, stderr_file.strname()));
+
+        std::cout << "hello, stdout!";
+        std::cerr << "hello, stderr!";
+        exit(0);
+    }
+    else { // Parent
+        SystemUtils::waitPid(pid);
+
+        ASSERT_EQ(FileUtils::getFileContents(stdout_file.name()),
+                  "hello, stdout!");
+        ASSERT_EQ(FileUtils::getFileContents(stderr_file.name()),
+                  "hello, stderr!");
+    }
+}

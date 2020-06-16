@@ -50,6 +50,19 @@ struct SystemUtils {
      * On error, throws as 'std::runtime_error` exception
      */
     static std::string get_current_working_directory();
+
+    /*
+     * Redirects stdout or stderr to a given path. The file
+     * will be created if necessary and truncated if already exists (equivalent
+     * to a > redirection).
+     *
+     * If the specified file descriptor is not STDOUT_FILENO or STDERR_FILENO,
+     * throws `std::invalid_argument`.
+     *
+     * On errors throws `std::system_error`.
+     */
+    static void redirectStandardOutputToFile(const int standardOutputFd,
+                                             const std::string &path);
 };
 
 } // namespace buildboxcommon

@@ -191,3 +191,27 @@ std::string SystemUtils::get_current_working_directory()
         }
     }
 }
+
+void SystemUtils::redirectStandardOutputToFile(const int standardOutputFd,
+                                               const std::string &path)
+{
+    if (standardOutputFd != STDOUT_FILENO &&
+        standardOutputFd != STDERR_FILENO) {
+        BUILDBOXCOMMON_THROW_EXCEPTION(
+            std::invalid_argument,
+            "File descriptor it not `STDOUT_FILENO` or `STDERR_FILENO`.");
+    }
+
+    const int fileFd =
+        open(path.c_str(), O_CREAT | O_TRUNC | O_APPEND | O_WRONLY);
+
+    if (fileFd == -1 || dup2(fileFd, standardOutputFd) == -1) {
+        const auto outputName =
+            (standardOutputFd == STDOUT_FILENO) ? "stdout" : "stderr";
+
+        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+            std::system_error, errno, std::system_category,
+            "Error redirecting " << outputName << " to \"" << path << "\"");
+    }
+    close(fileFd);
+}
