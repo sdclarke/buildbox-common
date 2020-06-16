@@ -33,7 +33,6 @@
 #include <exception>
 #include <fcntl.h>
 #include <functional>
-#include <sstream>
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <system_error>
@@ -366,37 +365,26 @@ void Runner::execute(const std::vector<std::string> &command)
     _Exit(exit_code);
 }
 
-void Runner::redirectStandardOutputs(const std::string &stdoutFilePath,
-                                     const std::string &stderrFilePath)
-{
-    SystemUtils::redirectStandardOutputToFile(STDOUT_FILENO, stdoutFilePath);
-    SystemUtils::redirectStandardOutputToFile(STDERR_FILENO, stderrFilePath);
-}
-
 void Runner::executeAndStore(
     const std::vector<std::string> &command,
     const UploadOutputsCallback &upload_outputs_function, ActionResult *result)
 {
-    const bool capture_standard_outputs = (upload_outputs_function != nullptr);
-
     std::unique_ptr<Runner_StandardOutputFile> stdoutFile, stderrFile;
-    if (capture_standard_outputs) {
+    if (!d_standardOutputsCaptureConfig.skip_capture) {
         stdoutFile = std::make_unique<Runner_StandardOutputFile>(
-            d_standard_outputs_capture_config.stdout_file_path);
+            d_standardOutputsCaptureConfig.stdout_file_path);
         stderrFile = std::make_unique<Runner_StandardOutputFile>(
-            d_standard_outputs_capture_config.stderr_file_path);
+            d_standardOutputsCaptureConfig.stderr_file_path);
     }
     else {
-        BUILDBOX_RUNNER_LOG(TRACE,
-                            "No upload callback given, will skip the "
-                            "capturing and uploading of stdout and stderr.");
+        BUILDBOX_RUNNER_LOG(
+            TRACE,
+            "Will skip the capturing and uploading of stdout and stderr.");
     }
 
-    std::ostringstream logline;
-    for (const auto &token : command) {
-        logline << token << " ";
-    }
-    BUILDBOX_RUNNER_LOG(DEBUG, "Executing command: " << logline.str());
+    BUILDBOX_RUNNER_LOG(
+        DEBUG, "Executing command: "
+                   << buildboxcommon::logging::printableCommandLine(command));
 
     auto *result_metadata = result->mutable_execution_metadata();
 
@@ -411,9 +399,15 @@ void Runner::executeAndStore(
             std::system_error, errno, std::system_category, "Error in fork()");
     }
     else if (pid == 0) {
-        if (capture_standard_outputs) {
-            redirectStandardOutputs(stdoutFile->name(), stderrFile->name());
+        if (stdoutFile) {
+            SystemUtils::redirectStandardOutputToFile(STDOUT_FILENO,
+                                                      stdoutFile->name());
         }
+        if (stderrFile) {
+            SystemUtils::redirectStandardOutputToFile(STDERR_FILENO,
+                                                      stderrFile->name());
+        }
+
         execute(command);
     }
 
@@ -424,7 +418,7 @@ void Runner::executeAndStore(
             result_metadata->mutable_execution_completed_timestamp()->CopyFrom(
                 TimeUtils::now());
 
-            if (capture_standard_outputs) {
+            if (!d_standardOutputsCaptureConfig.skip_capture) {
                 // Uploading standard outputs:
                 Digest stdout_digest, stderr_digest;
                 std::tie(stdout_digest, stderr_digest) =
@@ -451,7 +445,7 @@ void Runner::executeAndStore(const std::vector<std::string> &command,
                              ActionResult *result)
 {
     UploadOutputsCallback outputs_upload_function;
-    if (!d_standard_outputs_capture_config.skip_capture) {
+    if (!d_standardOutputsCaptureConfig.skip_capture) {
         // This callback will be used to upload the contents of stdout and
         // stderr.
         outputs_upload_function =
@@ -518,11 +512,11 @@ bool Runner::parseArguments(int argc, char *argv[])
                     BUILDBOX_LOG_SET_FILE(value);
                 }
                 else if (key == "stdout-file") {
-                    this->d_standard_outputs_capture_config.stdout_file_path =
+                    this->d_standardOutputsCaptureConfig.stdout_file_path =
                         std::string(value);
                 }
                 else if (key == "stderr-file") {
-                    this->d_standard_outputs_capture_config.stderr_file_path =
+                    this->d_standardOutputsCaptureConfig.stderr_file_path =
                         std::string(value);
                 }
                 else {
@@ -546,8 +540,7 @@ bool Runner::parseArguments(int argc, char *argv[])
                     this->d_use_localcas_protocol = false;
                 }
                 else if (strcmp(arg, "no-logs-capture") == 0) {
-                    this->d_standard_outputs_capture_config.skip_capture =
-                        true;
+                    this->d_standardOutputsCaptureConfig.skip_capture = true;
                 }
                 else if (strcmp(arg, "verbose") == 0) {
                     BUILDBOX_LOG_SET_LEVEL(LogLevel::DEBUG);

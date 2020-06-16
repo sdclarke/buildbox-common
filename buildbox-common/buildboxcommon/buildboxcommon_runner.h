@@ -98,8 +98,9 @@ class Runner {
         UploadOutputsCallback;
     /**
      * Helper method to unit test the runner-facing implementation.
-     * If set, invokes the `upload_output_function` callback for `stdout` and
-     * `stderr` when those are not empty.
+     * It invokes the `upload_output_function` callback for `stdout` and
+     * `stderr` unless the `skip_capture` option is set in this instance's
+     * `StandardOutputsCaptureConfig`, in which case the callback is ignored.
      */
     void executeAndStore(const std::vector<std::string> &command,
                          const UploadOutputsCallback &upload_outputs_function,
@@ -185,7 +186,7 @@ class Runner {
         bool skip_capture;
     };
 
-    StandardOutputsCaptureConfig d_standard_outputs_capture_config;
+    StandardOutputsCaptureConfig d_standardOutputsCaptureConfig;
 
   private:
     /**
@@ -237,11 +238,7 @@ class Runner {
 
     // exec()'s the given command (does not return).
     static void execute(const std::vector<std::string> &command);
-
-    static void redirectStandardOutputs(const std::string &stdoutFilePath,
-                                        const std::string &stderrFilePath);
-
-}; // namespace buildboxcommon
+};
 
 #define BUILDBOX_RUNNER_MAIN(x)                                               \
     int main(int argc, char *argv[]) { return x().main(argc, argv); }

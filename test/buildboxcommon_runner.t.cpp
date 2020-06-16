@@ -51,17 +51,17 @@ class TestRunner : public Runner {
 
     void setStdOutFile(const std::string &path)
     {
-        this->d_standard_outputs_capture_config.stdout_file_path = path;
+        this->d_standardOutputsCaptureConfig.stdout_file_path = path;
     }
 
     void setStdErrFile(const std::string &path)
     {
-        this->d_standard_outputs_capture_config.stderr_file_path = path;
+        this->d_standardOutputsCaptureConfig.stderr_file_path = path;
     }
 
     void skipStandardOutputCapture()
     {
-        this->d_standard_outputs_capture_config.skip_capture = true;
+        this->d_standardOutputsCaptureConfig.skip_capture = true;
     }
 
     using Runner::executeAndStore;
@@ -225,14 +225,22 @@ TEST(RunnerTest, ExecuteAndStoreStderr)
 
 TEST(RunnerTest, ExecuteAndStoreWithoutStandardOutputCapture)
 {
-    TestRunner runner;
-    ActionResult result;
-
     const auto path_to_false = SystemUtils::getPathToCommand("false");
     ASSERT_FALSE(path_to_false.empty());
 
-    const auto upload_callback = nullptr;
+    TestRunner runner;
+    runner.skipStandardOutputCapture();
+    // Checking that this callback is never invoked:
+    bool callback_invoked = false;
+    const auto upload_callback = [&callback_invoked](const std::string &,
+                                                     const std::string &) {
+        callback_invoked = true;
+        return std::make_pair(Digest(), Digest());
+    };
+
+    ActionResult result;
     runner.executeAndStore({path_to_false}, upload_callback, &result);
+    ASSERT_FALSE(callback_invoked);
 
     EXPECT_FALSE(result.has_stdout_digest());
     EXPECT_FALSE(result.has_stderr_digest());
