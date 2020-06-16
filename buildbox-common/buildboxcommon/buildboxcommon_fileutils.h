@@ -36,15 +36,7 @@ struct FileUtils {
     /**
      * Return true if the given path represents a directory.
      */
-    static bool is_directory(const char *path) __attribute__((deprecated))
-    {
-        return isDirectory(path);
-    };
     static bool isDirectory(const char *path);
-    static bool is_directory(int fd) __attribute__((deprecated))
-    {
-        return isDirectory(fd);
-    };
     static bool isDirectory(int fd);
     /**
      * Do not follow symlinks
@@ -54,10 +46,6 @@ struct FileUtils {
     /**
      * Return true if the given path represents a regular file.
      */
-    static bool is_regular_file(const char *path) __attribute__((deprecated))
-    {
-        return isRegularFile(path);
-    }
     static bool isRegularFile(const char *path);
     /**
      * Do not follow symlinks
@@ -67,67 +55,37 @@ struct FileUtils {
     /**
      * Return true if the given path represents a symlink.
      */
-    static bool is_symlink(const char *path) __attribute__((deprecated))
-    {
-        return isSymlink(path);
-    }
     static bool isSymlink(const char *path);
 
     /**
      * Return true if the directory is empty.
      */
-    static bool directory_is_empty(const char *path)
-        __attribute__((deprecated))
-    {
-        return directoryIsEmpty(path);
-    }
     static bool directoryIsEmpty(const char *path);
 
     /**
      * Create a directory if it doesn't already exist, including parents.
      * Create the directory with specified mode, by default 0777 -rwxrwxrwx.
      */
-    static void create_directory(const char *path, mode_t mode = 0777)
-        __attribute__((deprecated))
-    {
-        return createDirectory(path, mode);
-    };
     static void createDirectory(const char *path, mode_t mode = 0777);
 
     /**
      * Delete an existing directory.
      */
-    static void delete_directory(const char *path) __attribute__((deprecated))
-    {
-        return deleteDirectory(path);
-    }
     static void deleteDirectory(const char *path);
 
     /**
      * Delete the contents of an existing directory.
      */
-    static void clear_directory(const char *path) __attribute__((deprecated))
-    {
-        return clearDirectory(path);
-    };
     static void clearDirectory(const char *path);
 
     /**
      * Return true if the given file path is executable.
      */
-    static bool is_executable(const char *path) __attribute__((deprecated))
-    {
-        return isExecutable(path);
-    };
     static bool isExecutable(const char *path);
 
     /**
      * Return true if a given file descriptor is executable.
      */
-    static bool is_executable(int fd) __attribute__((deprecated))
-    {
-        return isExecutable(fd);
-    };
     static bool isExecutable(int fd);
 
     /**
@@ -146,22 +104,12 @@ struct FileUtils {
      * specified by the given path.
      */
     static std::chrono::system_clock::time_point
-    get_file_mtime(const char *path) __attribute__((deprecated))
-    {
-        return getFileMtime(path);
-    };
-    static std::chrono::system_clock::time_point
     getFileMtime(const char *path);
 
     /**
      * Return a time point in seconds representing the mtime of the file
      * specified by the given file descriptor.
      */
-    static std::chrono::system_clock::time_point get_file_mtime(const int fd)
-        __attribute__((deprecated))
-    {
-        return getFileMtime(fd);
-    };
     static std::chrono::system_clock::time_point getFileMtime(const int fd);
 
     /**
@@ -169,12 +117,6 @@ struct FileUtils {
      * given time_point. The file is described by the given file
      * descriptor.
      */
-    static void set_file_mtime(const int fd,
-                               std::chrono::system_clock::time_point timepoint)
-        __attribute__((deprecated))
-    {
-        return setFileMtime(fd, timepoint);
-    }
     static void setFileMtime(const int fd,
                              std::chrono::system_clock::time_point timepoint);
 
@@ -182,32 +124,17 @@ struct FileUtils {
      * Modify the mtime of an existing file to the time represented by the
      * given time_point. The file is described by the given path.
      */
-    static void set_file_mtime(const char *path,
-                               std::chrono::system_clock::time_point timepoint)
-        __attribute__((deprecated))
-    {
-        return setFileMtime(path, timepoint);
-    };
     static void setFileMtime(const char *path,
                              std::chrono::system_clock::time_point timepoint);
 
     /**
      * Make the given file executable.
      */
-    static void make_executable(const char *path) __attribute__((deprecated))
-    {
-        return makeExecutable(path);
-    };
     static void makeExecutable(const char *path);
 
     /**
      * Gets the contents of a file
      */
-    static std::string get_file_contents(const char *path)
-        __attribute__((deprecated))
-    {
-        return getFileContents(path);
-    };
     static std::string getFileContents(const char *path);
 
     /**
@@ -216,11 +143,6 @@ struct FileUtils {
      * The returned path will not contain any empty or `.` segments, and any
      * `..` segments will occur at the start of the path.
      */
-    static std::string normalize_path(const char *path)
-        __attribute__((deprecated))
-    {
-        return normalizePath(path);
-    };
     static std::string normalizePath(const char *path);
 
     /**
@@ -229,11 +151,6 @@ struct FileUtils {
      * The returned entity will be last segment of the path.
      * If no segments found, will an empty string.
      */
-    static std::string path_basename(const char *path)
-        __attribute__((deprecated))
-    {
-        return pathBasename(path);
-    };
     static std::string pathBasename(const char *path);
 
     /**
@@ -242,12 +159,6 @@ struct FileUtils {
      * `cwd` must be an absolute path, otherwise it throws an
      * `std::runtime_error` exception.
      */
-    static std::string make_path_absolute(const std::string &path,
-                                          const std::string &cwd)
-        __attribute__((deprecated))
-    {
-        return makePathAbsolute(path, cwd);
-    };
     static std::string makePathAbsolute(const std::string &path,
                                         const std::string &cwd);
 
@@ -300,11 +211,6 @@ struct FileUtils {
      * to the given destination path. Additionally attempt to
      * duplicate the file mode.
      */
-    static void copy_file(const char *src_path, const char *dest_path)
-        __attribute__((deprecated))
-    {
-        return copyFile(src_path, dest_path);
-    };
     static void copyFile(const char *src_path, const char *dest_path);
 
     /**
@@ -328,15 +234,6 @@ struct FileUtils {
      * On errors during writing the data, throw an `std::system_error`
      * exception.
      */
-    static int write_file_atomically(
-        const std::string &path, const std::string &data, mode_t mode = 0600,
-        const std::string &intermediate_directory = "",
-        const std::string &prefix = TempDefaults::DEFAULT_TMP_PREFIX)
-        __attribute__((deprecated))
-    {
-        return writeFileAtomically(path, data, mode, intermediate_directory,
-                                   prefix);
-    }
     static int writeFileAtomically(
         const std::string &path, const std::string &data, mode_t mode = 0600,
         const std::string &intermediate_directory = "",
@@ -354,15 +251,6 @@ struct FileUtils {
     typedef std::function<void(const char *path, int fd)>
         DirectoryTraversalFnPtr;
 
-    static void FileDescriptorTraverseAndApply(
-        DirentWrapper *dir, DirectoryTraversalFnPtr dir_func = nullptr,
-        DirectoryTraversalFnPtr file_func = nullptr,
-        bool apply_to_root = false, bool pass_parent_fd = false)
-        __attribute__((deprecated))
-    {
-        return fileDescriptorTraverseAndApply(dir, dir_func, file_func,
-                                              apply_to_root, pass_parent_fd);
-    }
     static void fileDescriptorTraverseAndApply(
         DirentWrapper *dir, DirectoryTraversalFnPtr dir_func = nullptr,
         DirectoryTraversalFnPtr file_func = nullptr,
