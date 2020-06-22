@@ -29,6 +29,7 @@ TEST(ConnectionOptionsTest, DefaultsToNullptrs)
     EXPECT_EQ(opts.d_serverCertPath, nullptr);
     EXPECT_EQ(opts.d_clientKey, nullptr);
     EXPECT_EQ(opts.d_clientKeyPath, nullptr);
+    EXPECT_EQ(opts.d_accessTokenPath, nullptr);
     EXPECT_EQ(opts.d_clientCert, nullptr);
     EXPECT_EQ(opts.d_clientCertPath, nullptr);
 }
@@ -64,6 +65,9 @@ TEST(ConnectionOptionsTest, ParseArgSimple)
 
     ASSERT_TRUE(opts.parseArg("--client-key=h"));
     EXPECT_STREQ(opts.d_clientKeyPath, "h");
+
+    ASSERT_TRUE(opts.parseArg("--access-token=path/to/jwt"));
+    EXPECT_STREQ(opts.d_accessTokenPath, "path/to/jwt");
 
     ASSERT_TRUE(opts.parseArg("--client-cert="));
     EXPECT_STREQ(opts.d_clientCertPath, "");
@@ -135,6 +139,7 @@ TEST(ConnectionOptionsTest, PutArgsFull)
     opts.d_instanceName = "instanceA";
     opts.d_serverCertPath = "abc";
     opts.d_clientKeyPath = "defg";
+    opts.d_accessTokenPath = "hijk";
     opts.d_clientCertPath = "";
     opts.d_retryLimit = "2";
     opts.d_retryDelay = "200";
@@ -148,6 +153,7 @@ TEST(ConnectionOptionsTest, PutArgsFull)
                                          "--server-cert=abc",
                                          "--client-key=defg",
                                          "--client-cert=",
+                                         "--access-token=hijk",
                                          "--retry-limit=2",
                                          "--retry-delay=200"};
     EXPECT_EQ(result, expected);
@@ -158,6 +164,7 @@ TEST(ConnectionOptionsTest, PutArgsFull)
     expected.push_back("--cas-server-cert=abc");
     expected.push_back("--cas-client-key=defg");
     expected.push_back("--cas-client-cert=");
+    expected.push_back("--cas-access-token=hijk");
     expected.push_back("--cas-retry-limit=2");
     expected.push_back("--cas-retry-delay=200");
     EXPECT_EQ(result, expected);
@@ -167,4 +174,53 @@ TEST(ConnectionOptionsTest, ArgHelpDoesntCrash)
 {
     ConnectionOptions::printArgHelp(0);
     ConnectionOptions::printArgHelp(40, "Bots", "bots-");
+}
+
+TEST(ConnectionOptionsTest, CreateSimpleChannelTest)
+{
+    ConnectionOptions opts;
+    opts.d_url = "http://example.com/";
+    opts.d_instanceName = "instanceA";
+    opts.d_retryLimit = "2";
+    opts.d_retryDelay = "200";
+
+    ASSERT_NO_THROW(opts.createChannel());
+}
+
+TEST(ConnectionOptionsTest, AccessTokenExists)
+{
+    ConnectionOptions opts;
+    opts.d_url = "https://example.com/";
+    opts.d_instanceName = "instanceA";
+    opts.d_retryLimit = "2";
+    opts.d_retryDelay = "200";
+    opts.d_accessTokenPath = "data/test.txt";
+
+    std::shared_ptr<grpc::Channel> channel;
+
+    ASSERT_NO_THROW(channel = opts.createChannel());
+}
+
+TEST(ConnectionOptionsTest, AccessTokenInsecureURL)
+{
+    ConnectionOptions opts;
+    opts.d_url = "http://example.com/";
+    opts.d_instanceName = "instanceA";
+    opts.d_retryLimit = "2";
+    opts.d_retryDelay = "200";
+    opts.d_accessTokenPath = "data/test.txt";
+
+    ASSERT_THROW(opts.createChannel(), std::runtime_error);
+}
+
+TEST(ConnectionOptionsTest, AccessTokenNoExists)
+{
+    ConnectionOptions opts;
+    opts.d_url = "https://example.com/";
+    opts.d_instanceName = "instanceA";
+    opts.d_retryLimit = "2";
+    opts.d_retryDelay = "200";
+    opts.d_accessTokenPath = "path/to/missingfile";
+
+    ASSERT_THROW(opts.createChannel(), std::runtime_error);
 }

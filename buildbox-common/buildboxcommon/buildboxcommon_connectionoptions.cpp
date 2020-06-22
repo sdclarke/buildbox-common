@@ -68,6 +68,11 @@ void ConnectionOptions::setClientKeyPath(const std::string &value)
     this->d_clientKeyPath = value.c_str();
 }
 
+void ConnectionOptions::setAccessTokenPath(const std::string &value)
+{
+    this->d_accessTokenPath = value.c_str();
+}
+
 void ConnectionOptions::setInstanceName(const std::string &value)
 {
     this->d_instanceName = value.c_str();
@@ -135,6 +140,10 @@ bool ConnectionOptions::parseArg(const char *arg, const char *prefix)
             this->d_clientCertPath = value;
             return true;
         }
+        else if (key == "access-token") {
+            this->d_accessTokenPath = value;
+            return true;
+        }
         else if (key == "retry-limit") {
             this->d_retryLimit = value;
             return true;
@@ -170,6 +179,10 @@ void ConnectionOptions::putArgs(std::vector<std::string> *out,
         out->push_back("--" + p +
                        "client-cert=" + std::string(this->d_clientCertPath));
     }
+    if (this->d_accessTokenPath != nullptr) {
+        out->push_back("--" + p +
+                       "access-token=" + std::string(this->d_accessTokenPath));
+    }
     if (this->d_retryLimit != nullptr) {
         out->push_back("--" + p +
                        "retry-limit=" + std::string(this->d_retryLimit));
@@ -185,9 +198,9 @@ std::shared_ptr<grpc::Channel> ConnectionOptions::createChannel() const
     BUILDBOX_LOG_DEBUG("Creating grpc channel to " << this->d_url);
     std::string target;
     std::shared_ptr<grpc::ChannelCredentials> creds;
+
     if (strncmp(this->d_url, HTTP_PREFIX, strlen(HTTP_PREFIX)) == 0) {
         target = this->d_url + strlen(HTTP_PREFIX);
-        creds = grpc::InsecureChannelCredentials();
     }
     else if (strncmp(this->d_url, HTTPS_PREFIX, strlen(HTTPS_PREFIX)) == 0) {
         auto options = grpc::SslCredentialsOptions();
@@ -214,15 +227,42 @@ std::shared_ptr<grpc::Channel> ConnectionOptions::createChannel() const
         }
         target = this->d_url + strlen(HTTPS_PREFIX);
         creds = grpc::SslCredentials(options);
+
+        // It is important to do this last, after first creating the
+        // `grpc::SslCredentials()` so that we can use them in the
+        // constructor of `grpc::CompositeChannelCredentials`
+        if (this->d_accessTokenPath) {
+            const std::string accessToken =
+                FileUtils::getFileContents(this->d_accessTokenPath);
+            std::shared_ptr<grpc::CallCredentials> call_creds =
+                grpc::AccessTokenCredentials(accessToken);
+            // Wrap both channel and call creds together
+            // so that all requests on this channel use both the Channel and
+            // Call Creds
+            creds = grpc::CompositeChannelCredentials(creds, call_creds);
+        }
     }
     else if (strncmp(this->d_url, UNIX_SOCKET_PREFIX,
                      strlen(UNIX_SOCKET_PREFIX)) == 0) {
         target = this->d_url;
-        creds = grpc::InsecureChannelCredentials();
     }
     else {
         BUILDBOXCOMMON_THROW_EXCEPTION(std::runtime_error,
                                        "Unsupported URL scheme");
+    }
+
+    if (!creds) {
+        // Secure creds weren't set, use default insecure
+        creds = grpc::InsecureChannelCredentials();
+        // If any of the secure-only options were specified with an insecure
+        // endpoint, throw
+        if (this->d_serverCert || this->d_serverCertPath ||
+            this->d_clientKey || this->d_clientKeyPath || this->d_clientCert ||
+            this->d_clientCertPath || this->d_accessTokenPath) {
+            BUILDBOXCOMMON_THROW_EXCEPTION(
+                std::runtime_error,
+                "Secure Channel options cannot be used with this URL");
+        }
     }
 
     return grpc::CreateChannel(target, creds);
@@ -247,6 +287,11 @@ void ConnectionOptions::printArgHelp(int padWidth, const char *serviceName,
 
     printPadded(padWidth, "--" + p + "client-cert=PATH");
     std::clog << "Public client certificate for TLS (PEM-encoded)\n";
+
+    printPadded(padWidth, "--" + p + "access-token=PATH");
+    std::clog << "Access Token for authentication "
+                 "(e.g. JWT, OAuth access token, etc), "
+                 "will be included as an HTTP Authorization bearer token. \n";
 
     printPadded(padWidth, "--" + p + "retry-limit=INT");
     std::clog << "Number of times to retry on grpc errors\n";

@@ -29,6 +29,7 @@ struct ConnectionOptions {
     const char *d_clientCertPath = nullptr;
     const char *d_clientKey = nullptr;
     const char *d_clientKeyPath = nullptr;
+    const char *d_accessTokenPath = nullptr;
     const char *d_instanceName = nullptr;
     const char *d_serverCert = nullptr;
     const char *d_serverCertPath = nullptr;
@@ -46,7 +47,8 @@ struct ConnectionOptions {
      * it and return true. Otherwise, return false.
      *
      * Valid server options are "--remote=URL", "--instance=NAME",
-     * "--server-cert=PATH", "--client-key=PATH", and "--client-cert=PATH".
+     * "--server-cert=PATH", "--client-key=PATH", "--client-cert=PATH", and,
+     * "--access-token=PATH"
      *
      * If a prefix is passed, it's added to the name of each option.
      * (For example, passing a prefix of "cas-" would cause this method to
@@ -58,6 +60,7 @@ struct ConnectionOptions {
     void setClientCertPath(const std::string &value);
     void setClientKey(const std::string &value);
     void setClientKeyPath(const std::string &value);
+    void setAccessTokenPath(const std::string &value);
     void setInstanceName(const std::string &value);
     void setRetryDelay(const std::string &value);
     void setRetryLimit(const std::string &value);
