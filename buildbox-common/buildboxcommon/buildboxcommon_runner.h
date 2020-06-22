@@ -183,7 +183,7 @@ class Runner {
 
         // If set, skips capturing and uploading the outputs written by the
         // command to stdout and stderr.
-        bool skip_capture;
+        bool skip_capture = false;
     };
 
     StandardOutputsCaptureConfig d_standardOutputsCaptureConfig;
