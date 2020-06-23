@@ -54,7 +54,7 @@ void GrpcRetry::retry(
                 const int timeDelay =
                     static_cast<int>(grpcRetryDelay * pow(1.6, nAttempts));
 
-                BUILDBOX_LOG_ERROR(
+                BUILDBOX_LOG_WARNING(
                     "Attempt " << nAttempts + 1 << "/" << grpcRetryLimit + 1
                                << " failed with gRPC error "
                                << status.error_code() << ": "
