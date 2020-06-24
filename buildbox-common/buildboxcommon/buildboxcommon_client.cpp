@@ -322,19 +322,6 @@ void Client::downloadDirectory(
         // Prepend the path to the symlink_node name.
         const std::string symlink_path = path + "/" + symlink_node.name();
 
-        // As stated in the API:
-        // The canonical form forbids the substrings `/./`
-        // and `//` in the target path.
-        if (symlink_node.target().find("/./") != std::string::npos ||
-            symlink_node.target().find("//") != std::string::npos) {
-            BUILDBOXCOMMON_THROW_EXCEPTION(
-                std::invalid_argument,
-                "Cannot create symlink. The target path \""
-                    << symlink_node.target()
-                    << "\" contains substrings not allowed "
-                       "by the API: [/./] or "
-                       "[//]");
-        }
         if (symlink(symlink_node.target().c_str(), symlink_path.c_str()) !=
             0) {
             BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
