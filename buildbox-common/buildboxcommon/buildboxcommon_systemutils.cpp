@@ -203,7 +203,8 @@ void SystemUtils::redirectStandardOutputToFile(const int standardOutputFd,
     }
 
     const int fileFd =
-        open(path.c_str(), O_CREAT | O_TRUNC | O_APPEND | O_WRONLY);
+        open(path.c_str(), O_CREAT | O_TRUNC | O_APPEND | O_WRONLY,
+             S_IRUSR | S_IWUSR);
 
     if (fileFd == -1 || dup2(fileFd, standardOutputFd) == -1) {
         const auto outputName =
