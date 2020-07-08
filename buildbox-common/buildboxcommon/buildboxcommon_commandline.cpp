@@ -785,28 +785,31 @@ double CommandLine::getDouble(const std::string &name,
 #endif
 }
 
-const Type::VectorOfString &CommandLine::getVS(const std::string &name) const
+const Type::VectorOfString &
+CommandLine::getVS(const std::string &name,
+                   const Type::VectorOfString &default_value) const
 {
 #ifdef BUILDBOXCOMMON_COMMANDLINE_USES_CXX17
-    return this->get<Type::VectorOfString>(name);
+    return this->get<Type::VectorOfString>(name, default_value);
 #else
     const auto it = d_parsedArgs.find(name);
     if (it == d_parsedArgs.end()) {
-        throw std::runtime_error("argument \"" + name + "\" not found");
+        return default_value;
     }
     return it->second.d_argumentValue.d_vs;
 #endif
 }
 
-const Type::VectorOfPairOfString &
-CommandLine::getVPS(const std::string &name) const
+const Type::VectorOfPairOfString &CommandLine::getVPS(
+    const std::string &name,
+    const CommandLineTypes::Type::VectorOfPairOfString &default_value) const
 {
 #ifdef BUILDBOXCOMMON_COMMANDLINE_USES_CXX17
-    return this->get<Type::VectorOfPairOfString>(name);
+    return this->get<Type::VectorOfPairOfString>(name, default_value);
 #else
     const auto it = d_parsedArgs.find(name);
     if (it == d_parsedArgs.end()) {
-        throw std::runtime_error("argument \"" + name + "\" not found");
+        return default_value;
     }
     return it->second.d_argumentValue.d_vps;
 #endif

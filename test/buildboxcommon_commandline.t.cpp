@@ -194,10 +194,6 @@ ArgumentSpec specWithDefaultValuesFail[] = {
     {"", "BOT Id", TypeInfo(&botId), ArgumentSpec::O_OPTIONAL}
 };
 
-/*
-    {"instance", "Name of instance", Meta(TypeInfo(DataType::COMMANDLINE_DT_STRING), 2.3), ArgumentSpec::O_OPTIONAL,
-     ArgumentSpec::C_WITH_ARG, CMLDefaultValue("dev")},
-*/
 // test type mismatch between option type
 ArgumentSpec specWithMisMatchedTypes[] = {
     {"help", "Display usage and exit", TypeInfo(DataType::COMMANDLINE_DT_BOOL)},
@@ -215,6 +211,14 @@ ArgumentSpec specWithMisMatchedTypes[] = {
     {"config-file", "Absolute path to config file", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG},
     {"verbose", "Adjust log verbosity", TypeInfo(DataType::COMMANDLINE_DT_BOOL), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITHOUT_ARG, CMLDefaultValue(false)},
     {"", "BOT Id", TypeInfo(&botId), ArgumentSpec::O_OPTIONAL}
+};
+
+// test optional args but use the getter API's that provide default values
+ArgumentSpec specWithOptionalComplexTypes[] = {
+    {"config-file", "Absolute path to config file", TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG},
+    {"platform", "Set a platform property(repeated):\n--platform KEY=VALUE\n--platform KEY=VALUE", TypeInfo(DataType::COMMANDLINE_DT_STRING_PAIR_ARRAY), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG},
+    {"runner-arg", "Args to pass to the runner", TypeInfo(DataType::COMMANDLINE_DT_STRING_ARRAY), ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG},
+    {"", "BOT Id", TypeInfo(&botId), ArgumentSpec::O_REQUIRED}
 };
 
 // format "--option=value"
@@ -574,6 +578,12 @@ const char *argvTestDefaultValues[] = {
     "chrootRootDigest=8533ec9ba7494cc8295ccd0bfdca08457421a28b4e92c8eb18e7178fb400f5d4/930",
     "--platform",
     "chrootRootDigest=1e7088e7aca9e8713a84122218a89c8908b39b5797d32170f1afa6e474b9ade6/930",
+    "--config-file=/bb/data/dbldwr-config/buildboxworker.conf",
+    "wrldev-ob-623-buildboxworker-20"
+};
+
+const char *argvDefaultGetters[] = {
+    "/some/path/to/some_program.tsk",
     "--config-file=/bb/data/dbldwr-config/buildboxworker.conf",
     "wrldev-ob-623-buildboxworker-20"
 };
@@ -1022,4 +1032,35 @@ TEST(CommandLineTests, TestWithMisMatchedTypes)
         (sizeof(argvTestDefaultValues) / sizeof(const char *)),
         argvTestDefaultValues);
     EXPECT_FALSE(success);
+}
+
+TEST(CommandLineTests, TestDefaultAPIWithComplexTypes)
+{
+    // runner-arg and is intentionally optional and not provided so we
+    // can confirm that the getters return the provided defaults
+    CommandLine commandLine(specWithOptionalComplexTypes);
+    const bool success =
+        commandLine.parse((sizeof(argvDefaultGetters) / sizeof(const char *)),
+                          argvDefaultGetters);
+    EXPECT_TRUE(success);
+
+    // confirm the library provided default values are indeed empty
+    EXPECT_TRUE(commandLine.getVS("runner-arg").empty());
+    EXPECT_TRUE(commandLine.getVS("platform").empty());
+
+    // confirm that user provided default values are returned
+    Type::VectorOfString vsDefaultValue = {std::string("one"),
+                                           std::string("two")};
+    Type::VectorOfPairOfString vpsDefaultValue = {
+        Type::PairOfString("first-1", "second-1"),
+        Type::PairOfString("first-2", "second-2")};
+
+    EXPECT_EQ(vsDefaultValue.size(),
+              commandLine.getVS("runner-arg", vsDefaultValue).size());
+    EXPECT_THAT(vsDefaultValue, ElementsAre("one", "two"));
+
+    EXPECT_EQ(vpsDefaultValue.size(),
+              commandLine.getVPS("platform", vpsDefaultValue).size());
+    EXPECT_THAT(vpsDefaultValue, ElementsAre(Pair("first-1", "second-1"),
+                                             Pair("first-2", "second-2")));
 }

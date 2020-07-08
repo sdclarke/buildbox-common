@@ -133,9 +133,14 @@ class CommandLine {
                      const double default_value) const;
 
     const CommandLineTypes::Type::VectorOfString &
-    getVS(const std::string &name) const;
+    getVS(const std::string &name,
+          const CommandLineTypes::Type::VectorOfString &default_value =
+              CommandLineTypes::Type::VectorOfString{}) const;
+
     const CommandLineTypes::Type::VectorOfPairOfString &
-    getVPS(const std::string &name) const;
+    getVPS(const std::string &name,
+           const CommandLineTypes::Type::VectorOfPairOfString &default_value =
+               CommandLineTypes::Type::VectorOfPairOfString{}) const;
 
     bool exists(const std::string &name) const
     {
