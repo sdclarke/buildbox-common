@@ -36,7 +36,9 @@
 namespace buildboxcommon {
 namespace {
 const size_t MAX_GRPC_MESSAGE_SIZE = 4 * 1024 * 1024;
-}
+// 64k for meta data
+const size_t GRPC_MAX_ROOM_FOR_META_DATA = 1 << 16;
+} // namespace
 
 const size_t Client::s_bytestreamChunkSizeBytes = 1024 * 1024;
 // The default limit for gRPC messages is 4 MiB.
@@ -77,9 +79,9 @@ void Client::init(
     this->d_localCasClient = localCasClient;
     this->d_capabilitiesClient = capabilitiesClient;
 
-    // Allow up to 75% of the MAX gRPC size for payload
-    // leaving remaining 25% for meta data
-    this->d_maxBatchTotalSizeBytes = MAX_GRPC_MESSAGE_SIZE * .75;
+    // leaving 64k of max gRPC size for metadata
+    this->d_maxBatchTotalSizeBytes =
+        MAX_GRPC_MESSAGE_SIZE - GRPC_MAX_ROOM_FOR_META_DATA;
 
     auto getCapabilitiesLambda = [&](grpc::ClientContext &context) {
         GetCapabilitiesRequest request;
@@ -908,6 +910,9 @@ Client::batchUpload(const std::vector<UploadRequest> &requests,
                 : FileUtils::getFileContents(requests[d].path.c_str()));
     }
 
+    BUILDBOX_LOG_TRACE(
+        "BatchUpdateBlobsRequest::ByteSizeLong = " << request.ByteSizeLong());
+
     BatchUpdateBlobsResponse response;
     auto batchUploadLamda = [&](grpc::ClientContext &context) {
         const auto status =
@@ -917,6 +922,9 @@ Client::batchUpload(const std::vector<UploadRequest> &requests,
 
     GrpcRetry::retry(batchUploadLamda, this->d_grpcRetryLimit,
                      this->d_grpcRetryDelay, this->d_metadata_attach_function);
+
+    BUILDBOX_LOG_TRACE("BatchUpdateBlobsResponse::ByteSizeLong = "
+                       << response.ByteSizeLong());
 
     std::vector<Client::UploadResult> results;
     for (const auto &uploadResponse : response.responses()) {
@@ -945,6 +953,8 @@ Client::batchDownload(const std::vector<Digest> &digests,
         auto digest = request.add_digests();
         digest->CopyFrom(digests[d]);
     }
+    BUILDBOX_LOG_TRACE(
+        "BatchReadBlobsRequest::ByteSizeLong = " << request.ByteSizeLong());
 
     BatchReadBlobsResponse response;
     auto batchDownloadLamda = [&](grpc::ClientContext &context) {
@@ -955,6 +965,9 @@ Client::batchDownload(const std::vector<Digest> &digests,
 
     GrpcRetry::retry(batchDownloadLamda, this->d_grpcRetryLimit,
                      this->d_grpcRetryDelay, this->d_metadata_attach_function);
+
+    BUILDBOX_LOG_TRACE(
+        "BatchReadBlobsResponse::ByteSizeLong = " << response.ByteSizeLong());
 
     DownloadResults download_results;
     download_results.reserve(static_cast<size_t>(response.responses_size()));
@@ -978,8 +991,12 @@ Client::makeBatches(const std::vector<Digest> &digests)
     // A batch is a pair of indexes into the vector of `digests` that
     // can all fit in one `d_maxBatchTotalSizeBytes` sized buffer;
     // The indices are semantically represented by [batch_start, batch_end)
+    static const size_t SIZEOF_ESTIMATED_TOP_LEVEL_GRPC_CONTAINER = 100;
+    static const size_t SIZEOF_ESTIMATED_NESTED_DIGESTS_CONTAINER = 50;
     std::vector<std::pair<size_t, size_t>> batches;
-    const size_t max_batch_size = d_maxBatchTotalSizeBytes;
+    const size_t max_batch_size =
+        d_maxBatchTotalSizeBytes - SIZEOF_ESTIMATED_TOP_LEVEL_GRPC_CONTAINER -
+        (SIZEOF_ESTIMATED_NESTED_DIGESTS_CONTAINER * digests.size());
     size_t batch_start = 0;
     size_t batch_end = 0;
     while (batch_end < digests.size()) {

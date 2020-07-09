@@ -34,7 +34,7 @@
 using namespace buildboxcommon;
 using namespace testing;
 
-const int64_t MAX_BATCH_SIZE_BYTES = 64;
+const int64_t MAX_BATCH_SIZE_BYTES = 1024;
 
 class StubsFixture : public ::testing::Test {
     /**
