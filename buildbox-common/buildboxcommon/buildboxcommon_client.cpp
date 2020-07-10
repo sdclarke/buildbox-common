@@ -1020,7 +1020,6 @@ Client::makeBatches(const std::vector<Digest> &digests)
     size_t batch_start = 0;
     size_t batch_end = 0;
     while (batch_end < digests.size()) {
-        size_t bytes_in_batch = 0;
         if (static_cast<size_t>(digests[batch_end].size_bytes() +
                                 PER_BLOB_METADATA_SIZE) > max_batch_size) {
             // All digests from `batch_end` to the end of the list are
@@ -1030,9 +1029,10 @@ Client::makeBatches(const std::vector<Digest> &digests)
 
         // Adding all the digests that we can until we run out or exceed
         // the batch request limit...
+        size_t bytes_in_batch = 0;
         while (batch_end < digests.size() &&
-               bytes_in_batch + digests[batch_end].size_bytes() <=
-                   max_batch_size) {
+               (bytes_in_batch + digests[batch_end].size_bytes() +
+                PER_BLOB_METADATA_SIZE) <= max_batch_size) {
             bytes_in_batch +=
                 (digests[batch_end].size_bytes() + PER_BLOB_METADATA_SIZE);
             batch_end++;
