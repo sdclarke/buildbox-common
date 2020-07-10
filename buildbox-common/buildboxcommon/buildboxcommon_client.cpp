@@ -1003,7 +1003,7 @@ Client::makeBatches(const std::vector<Digest> &digests)
     // classes BatchUpdateBlobsRequest(upload) and
     // BatchReadBlobsRequest(download). This is an attempt to factor in these
     // values into the overall batch size equation
-    static const size_t SIZEOF_ESTIMATED_TOP_LEVEL_GRPC_CONTAINER = 100;
+    static const size_t SIZEOF_ESTIMATED_TOP_LEVEL_GRPC_CONTAINER = 256;
     static const size_t SIZEOF_ESTIMATED_NESTED_GRPC_CONTAINERS = 50;
 
     // A batch is a pair of indexes into the vector of `digests` that
