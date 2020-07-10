@@ -34,11 +34,6 @@
 #include <uuid/uuid.h>
 
 namespace buildboxcommon {
-namespace {
-const size_t MAX_GRPC_MESSAGE_SIZE = 4 * 1024 * 1024;
-// 64k for meta data
-const size_t GRPC_MAX_ROOM_FOR_META_DATA = 1 << 16;
-} // namespace
 
 const size_t Client::s_bytestreamChunkSizeBytes = 1024 * 1024;
 // The default limit for gRPC messages is 4 MiB.
@@ -79,10 +74,20 @@ void Client::init(
     this->d_localCasClient = localCasClient;
     this->d_capabilitiesClient = capabilitiesClient;
 
-    // leaving 64k of max gRPC size for metadata
+    // Somewhat arbitrary value used as an estimate for
+    // the space consumed by gRPC class metadata
+    static const size_t MAX_ROOM_FOR_METADATA = 1 << 16;
+    // We use this GRPC constant which is a server-side receive value
+    // or a client side send value
+    // https://github.com/grpc/grpc/blob/master/include/grpc/impl/codegen/grpc_types.h
     this->d_maxBatchTotalSizeBytes =
-        MAX_GRPC_MESSAGE_SIZE - GRPC_MAX_ROOM_FOR_META_DATA;
+        GRPC_DEFAULT_MAX_RECV_MESSAGE_LENGTH - MAX_ROOM_FOR_METADATA;
 
+    BUILDBOX_LOG_INFO("setting d_maxBatchTotalSizeBytes = "
+                      << d_maxBatchTotalSizeBytes << " bytes by default");
+
+    // Request server capabiliies and adjust our defaults according to the
+    // server response
     auto getCapabilitiesLambda = [&](grpc::ClientContext &context) {
         GetCapabilitiesRequest request;
         request.set_instance_name(d_instanceName);
@@ -98,6 +103,10 @@ void Client::init(
                 serverMaxBatchTotalSizeBytes <
                     this->d_maxBatchTotalSizeBytes) {
                 this->d_maxBatchTotalSizeBytes = serverMaxBatchTotalSizeBytes;
+                BUILDBOX_LOG_INFO(
+                    "setting d_maxBatchTotalSizeBytes = "
+                    << d_maxBatchTotalSizeBytes
+                    << " bytes based on gRPC server capabilities");
             }
         }
         return status;
@@ -988,15 +997,20 @@ Client::batchDownload(const std::vector<Digest> &digests,
 std::vector<std::pair<size_t, size_t>>
 Client::makeBatches(const std::vector<Digest> &digests)
 {
+    // The values below are set based on rounding up sizeof's the gRPC
+    // classes BatchUpdateBlobsRequest(upload) and
+    // BatchReadBlobsRequest(download). This is an attempt to factor in these
+    // values into the overall batch size equation
+    static const size_t SIZEOF_ESTIMATED_TOP_LEVEL_GRPC_CONTAINER = 100;
+    static const size_t SIZEOF_ESTIMATED_NESTED_GRPC_CONTAINERS = 50;
+
     // A batch is a pair of indexes into the vector of `digests` that
     // can all fit in one `d_maxBatchTotalSizeBytes` sized buffer;
     // The indices are semantically represented by [batch_start, batch_end)
-    static const size_t SIZEOF_ESTIMATED_TOP_LEVEL_GRPC_CONTAINER = 100;
-    static const size_t SIZEOF_ESTIMATED_NESTED_DIGESTS_CONTAINER = 50;
     std::vector<std::pair<size_t, size_t>> batches;
     const size_t max_batch_size =
         d_maxBatchTotalSizeBytes - SIZEOF_ESTIMATED_TOP_LEVEL_GRPC_CONTAINER -
-        (SIZEOF_ESTIMATED_NESTED_DIGESTS_CONTAINER * digests.size());
+        (SIZEOF_ESTIMATED_NESTED_GRPC_CONTAINERS * digests.size());
     size_t batch_start = 0;
     size_t batch_end = 0;
     while (batch_end < digests.size()) {
