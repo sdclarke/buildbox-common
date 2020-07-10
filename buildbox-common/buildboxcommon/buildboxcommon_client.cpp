@@ -921,8 +921,8 @@ Client::batchUpload(const std::vector<UploadRequest> &requests,
                 : FileUtils::getFileContents(requests[d].path.c_str()));
     }
 
-    BUILDBOX_LOG_TRACE(
-        "BatchUpdateBlobsRequest::ByteSizeLong = " << request.ByteSizeLong());
+    BUILDBOX_LOG_TRACE("BatchUpdateBlobs Request serialized message size = "
+                       << request.ByteSizeLong());
 
     BatchUpdateBlobsResponse response;
     auto batchUploadLamda = [&](grpc::ClientContext &context) {
@@ -934,7 +934,7 @@ Client::batchUpload(const std::vector<UploadRequest> &requests,
     GrpcRetry::retry(batchUploadLamda, this->d_grpcRetryLimit,
                      this->d_grpcRetryDelay, this->d_metadata_attach_function);
 
-    BUILDBOX_LOG_TRACE("BatchUpdateBlobsResponse::ByteSizeLong = "
+    BUILDBOX_LOG_TRACE("BatchUpdateBlobs Response serialized message size = "
                        << response.ByteSizeLong());
 
     std::vector<Client::UploadResult> results;
@@ -964,8 +964,8 @@ Client::batchDownload(const std::vector<Digest> &digests,
         auto digest = request.add_digests();
         digest->CopyFrom(digests[d]);
     }
-    BUILDBOX_LOG_TRACE(
-        "BatchReadBlobsRequest::ByteSizeLong = " << request.ByteSizeLong());
+    BUILDBOX_LOG_TRACE("BatchReadBlobs Request serialized message size = "
+                       << request.ByteSizeLong());
 
     BatchReadBlobsResponse response;
     auto batchDownloadLamda = [&](grpc::ClientContext &context) {
@@ -977,8 +977,8 @@ Client::batchDownload(const std::vector<Digest> &digests,
     GrpcRetry::retry(batchDownloadLamda, this->d_grpcRetryLimit,
                      this->d_grpcRetryDelay, this->d_metadata_attach_function);
 
-    BUILDBOX_LOG_TRACE(
-        "BatchReadBlobsResponse::ByteSizeLong = " << response.ByteSizeLong());
+    BUILDBOX_LOG_TRACE("BatchReadBlobs Response serialized message size = "
+                       << response.ByteSizeLong());
 
     DownloadResults download_results;
     download_results.reserve(static_cast<size_t>(response.responses_size()));
