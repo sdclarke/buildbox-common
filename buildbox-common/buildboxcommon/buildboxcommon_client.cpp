@@ -83,7 +83,7 @@ void Client::init(
     this->d_maxBatchTotalSizeBytes =
         GRPC_DEFAULT_MAX_RECV_MESSAGE_LENGTH - MAX_ROOM_FOR_METADATA;
 
-    BUILDBOX_LOG_INFO("setting d_maxBatchTotalSizeBytes = "
+    BUILDBOX_LOG_INFO("Setting d_maxBatchTotalSizeBytes = "
                       << d_maxBatchTotalSizeBytes << " bytes by default");
 
     // Request server capabiliies and adjust our defaults according to the
@@ -102,11 +102,13 @@ void Client::init(
             if (serverMaxBatchTotalSizeBytes > 0 &&
                 serverMaxBatchTotalSizeBytes <
                     this->d_maxBatchTotalSizeBytes) {
-                this->d_maxBatchTotalSizeBytes = serverMaxBatchTotalSizeBytes;
                 BUILDBOX_LOG_INFO(
-                    "setting d_maxBatchTotalSizeBytes = "
-                    << d_maxBatchTotalSizeBytes
-                    << " bytes based on gRPC server capabilities");
+                    "Reconfiguring d_maxBatchTotalSizeBytes down from "
+                    << d_maxBatchTotalSizeBytes << " to "
+                    << serverMaxBatchTotalSizeBytes
+                    << " due to server max_batch_total_size_bytes of "
+                    << serverMaxBatchTotalSizeBytes);
+                this->d_maxBatchTotalSizeBytes = serverMaxBatchTotalSizeBytes;
             }
         }
         return status;
