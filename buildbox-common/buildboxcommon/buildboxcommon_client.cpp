@@ -999,26 +999,30 @@ Client::batchDownload(const std::vector<Digest> &digests,
 std::vector<std::pair<size_t, size_t>>
 Client::makeBatches(const std::vector<Digest> &digests)
 {
-    // The values below are set based on rounding up sizeof's the gRPC
-    // classes BatchUpdateBlobsRequest(upload) and
-    // BatchReadBlobsRequest(download). This is an attempt to factor in these
-    // values into the overall batch size equation
+    // The below value is set based on rounding up of static data sizes
+    // in the gRPC classes BatchUpdateBlobsRequest(upload) and
+    // BatchReadBlobsRequest(download). This is an attempt to factor in this
+    // size into the overall batch size equation
     static const size_t SIZEOF_ESTIMATED_TOP_LEVEL_GRPC_CONTAINER = 256;
-    static const size_t SIZEOF_ESTIMATED_NESTED_GRPC_CONTAINERS = 50;
+
+    // The bulk of the per-blob overhead are the Digest and Status
+    // data structures. The 'digest' hash needs 128 bytes for the largest hash
+    // in the protocol (SHA-512) and the 'status' can contain an optional
+    // string message
+    static const size_t PER_BLOB_METADATA_SIZE = 256;
 
     // A batch is a pair of indexes into the vector of `digests` that
     // can all fit in one `d_maxBatchTotalSizeBytes` sized buffer;
     // The indices are semantically represented by [batch_start, batch_end)
     std::vector<std::pair<size_t, size_t>> batches;
     const size_t max_batch_size =
-        d_maxBatchTotalSizeBytes - SIZEOF_ESTIMATED_TOP_LEVEL_GRPC_CONTAINER -
-        (SIZEOF_ESTIMATED_NESTED_GRPC_CONTAINERS * digests.size());
+        d_maxBatchTotalSizeBytes - SIZEOF_ESTIMATED_TOP_LEVEL_GRPC_CONTAINER;
     size_t batch_start = 0;
     size_t batch_end = 0;
     while (batch_end < digests.size()) {
         size_t bytes_in_batch = 0;
-        if (static_cast<size_t>(digests[batch_end].size_bytes()) >
-            max_batch_size) {
+        if (static_cast<size_t>(digests[batch_end].size_bytes() +
+                                PER_BLOB_METADATA_SIZE) > max_batch_size) {
             // All digests from `batch_end` to the end of the list are
             // larger than what we can request; stop.
             return batches;
@@ -1029,7 +1033,8 @@ Client::makeBatches(const std::vector<Digest> &digests)
         while (batch_end < digests.size() &&
                bytes_in_batch + digests[batch_end].size_bytes() <=
                    max_batch_size) {
-            bytes_in_batch += digests[batch_end].size_bytes();
+            bytes_in_batch +=
+                (digests[batch_end].size_bytes() + PER_BLOB_METADATA_SIZE);
             batch_end++;
         }
 
