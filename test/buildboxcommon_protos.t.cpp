@@ -76,6 +76,27 @@ TEST(ProtosHeaderTest, DigestComparisonDifferent)
     ASSERT_TRUE(d1 != d2);
 }
 
+TEST(ProtosHeaderTest, DigestComparisonLt)
+{
+    Digest d1, d2, d3;
+    d1.set_hash("hash1");
+    d1.set_size_bytes(10);
+
+    d2.set_hash("hash1");
+    d2.set_size_bytes(20);
+
+    d3.set_hash("hash2");
+    d3.set_size_bytes(1);
+
+    ASSERT_LT(d1, d2);
+    ASSERT_LT(d2, d3);
+    ASSERT_LT(d1, d3);
+
+    ASSERT_FALSE(d3 < d1);
+    ASSERT_FALSE(d3 < d2);
+    ASSERT_FALSE(d2 < d1);
+}
+
 TEST(ProtosHeaderTest, DigestToString)
 {
     const std::string data = "This is some content to hash.";

@@ -58,6 +58,16 @@ inline bool operator!=(const buildboxcommon::Digest &a,
     return !(a == b);
 }
 
+inline bool operator<(const buildboxcommon::Digest &a,
+                      const buildboxcommon::Digest &b)
+{
+    if (a.hash() != b.hash()) {
+        return a.hash() < b.hash();
+    }
+
+    return a.size_bytes() < b.size_bytes();
+}
+
 inline std::string toString(const buildboxcommon::Digest &digest)
 {
     return digest.hash() + "/" + std::to_string(digest.size_bytes());
