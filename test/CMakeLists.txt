@@ -31,7 +31,6 @@ endmacro()
 add_buildboxcommon_test(client_test buildboxcommon_client.t.cpp)
 add_buildboxcommon_test(stageddirectory_tests buildboxcommon_stageddirectory.t.cpp)
 add_buildboxcommon_test(localcasstageddirectory_tests buildboxcommon_localcasstageddirectory.t.cpp)
-add_buildboxcommon_test(connectionoptions_tests buildboxcommon_connectionoptions.t.cpp)
 add_buildboxcommon_test(fileutils_tests buildboxcommon_fileutils.t.cpp)
 add_buildboxcommon_test(timeutils_tests buildboxcommon_timeutils.t.cpp)
 add_buildboxcommon_test(systemutils_tests buildboxcommon_systemutils.t.cpp)
@@ -77,3 +76,7 @@ add_buildboxcommon_test(streamingstandardoutputfilemonitor buildboxcommon_stream
 add_buildboxcommon_test(cashash_tests buildboxcommon_cashash.t.cpp ${CMAKE_CURRENT_SOURCE_DIR}/data/)
 add_buildboxcommon_test(fallbackstageddirectory_tests buildboxcommon_fallbackstageddirectory.t.cpp ${CMAKE_CURRENT_SOURCE_DIR}/data/buildboxcommon_fallbackstageddirectory)
 add_buildboxcommon_test(merklize_tests buildboxcommon_merklize.t.cpp ${CMAKE_CURRENT_SOURCE_DIR}/data/merklize)
+
+# These tests need some additional environment variables to be set (to test underlying libraries) in addition to different cwd
+add_buildboxcommon_test(connectionoptions_tests buildboxcommon_connectionoptions.t.cpp ${CMAKE_CURRENT_SOURCE_DIR})
+set_tests_properties(connectionoptions_tests  PROPERTIES ENVIRONMENT GOOGLE_APPLICATION_CREDENTIALS=data/mock_google_token.json)

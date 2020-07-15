@@ -224,3 +224,33 @@ TEST(ConnectionOptionsTest, AccessTokenNoExists)
 
     ASSERT_THROW(opts.createChannel(), std::runtime_error);
 }
+
+TEST(ConnectionOptionsTest, GoogleAuthWithToken)
+{
+    ConnectionOptions opts;
+    opts.d_url = "https://example.com/";
+    opts.d_instanceName = "instanceA";
+    opts.d_retryLimit = "2";
+    opts.d_retryDelay = "200";
+    opts.d_useGoogleApiAuth = true;
+
+    std::shared_ptr<grpc::Channel> channel;
+    // This should pass since there is a mock token file to read
+    // pointed to from GOOGLE_APPLICATION_CREDENTIALS environment variable
+    ASSERT_NO_THROW(channel = opts.createChannel());
+}
+
+TEST(ConnectionOptionsTest, AccessTokenAndGoogleAuthConflict)
+{
+    ConnectionOptions opts;
+    opts.d_url = "https://example.com/";
+    opts.d_instanceName = "instanceA";
+    opts.d_retryLimit = "2";
+    opts.d_retryDelay = "200";
+    opts.d_accessTokenPath = "path/to/missingfile";
+    opts.d_useGoogleApiAuth = true;
+
+    // This should fail since we specified both access token and GoogleAPIAuth
+    // only one of the two is allowed
+    ASSERT_THROW(opts.createChannel(), std::runtime_error);
+}

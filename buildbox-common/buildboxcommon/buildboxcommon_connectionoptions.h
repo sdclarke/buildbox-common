@@ -34,6 +34,7 @@ struct ConnectionOptions {
     const char *d_serverCert = nullptr;
     const char *d_serverCertPath = nullptr;
     const char *d_url = nullptr;
+    bool d_useGoogleApiAuth = false;
 
     /*
      * These are strings to allow for easier
@@ -67,6 +68,7 @@ struct ConnectionOptions {
     void setServerCert(const std::string &value);
     void setServerCertPath(const std::string &value);
     void setUrl(const std::string &value);
+    void setUseGoogleApiAuth(const bool value);
 
     /**
      * Add arguments corresponding to this struct's settings to the given

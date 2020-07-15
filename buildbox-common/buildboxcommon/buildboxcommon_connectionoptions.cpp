@@ -103,6 +103,11 @@ void ConnectionOptions::setUrl(const std::string &value)
     this->d_url = value.c_str();
 }
 
+void ConnectionOptions::setUseGoogleApiAuth(const bool value)
+{
+    this->d_useGoogleApiAuth = value;
+}
+
 bool ConnectionOptions::parseArg(const char *arg, const char *prefix)
 {
     if (arg == nullptr || arg[0] != '-' || arg[1] != '-') {
@@ -153,6 +158,10 @@ bool ConnectionOptions::parseArg(const char *arg, const char *prefix)
             return true;
         }
     }
+    else if (std::string(arg) == "googleapi-auth") {
+        this->d_useGoogleApiAuth = true;
+        return true;
+    }
     return false;
 }
 
@@ -191,11 +200,14 @@ void ConnectionOptions::putArgs(std::vector<std::string> *out,
         out->push_back("--" + p +
                        "retry-delay=" + std::string(this->d_retryDelay));
     }
+    if (this->d_useGoogleApiAuth) {
+        out->push_back("--googleapi-auth");
+    }
 }
 
 std::shared_ptr<grpc::Channel> ConnectionOptions::createChannel() const
 {
-    BUILDBOX_LOG_DEBUG("Creating grpc channel to " << this->d_url);
+    BUILDBOX_LOG_DEBUG("Creating grpc channel to [" << this->d_url << "]");
     std::string target;
     std::shared_ptr<grpc::ChannelCredentials> creds;
 
@@ -226,20 +238,41 @@ std::shared_ptr<grpc::Channel> ConnectionOptions::createChannel() const
                 FileUtils::getFileContents(this->d_clientCertPath);
         }
         target = this->d_url + strlen(HTTPS_PREFIX);
-        creds = grpc::SslCredentials(options);
 
-        // It is important to do this last, after first creating the
-        // `grpc::SslCredentials()` so that we can use them in the
-        // constructor of `grpc::CompositeChannelCredentials`
-        if (this->d_accessTokenPath) {
-            const std::string accessToken =
-                FileUtils::getFileContents(this->d_accessTokenPath);
-            std::shared_ptr<grpc::CallCredentials> call_creds =
-                grpc::AccessTokenCredentials(accessToken);
-            // Wrap both channel and call creds together
-            // so that all requests on this channel use both the Channel and
-            // Call Creds
-            creds = grpc::CompositeChannelCredentials(creds, call_creds);
+        if (this->d_accessTokenPath && this->d_useGoogleApiAuth) {
+            BUILDBOXCOMMON_THROW_EXCEPTION(
+                std::runtime_error,
+                "Cannot use both Access Token Auth and GoogleAPIAuth.");
+        }
+        else if (this->d_useGoogleApiAuth) {
+            creds = grpc::GoogleDefaultCredentials();
+            if (!creds) {
+                throw std::runtime_error(
+                    "Failed to initialize GoogleAPIAuth. Make Sure you have a "
+                    "token and have set the appropriate environment variable "
+                    "[GOOGLE_APPLICATION_CREDENTIALS] as necessary.");
+            }
+        }
+        else {
+            // Set-up SSL creds
+            creds = grpc::SslCredentials(options);
+
+            // Include access token, if configured
+            if (this->d_accessTokenPath) {
+                // It is important to do this last, after first creating the
+                // `grpc::SslCredentials()` so that we can use them in the
+                // constructor of `grpc::CompositeChannelCredentials`
+                creds = grpc::SslCredentials(options);
+
+                const std::string accessToken =
+                    FileUtils::getFileContents(this->d_accessTokenPath);
+                std::shared_ptr<grpc::CallCredentials> call_creds =
+                    grpc::AccessTokenCredentials(accessToken);
+                // Wrap both channel and call creds together
+                // so that all requests on this channel use both
+                // the Channel and Call Creds
+                creds = grpc::CompositeChannelCredentials(creds, call_creds);
+            }
         }
     }
     else if (strncmp(this->d_url, UNIX_SOCKET_PREFIX,
@@ -258,7 +291,8 @@ std::shared_ptr<grpc::Channel> ConnectionOptions::createChannel() const
         // endpoint, throw
         if (this->d_serverCert || this->d_serverCertPath ||
             this->d_clientKey || this->d_clientKeyPath || this->d_clientCert ||
-            this->d_clientCertPath || this->d_accessTokenPath) {
+            this->d_clientCertPath || this->d_accessTokenPath ||
+            this->d_useGoogleApiAuth) {
             BUILDBOXCOMMON_THROW_EXCEPTION(
                 std::runtime_error,
                 "Secure Channel options cannot be used with this URL");
@@ -291,7 +325,10 @@ void ConnectionOptions::printArgHelp(int padWidth, const char *serviceName,
     printPadded(padWidth, "--" + p + "access-token=PATH");
     std::clog << "Access Token for authentication "
                  "(e.g. JWT, OAuth access token, etc), "
-                 "will be included as an HTTP Authorization bearer token. \n";
+                 "will be included as an HTTP Authorization bearer token.\n";
+
+    printPadded(padWidth, "--" + p + "googleapi-auth");
+    std::clog << "Use GoogleAPIAuth when this flag is set.\n";
 
     printPadded(padWidth, "--" + p + "retry-limit=INT");
     std::clog << "Number of times to retry on grpc errors\n";
