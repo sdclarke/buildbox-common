@@ -287,6 +287,73 @@ TEST(RunnerTest, CreateOutputDirectoriesTest)
     }
 }
 
+TEST(RunnerTest, CreateOutputDirectoriesTestWithOutputPathsField)
+{
+    TestRunner runner;
+    const std::string cwd = SystemUtils::get_current_working_directory();
+
+    const std::vector<std::string> output_paths{
+        "build_t/intermediate", "tmp_t/build",         "empty",    "",
+        "intermediate_t/tmp.o", "artifacts_t/build.o", "empty.txt"};
+
+    const std::vector<std::string> expected_directories{
+        "build_t", "tmp_t", "intermediate_t", "artifacts_t"};
+
+    for (const auto &dir : expected_directories) {
+        std::string full_path = cwd + "/" + dir;
+        // directories should not exist
+        EXPECT_FALSE(FileUtils::isDirectory(full_path.c_str()));
+    }
+
+    // Use v2.1's `output_path` field instead of `output_{files, directories}`:
+    Command command;
+    for (const auto &path : output_paths) {
+        *command.add_output_paths() = path;
+    }
+
+    runner.testCreateOutputDirectories(command, cwd);
+
+    for (const auto &dir : expected_directories) {
+        std::string full_path = cwd + "/" + dir;
+        // directories should now exist
+        EXPECT_TRUE(FileUtils::isDirectory(full_path.c_str()));
+        // clean up directory now
+        FileUtils::deleteDirectory(full_path.c_str());
+    }
+}
+
+TEST(RunnerTest,
+     CreateOutputDirectoriesDeprecatedFieldsIgnoredIfOutputPathIsSet)
+{
+    TestRunner runner;
+    const std::string cwd = SystemUtils::get_current_working_directory();
+
+    const std::vector<std::string> output_paths{"build/a.out", "output"};
+
+    const std::string expected_directory = cwd + "/build";
+    EXPECT_FALSE(FileUtils::isDirectory(expected_directory.c_str()));
+
+    // According to the REAPI: "If `output_paths` is used, `output_files` and
+    // `output_directories` will be ignored".
+    Command command;
+    for (const auto &path : output_paths) {
+        *command.add_output_paths() = path;
+    }
+    // Then setting these fields should have no effect:
+    *command.add_output_directories() = "ignored-directory";
+    *command.add_output_files() = "ignored-file-parent-directory/ignored-file";
+
+    runner.testCreateOutputDirectories(command, cwd);
+
+    ASSERT_FALSE(FileUtils::isDirectory(
+        std::string(cwd + "ignored-file-parent-directory").c_str()));
+    ASSERT_FALSE(FileUtils::isDirectory(
+        std::string(cwd + "ignored-directory").c_str()));
+
+    ASSERT_TRUE(FileUtils::isDirectory(expected_directory.c_str()));
+    FileUtils::deleteDirectory(expected_directory.c_str());
+}
+
 TEST(RunnerTest, ChmodDirectory)
 {
     TemporaryDirectory dir;

@@ -343,14 +343,25 @@ void Runner::createOutputDirectories(const Command &command,
         }
     };
 
-    // Create parent directories for output files
-    std::for_each(command.output_files().cbegin(),
-                  command.output_files().cend(), createDirectoryIfNeeded);
+    // In v2.1 of the REAPI: "[output_paths] supersedes the DEPRECATED
+    // `output_files` and `output_directories` fields. If `output_paths` is
+    // used, `output_files` and `output_directories` will be ignored!"
+    if (command.output_paths_size() > 0) {
+        // The runner is still required to create the directories leading up to
+        // the output paths
+        std::for_each(command.output_paths().cbegin(),
+                      command.output_paths().cend(), createDirectoryIfNeeded);
+    }
+    else {
+        // Create parent directories for output files
+        std::for_each(command.output_files().cbegin(),
+                      command.output_files().cend(), createDirectoryIfNeeded);
 
-    // Create parent directories for out directories
-    std::for_each(command.output_directories().cbegin(),
-                  command.output_directories().cend(),
-                  createDirectoryIfNeeded);
+        // Create parent directories for out directories
+        std::for_each(command.output_directories().cbegin(),
+                      command.output_directories().cend(),
+                      createDirectoryIfNeeded);
+    }
 }
 
 void Runner::execute(const std::vector<std::string> &command)
