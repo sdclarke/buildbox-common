@@ -44,94 +44,139 @@ void StagedDirectory::captureAllOutputs(const Command &command,
 
 void StagedDirectory::captureAllOutputs(
     const Command &command, ActionResult *result,
-    StagedDirectory::CaptureFileCallback capture_file_function,
-    StagedDirectory::CaptureDirectoryCallback capture_directory_function) const
+    StagedDirectory::CaptureFileCallback captureFileFunction,
+    StagedDirectory::CaptureDirectoryCallback captureDirectoryFunction) const
+{
+    const std::string workingDirectory = getWorkingDirectory(command);
+
+    const auto captureFileAndAddToResult =
+        [&captureFileFunction, &result](const std::string &name,
+                                        const std::string &pathInInputRoot) {
+            const OutputFile outputFile =
+                captureFile(name, pathInInputRoot, captureFileFunction);
+
+            if (!outputFile.path().empty()) {
+                OutputFile *fileEntry = result->add_output_files();
+                *fileEntry = std::move(outputFile);
+            }
+        };
+
+    const auto captureDirectoryAndAddToResult =
+        [&captureDirectoryFunction, &result](
+            const std::string &name, const std::string &pathInInputRoot) {
+            const OutputDirectory outputDirectory = captureDirectory(
+                name, pathInInputRoot, captureDirectoryFunction);
+
+            if (!outputDirectory.path().empty()) {
+                OutputDirectory *dirEntry = result->add_output_directories();
+                *dirEntry = std::move(outputDirectory);
+            }
+        };
+
+    for (const auto &outputFile : command.output_files()) {
+        const auto path = pathInInputRoot(outputFile, workingDirectory);
+        captureFileAndAddToResult(outputFile, path);
+    }
+
+    for (const auto &outputDirectory : command.output_directories()) {
+        const auto path = pathInInputRoot(outputDirectory, workingDirectory);
+        captureDirectoryAndAddToResult(outputDirectory, path);
+    }
+}
+
+std::string StagedDirectory::getWorkingDirectory(const Command &command)
+{
+    if (command.working_directory().empty()) {
+        return "";
+    }
+
+    // According to the REAPI, `Command.working_directory()` can be empty.
+    // In that case, we want to avoid adding leading slashes to paths:
+    // that would make them absolute. To simplify handling this later, we
+    // add the trailing slash here.
+    std::string working_directory =
+        FileUtils::normalizePath(command.working_directory().c_str()) + "/";
+
+    if (working_directory.front() == '/') {
+        const auto error_message = "`working_directory` path in `Command` "
+                                   "must be relative. It is \"" +
+                                   working_directory + "\"";
+        BUILDBOX_LOG_ERROR(error_message);
+        throw std::invalid_argument(error_message);
+    }
+
+    if (working_directory.substr(0, 3) == "../") {
+        const auto error_message =
+            "The `working_directory` path in `Command` is "
+            "outside of input root \"" +
+            working_directory + "\"";
+        BUILDBOX_LOG_ERROR(error_message);
+        throw std::invalid_argument(error_message);
+    }
+
+    return working_directory;
+}
+
+OutputFile StagedDirectory::captureFile(
+    const std::string &name, const std::string &pathInInputRoot,
+    StagedDirectory::CaptureFileCallback captureFileFunction)
+{
+    OutputFile outputFile = captureFileFunction(pathInInputRoot.c_str());
+    if (!outputFile.path().empty()) {
+        outputFile.set_path(name);
+    }
+    return outputFile;
+}
+
+OutputDirectory StagedDirectory::captureDirectory(
+    const std::string &name, const std::string &pathInInputRoot,
+    StagedDirectory::CaptureDirectoryCallback captureDirectoryFunction)
 {
 
-    std::string base_path;
-    if (!command.working_directory().empty()) {
-        // According to the REAPI, `Command.working_directory()` can be empty.
-        // In that case, we want to avoid adding leading slashes to paths:
-        // that would make them absolute. To simplify handling this later, we
-        // add the trailing slash here.
-        base_path =
-            FileUtils::normalizePath(command.working_directory().c_str()) +
-            "/";
-
-        if (base_path.front() == '/') {
-            const auto error_message = "`working_directory` path in `Command` "
-                                       "must be relative. It is \"" +
-                                       base_path + "\"";
-            BUILDBOX_LOG_ERROR(error_message);
-            throw std::invalid_argument(error_message);
-        }
-
-        if (base_path.substr(0, 3) == "../") {
-            const auto error_message =
-                "The `working_directory` path in `Command` is "
-                "outside of input root \"" +
-                base_path + "\"";
-            BUILDBOX_LOG_ERROR(error_message);
-            throw std::invalid_argument(error_message);
-        }
+    OutputDirectory outputDirectory =
+        captureDirectoryFunction(pathInInputRoot.c_str());
+    if (!outputDirectory.path().empty()) {
+        outputDirectory.set_path(name);
     }
+    return outputDirectory;
+}
 
-    // Also:
-    //  "The paths are relative to the working directory of the action
-    //   execution. [...] The path MUST NOT include a trailing slash,
-    //   nor a leading slash, being a relative path."
-    const auto assert_no_invalid_slashes = [](const std::string &path) {
-        if (path.front() == '/' || path.back() == '/') {
-            const auto error_message = "Output path in `Command` has "
-                                       "leading or trailing slashes: \"" +
-                                       path + "\"";
-            BUILDBOX_LOG_ERROR(error_message);
-            throw std::invalid_argument(error_message);
-        }
-    };
+std::string
+StagedDirectory::pathInInputRoot(const std::string &name,
+                                 const std::string &workingDirectory)
+{
+    assertNoInvalidSlashes(name);
+    const std::string res =
+        FileUtils::normalizePath((workingDirectory + name).c_str());
+    assertPathInsideInputRoot(res);
+    return res;
+}
 
-    const auto path_in_input_root = [&base_path](const std::string &path) {
-        return FileUtils::normalizePath((base_path + path).c_str());
-    };
-
-    const auto assert_path_inside_input_root = [](const std::string
-                                                      &path_from_root) {
-        // PRE: `path_from_root` is normalized.
-        if (path_from_root == ".." || path_from_root.substr(0, 3) == "../") {
-            const auto error_message =
-                "Output path in `Command` is outside of the input root: \"" +
-                path_from_root + "\"";
-            BUILDBOX_LOG_ERROR(error_message);
-            throw std::invalid_argument(error_message);
-        }
-    };
-
-    for (const auto &outputFilename : command.output_files()) {
-        assert_no_invalid_slashes(outputFilename);
-        const std::string path = path_in_input_root(outputFilename);
-        assert_path_inside_input_root(path);
-
-        OutputFile outputFile = capture_file_function(path.c_str());
-        if (!outputFile.path().empty()) {
-            outputFile.set_path(outputFilename);
-            OutputFile *file_entry = result->add_output_files();
-            file_entry->CopyFrom(outputFile);
-        }
+void StagedDirectory::assertNoInvalidSlashes(const std::string &path)
+{
+    //  According to the REAPI:
+    // "The paths are relative to the working directory of the action
+    // execution. [...] The path MUST NOT include a trailing slash, nor a
+    // leading slash, being a relative path."
+    if (!path.empty() && (path.front() == '/' || path.back() == '/')) {
+        const auto error_message = "Output path in `Command` has "
+                                   "leading or trailing slashes: \"" +
+                                   path + "\"";
+        BUILDBOX_LOG_ERROR(error_message);
+        throw std::invalid_argument(error_message);
     }
+}
 
-    for (const auto &outputDirName : command.output_directories()) {
-        assert_no_invalid_slashes(outputDirName);
-        const std::string path = path_in_input_root(outputDirName);
-        assert_path_inside_input_root(path);
-
-        OutputDirectory outputDirectory =
-            capture_directory_function(path.c_str());
-        if (!outputDirectory.path().empty()) {
-            outputDirectory.set_path(outputDirName);
-            OutputDirectory *directory_entry =
-                result->add_output_directories();
-            directory_entry->CopyFrom(outputDirectory);
-        }
+void StagedDirectory::assertPathInsideInputRoot(
+    const std::string &pathFromRoot)
+{
+    // PRE: `path_from_root` is normalized.
+    if (pathFromRoot == ".." || pathFromRoot.substr(0, 3) == "../") {
+        const auto error_message =
+            "Output path in `Command` is outside of the input root: \"" +
+            pathFromRoot + "\"";
+        BUILDBOX_LOG_ERROR(error_message);
+        throw std::invalid_argument(error_message);
     }
 }
 

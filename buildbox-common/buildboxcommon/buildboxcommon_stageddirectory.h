@@ -87,13 +87,30 @@ class StagedDirectory {
     typedef std::function<OutputDirectory(const char *directory)>
         CaptureDirectoryCallback;
 
-    void captureAllOutputs(
-        const Command &command, ActionResult *result,
-        CaptureFileCallback capture_file_function,
-        CaptureDirectoryCallback capture_directory_function) const;
+    void
+    captureAllOutputs(const Command &command, ActionResult *result,
+                      CaptureFileCallback captureFileFunction,
+                      CaptureDirectoryCallback captureDirectoryFunction) const;
 
   protected:
     std::string d_path;
+
+  private:
+    static OutputFile
+    captureFile(const std::string &outputFilename,
+                const std::string &pathInInputRoot,
+                StagedDirectory::CaptureFileCallback captureFileFunction);
+
+    static OutputDirectory captureDirectory(
+        const std::string &outputFilename, const std::string &pathInInputRoot,
+        StagedDirectory::CaptureDirectoryCallback captureDirectoryFunction);
+
+    // Helpers to normalize and assert that the paths in a Command are valid:
+    static void assertNoInvalidSlashes(const std::string &path);
+    static void assertPathInsideInputRoot(const std::string &pathFromRoot);
+    static std::string getWorkingDirectory(const Command &command);
+    static std::string pathInInputRoot(const std::string &name,
+                                       const std::string &workingDirectory);
 };
 
 struct StagedDirectoryUtils {
