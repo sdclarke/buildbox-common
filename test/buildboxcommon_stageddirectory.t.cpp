@@ -103,11 +103,39 @@ TEST_F(MockStagedDirectory, EmptyDirectoryPathIsAllowed)
                                             capture_directory_function));
 }
 
+TEST_F(MockStagedDirectory, EmptyOutputPathIsAllowed)
+{
+    Command command;
+    *command.add_output_paths() = "";
+
+    bool captured_empty_path = false;
+    StagedDirectory::CaptureDirectoryCallback capture_directory_function =
+        [&](const char *relative_path) {
+            captured_empty_path = (strlen(relative_path) == 0);
+            return OutputDirectory();
+        };
+
+    ActionResult action_result;
+    ASSERT_NO_THROW(this->captureAllOutputs(command, &action_result,
+                                            d_dummy_capture_file_callback,
+                                            capture_directory_function));
+}
+
 TEST_F(MockStagedDirectory, WorkingDirectoryOutsideInputRootThrows)
 {
     Command command;
     command.set_working_directory("../out-of-input-root");
     *command.add_output_files() = "a.out";
+
+    assert_capturing_throws(command);
+}
+
+TEST_F(MockStagedDirectory,
+       WorkingDirectoryOutsideInputRootAndOutputPathThrows)
+{
+    Command command;
+    command.set_working_directory("../out-of-input-root");
+    *command.add_output_paths() = "a.out";
 
     assert_capturing_throws(command);
 }
@@ -120,10 +148,27 @@ TEST_F(MockStagedDirectory, FilePathWithLeadingSlashThrows)
     assert_capturing_throws(command);
 }
 
+TEST_F(MockStagedDirectory, OutputPathWithLeadingSlashThrows)
+{
+    Command command;
+    *command.add_output_paths() = "/a.out";
+
+    assert_capturing_throws(command);
+}
+
 TEST_F(MockStagedDirectory, PathsOutsideInputRootThrow)
 {
     Command command;
     *command.add_output_files() = "../a.out";
+
+    ActionResult action_result;
+    assert_capturing_throws(command);
+}
+
+TEST_F(MockStagedDirectory, OutputPathsOutsideInputRootThrow)
+{
+    Command command;
+    *command.add_output_paths() = "../a.out";
 
     ActionResult action_result;
     assert_capturing_throws(command);
@@ -138,6 +183,20 @@ TEST_F(MockStagedDirectory, PathsOutsideInputRootWithWorkingDirThrows)
 
     command.set_working_directory("src");
     *command.add_output_files() = "../../a.out";
+    // ^ path above input root: this is not allowed.
+
+    assert_capturing_throws(command);
+}
+
+TEST_F(MockStagedDirectory, OutputPathsOutsideInputRootWithWorkingDirThrows)
+{
+    Command command;
+    // a.out
+    // input_root/
+    //          | src/  <-- working dir (1 level down)
+
+    command.set_working_directory("src");
+    *command.add_output_paths() = "../../a.out";
     // ^ path above input root: this is not allowed.
 
     assert_capturing_throws(command);
@@ -170,6 +229,97 @@ TEST_F(MockStagedDirectory, CommandWorkingDirectory)
 
     ASSERT_EQ(captured_file_path, "working-directory/file1.txt");
     ASSERT_EQ(captured_directory_path, "working-directory/subdirectory");
+}
+
+TEST_F(MockStagedDirectory, CommandWorkingDirectoryWithOutputPathsField)
+{
+    std::vector<std::string> captured_file_paths;
+    StagedDirectory::CaptureFileCallback capture_file_function =
+        [&](const char *relative_path) {
+            captured_file_paths.push_back(relative_path);
+            return OutputFile();
+        };
+
+    std::vector<std::string> captured_directory_paths;
+    StagedDirectory::CaptureDirectoryCallback capture_directory_function =
+        [&](const char *relative_path) {
+            captured_directory_paths.push_back(relative_path);
+            return OutputDirectory();
+        };
+
+    TemporaryDirectory working_directory;
+
+    Command command;
+    command.set_working_directory("working-directory");
+    // Using v2.1's `output_path` field:
+    *command.add_output_paths() = "subdirectory";
+    *command.add_output_paths() = "file1.txt";
+
+    // According to the spec, when the new field is set, the deprecated ones
+    // are ignored:
+    *command.add_output_directories() = "ignored-subdirectory";
+    *command.add_output_files() = "ignored-file.txt";
+
+    FileUtils::createDirectory("working-directory/subdirectory");
+    FileUtils::createDirectory("working-directory/ignored-subdirectory");
+
+    FileUtils::writeFileAtomically("working-directory/file1.txt", "");
+    FileUtils::writeFileAtomically("working-directory/ignored-file.txt", "");
+
+    // According to the spec, once that is set, the old fields are ignored:
+    //    *command.add_output_directories() = "subdirectory";
+    //    *command.add_output_files() = "file1.txt";
+
+    ActionResult action_result;
+    this->captureAllOutputs(command, &action_result, capture_file_function,
+                            capture_directory_function);
+
+    EXPECT_EQ(captured_file_paths.size(), 1);
+    EXPECT_EQ(captured_file_paths.at(0), "working-directory/file1.txt");
+
+    EXPECT_EQ(captured_file_paths.size(), 1);
+    EXPECT_EQ(captured_directory_paths.at(0),
+              "working-directory/subdirectory");
+
+    FileUtils::deleteDirectory("working-directory");
+}
+
+TEST_F(MockStagedDirectory,
+       CommandWorkingDirectoryWithOutputPathsFieldContainingSymlink)
+{
+    std::vector<std::string> captured_file_paths;
+    StagedDirectory::CaptureFileCallback capture_file_function =
+        [&](const char *relative_path) {
+            captured_file_paths.push_back(relative_path);
+            return OutputFile();
+        };
+
+    std::vector<std::string> captured_directory_paths;
+    StagedDirectory::CaptureDirectoryCallback capture_directory_function =
+        [&](const char *relative_path) {
+            captured_directory_paths.push_back(relative_path);
+            return OutputDirectory();
+        };
+
+    TemporaryDirectory working_directory;
+
+    Command command;
+    command.set_working_directory("working-directory");
+    // Using v2.1's `output_path` field:
+    *command.add_output_paths() = "symlink";
+
+    FileUtils::createDirectory("working-directory");
+    FileUtils::writeFileAtomically("working-directory/file.txt", "");
+    ASSERT_EQ(
+        symlink("working-directory/file.txt", "working-directory/symlink"), 0);
+
+    ActionResult action_result;
+    ASSERT_THROW(this->captureAllOutputs(command, &action_result,
+                                         capture_file_function,
+                                         capture_directory_function),
+                 std::invalid_argument);
+
+    FileUtils::deleteDirectory("working-directory");
 }
 
 class OpenDirectoryInInputRootFixture : public ::testing::Test {

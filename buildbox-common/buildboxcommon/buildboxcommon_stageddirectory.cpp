@@ -73,14 +73,46 @@ void StagedDirectory::captureAllOutputs(
             }
         };
 
-    for (const auto &outputFile : command.output_files()) {
-        const auto path = pathInInputRoot(outputFile, workingDirectory);
-        captureFileAndAddToResult(outputFile, path);
-    }
+    // In v2.1 of the REAPI: "[output_paths] supersedes the DEPRECATED
+    // `output_files` and `output_directories` fields. If `output_paths` is
+    // used, `output_files` and `output_directories` will be ignored!"
+    if (command.output_paths_size() > 0) {
+        for (const auto &outputPath : command.output_paths()) {
+            const auto fullPath =
+                pathInInputRoot(outputPath, workingDirectory);
 
-    for (const auto &outputDirectory : command.output_directories()) {
-        const auto path = pathInInputRoot(outputDirectory, workingDirectory);
-        captureDirectoryAndAddToResult(outputDirectory, path);
+            mode_t st_mode;
+            const auto pathExists = getStatMode(fullPath, &st_mode);
+            if (!pathExists) {
+                continue; // Do not fail with paths that do not exist (#30).
+            }
+
+            if (S_ISDIR(st_mode)) {
+                captureDirectoryAndAddToResult(outputPath, fullPath);
+            }
+            else if (S_ISREG(st_mode)) {
+                captureFileAndAddToResult(outputPath, fullPath);
+            }
+            else {
+                std::stringstream errorMessage;
+                errorMessage
+                    << "Output path \"" << fullPath
+                    << "\" is not a file or directory: st_mode == " << st_mode;
+                throw std::invalid_argument(errorMessage.str());
+            }
+        }
+    }
+    else {
+        for (const auto &outputFile : command.output_files()) {
+            const auto path = pathInInputRoot(outputFile, workingDirectory);
+            captureFileAndAddToResult(outputFile, path);
+        }
+
+        for (const auto &outputDirectory : command.output_directories()) {
+            const auto path =
+                pathInInputRoot(outputDirectory, workingDirectory);
+            captureDirectoryAndAddToResult(outputDirectory, path);
+        }
     }
 }
 
@@ -150,6 +182,24 @@ StagedDirectory::pathInInputRoot(const std::string &name,
         FileUtils::normalizePath((workingDirectory + name).c_str());
     assertPathInsideInputRoot(res);
     return res;
+}
+
+bool StagedDirectory::getStatMode(const std::string &path, mode_t *st_mode)
+{
+    struct stat s;
+    const int status = lstat(path.c_str(), &s);
+
+    if (status != 0) {
+        if (errno == ENOENT) {
+            return false;
+        }
+        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+            std::system_error, errno, std::system_category,
+            "Error opening \"" << path << "\"");
+    }
+
+    *st_mode = s.st_mode;
+    return true;
 }
 
 void StagedDirectory::assertNoInvalidSlashes(const std::string &path)

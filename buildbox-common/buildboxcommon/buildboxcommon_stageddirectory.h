@@ -111,6 +111,13 @@ class StagedDirectory {
     static std::string getWorkingDirectory(const Command &command);
     static std::string pathInInputRoot(const std::string &name,
                                        const std::string &workingDirectory);
+
+    // Given a path, calls `lstat()`.
+    // If the path exists, writes its `st_mode` and returns `true`. Otherwise
+    // returns `false`.
+    // If `lstat()` fails with an error other than `ENOENT`, throws
+    // `std::system_error`.
+    static bool getStatMode(const std::string &path, mode_t *st_mode);
 };
 
 struct StagedDirectoryUtils {
