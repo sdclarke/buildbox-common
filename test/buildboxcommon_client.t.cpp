@@ -264,6 +264,23 @@ TEST_F(ClientTestFixture, DownloadSizeMismatch)
     EXPECT_THROW(this->download(tmpfile.fd(), digest), std::runtime_error);
 }
 
+TEST_F(ClientTestFixture, DownloadHashMismatch)
+{
+    readResponse.set_data(content);
+    digest.set_hash("invalid-hash");
+    digest.set_size_bytes(content.length());
+
+    EXPECT_CALL(*bytestreamClient, ReadRaw(_, _)).WillOnce(Return(reader));
+
+    EXPECT_CALL(*reader, Read(_))
+        .WillOnce(DoAll(SetArgPointee<0>(readResponse), Return(true)))
+        .WillOnce(Return(false));
+
+    EXPECT_CALL(*reader, Finish()).WillOnce(Return(grpc::Status::OK));
+
+    EXPECT_THROW(this->download(tmpfile.fd(), digest), std::runtime_error);
+}
+
 TEST_F(ClientTestFixture, DownloadServerError)
 {
     readResponse.set_data(content);
