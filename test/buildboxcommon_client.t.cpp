@@ -135,7 +135,7 @@ class ClientTestFixture : public StubsFixture, public Client {
 TEST_F(ClientTestFixture, FetchStringTest)
 {
     readResponse.set_data(content);
-    digest.set_size_bytes(content.length());
+    digest = CASHash::hash(content);
 
     EXPECT_CALL(*reader, Read(_))
         .WillOnce(DoAll(SetArgPointee<0>(readResponse), Return(true)))
@@ -159,7 +159,7 @@ TEST_F(ClientTestFixture, FetchStringTest)
 TEST_F(ClientTestFixture, FetchStringEmptyResponse)
 {
     readResponse.set_data("");
-    digest.set_size_bytes(0);
+    digest = CASHash::hash("");
 
     EXPECT_CALL(*bytestreamClient, ReadRaw(_, _)).WillOnce(Return(reader));
 
@@ -210,7 +210,7 @@ TEST_F(ClientTestFixture, FetchStringServerError)
 TEST_F(ClientTestFixture, DownloadTest)
 {
     readResponse.set_data(content);
-    digest.set_size_bytes(content.length());
+    digest = CASHash::hash(content);
 
     ReadRequest request;
     EXPECT_CALL(*bytestreamClient, ReadRaw(_, _))
@@ -402,10 +402,7 @@ TEST_F(ClientTestFixture, UploadStringDidntReturnOk)
 TEST_F(ClientTestFixture, FileTooLargeToBatchUpload)
 {
     const auto data = std::string(3 * MAX_BATCH_SIZE_BYTES, '_');
-
-    Digest digest;
-    digest.set_hash("dataHash");
-    digest.set_size_bytes(data.size());
+    const Digest digest = CASHash::hash(data);
 
     Client::UploadRequest request(digest, data);
     std::vector<Client::UploadRequest> requests = {request};
@@ -1222,15 +1219,11 @@ TEST_P(DownloadBlobsFixture, FileTooLargeToBatchDownload)
 {
     // Expecting it to fall back to a bytestream Read():
     const auto data = std::string(2 * MAX_BATCH_SIZE_BYTES, '-');
-
-    Digest digest;
-    digest.set_hash("dataHash");
-    digest.set_size_bytes(data.size());
+    const Digest digest = CASHash::hash(data);
 
     const std::vector<Digest> requests = {digest};
 
     readResponse.set_data(data);
-    digest.set_size_bytes(data.size());
 
     EXPECT_CALL(*bytestreamClient, ReadRaw(_, _)).WillOnce(Return(reader));
     EXPECT_CALL(*reader, Read(_))
@@ -1253,15 +1246,13 @@ TEST_P(DownloadBlobsFixture, DownloadBlobs)
 {
     const std::vector<std::string> payload = {
         "a", "b", std::string(3 * MAX_BATCH_SIZE_BYTES, 'x'), "c"};
-    const std::vector<std::string> hashes = {"hash0", "hash1", "hash2",
-                                             "hash3"};
+    std::vector<std::string> hashes;
 
     // Creating list of requests...
     std::vector<Digest> requests;
     for (unsigned i = 0; i < payload.size(); i++) {
-        Digest digest;
-        digest.set_hash(hashes[i]);
-        digest.set_size_bytes(payload[i].size());
+        const Digest digest = CASHash::hash(payload[i]);
+        hashes.push_back(digest.hash());
         requests.push_back(digest);
     }
     ASSERT_EQ(requests.size(), payload.size());
@@ -1337,6 +1328,7 @@ TEST_P(DownloadBlobsFixture, DownloadBlobsBatchWithMissingBlob)
     auto entry2 = response.add_responses();
     entry2->mutable_digest()->CopyFrom(existing_digest);
     entry2->mutable_status()->set_code(grpc::StatusCode::OK);
+    entry2->set_data("existing-blob");
 
     EXPECT_CALL(*casClient.get(), BatchReadBlobs(_, _, _))
         .WillOnce(DoAll(SetArgPointee<2>(response), Return(grpc::Status::OK)));

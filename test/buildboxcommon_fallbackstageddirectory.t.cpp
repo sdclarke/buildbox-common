@@ -83,6 +83,7 @@ class CaptureTestFixture : public StubsFixture {
         client = std::make_shared<Client>(bytestreamClient, casClient,
                                           localCasClient, capabilitiesClient,
                                           MAX_BATCH_SIZE_BYTES);
+        digest = CASHash::hash("");
     }
 };
 
