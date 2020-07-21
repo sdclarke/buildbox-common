@@ -249,21 +249,25 @@ void Client::download(int fd, const Digest &digest)
     BUILDBOX_LOG_TRACE("Downloading " << digest.hash() << " to file");
     const std::string resourceName = this->makeResourceName(digest, false);
 
+    size_t bytesDownloaded = 0;
+
     auto downloadLambda = [&](grpc::ClientContext &context) {
         ReadRequest request;
         request.set_resource_name(resourceName);
-        request.set_read_offset(0);
+        request.set_read_offset(bytesDownloaded);
 
         auto reader = this->d_bytestreamClient->Read(&context, request);
 
         ReadResponse response;
         while (reader->Read(&response)) {
-            if (write(fd, response.data().c_str(), response.data().size()) <
-                0) {
+            const auto data = response.data();
+            if (write(fd, data.c_str(), data.size()) !=
+                static_cast<ssize_t>(data.size())) {
                 BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
                     std::system_error, errno, std::generic_category,
                     "Error in write to descriptor " << fd);
             }
+            bytesDownloaded += data.size();
         }
 
         const auto read_status = reader->Finish();
