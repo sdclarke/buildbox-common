@@ -369,6 +369,8 @@ class Client {
     std::string d_uuid;
     std::string d_instanceName;
 
+    DigestGenerator d_digestGenerator;
+
     RequestMetadataGenerator d_metadata_generator;
     const std::function<void(grpc::ClientContext *)>
         d_metadata_attach_function = [&](grpc::ClientContext *context) {

@@ -233,6 +233,15 @@ std::string Client::fetchString(const Digest &digest)
                                         << bytes_downloaded << " bytes");
         }
 
+        const auto downloaded_digest = d_digestGenerator.hash(downloaded_data);
+        if (downloaded_digest != digest) {
+            BUILDBOXCOMMON_THROW_EXCEPTION(
+                std::runtime_error, "Expected blob with digest "
+                                        << digest
+                                        << ", but downloaded blob has digest "
+                                        << downloaded_digest);
+        }
+
         BUILDBOX_LOG_TRACE(resourceName << ": " << bytes_downloaded
                                         << " bytes retrieved");
         result = std::move(downloaded_data);
@@ -250,6 +259,7 @@ void Client::download(int fd, const Digest &digest)
     const std::string resourceName = this->makeResourceName(digest, false);
 
     size_t bytesDownloaded = 0;
+    auto digestContext = d_digestGenerator.createDigestContext();
 
     auto downloadLambda = [&](grpc::ClientContext &context) {
         ReadRequest request;
@@ -267,6 +277,7 @@ void Client::download(int fd, const Digest &digest)
                     std::system_error, errno, std::generic_category,
                     "Error in write to descriptor " << fd);
             }
+            digestContext.update(data.c_str(), data.size());
             bytesDownloaded += data.size();
         }
 
@@ -286,6 +297,16 @@ void Client::download(int fd, const Digest &digest)
                                         << " bytes, but downloaded blob was "
                                         << st.st_size << " bytes");
         }
+
+        const auto downloaded_digest = digestContext.finalizeDigest();
+        if (downloaded_digest != digest) {
+            BUILDBOXCOMMON_THROW_EXCEPTION(
+                std::runtime_error, "Expected blob with digest "
+                                        << digest
+                                        << ", but downloaded blob has digest "
+                                        << downloaded_digest);
+        }
+
         BUILDBOX_LOG_TRACE(resourceName << ": " << st.st_size
                                         << " bytes retrieved");
         return read_status;
@@ -989,6 +1010,21 @@ Client::batchDownload(const std::vector<Digest> &digests,
 
     for (const auto &downloadResponse : response.responses()) {
         if (downloadResponse.status().code() == GRPC_STATUS_OK) {
+            const auto downloaded_digest =
+                d_digestGenerator.hash(downloadResponse.data());
+            if (downloaded_digest != downloadResponse.digest()) {
+                google::rpc::Status status;
+                status.set_code(grpc::StatusCode::INTERNAL);
+                std::ostringstream error;
+                error << "Expected blob with digest "
+                      << downloadResponse.digest()
+                      << ", but downloaded blob has digest "
+                      << downloaded_digest;
+                status.set_message(error.str());
+                download_results.emplace_back(downloadResponse.digest(),
+                                              status);
+                continue;
+            }
             write_blob_function(downloadResponse.digest().hash(),
                                 downloadResponse.data());
         }
