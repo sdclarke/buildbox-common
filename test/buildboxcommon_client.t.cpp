@@ -1256,7 +1256,8 @@ TEST_P(DownloadBlobsFixture, FileTooLargeToBatchDownload)
     EXPECT_CALL(*reader, Finish()).WillOnce(Return(grpc::Status::OK));
 
     const bool throw_on_error = GetParam();
-    ASSERT_NO_THROW(this->downloadBlobs(requests, write_blob, throw_on_error));
+    ASSERT_NO_THROW(
+        this->downloadBlobs(requests, write_blob, nullptr, throw_on_error));
 }
 
 TEST_P(DownloadBlobsFixture, DownloadBlobs)
@@ -1306,7 +1307,7 @@ TEST_P(DownloadBlobsFixture, DownloadBlobs)
     const bool throw_on_error = GetParam();
     Client::DownloadResults download_results;
     ASSERT_NO_THROW(download_results = this->downloadBlobs(
-                        requests, write_blob, throw_on_error));
+                        requests, write_blob, nullptr, throw_on_error));
 
     // Client sends the correct instance name:
     EXPECT_EQ(request.instance_name(), client_instance_name);
@@ -1361,7 +1362,7 @@ TEST_P(DownloadBlobsFixture, DownloadBlobsBatchWithMissingBlob)
     std::vector<Digest> requests = {existing_digest, non_existing_digest};
     Client::DownloadResults download_results;
     ASSERT_NO_THROW(download_results = this->downloadBlobs(
-                        requests, write_blob, throw_on_error));
+                        requests, write_blob, nullptr, throw_on_error));
     ASSERT_EQ(written_blobs, 1);
 
     ASSERT_EQ(download_results.size(), 2);
@@ -1402,8 +1403,9 @@ TEST_P(DownloadBlobsFixture, DownloadBlobsHelperFails)
 
     const bool throw_on_error = GetParam();
     if (throw_on_error) {
-        ASSERT_THROW(this->downloadBlobs({digest}, write_blob, throw_on_error),
-                     std::runtime_error);
+        ASSERT_THROW(
+            this->downloadBlobs({digest}, write_blob, nullptr, throw_on_error),
+            std::runtime_error);
         // With the current implementation there are no guarantees about
         // the data written before an error is encountered and the method
         // aborts.
@@ -1411,7 +1413,7 @@ TEST_P(DownloadBlobsFixture, DownloadBlobsHelperFails)
     else {
         Client::DownloadResults download_results;
         ASSERT_NO_THROW(download_results = this->downloadBlobs(
-                            {digest}, write_blob, throw_on_error));
+                            {digest}, write_blob, nullptr, throw_on_error));
 
         ASSERT_EQ(written_blobs, 0);
 

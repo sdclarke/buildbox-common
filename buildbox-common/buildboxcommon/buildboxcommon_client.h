@@ -151,8 +151,25 @@ class Client {
      *
      * The returned map's values are pairs of (status, data) where the second
      * component will be empty if the status contains an non-OK code.
+     *
+     * When downloading many and/or large blobs it is strongly recommended to
+     * use `downloadBlobsToDirectory()` instead to avoid excessive memory
+     * usage.
      */
     DownloadBlobsResult downloadBlobs(const std::vector<Digest> &digests);
+
+    /* Given a list of digests, download the data to a temporary directory
+     * and return the file paths in a map indexed by hash. Allow each digest to
+     * potentially fail separately. The specified directory must be empty.
+     *
+     * The returned map's values are pairs of (status, path) where the second
+     * component will be empty if the status contains an non-OK code.
+     *
+     * This is suitable for downloading many and/or large blobs.
+     */
+    DownloadBlobsResult
+    downloadBlobsToDirectory(const std::vector<Digest> &digests,
+                             const std::string &temp_directory);
 
     /* Given a list of digests, download the data and store each blob in the
      * path specified by the entry's first member in the `outputs` map. If the
@@ -313,6 +330,11 @@ class Client {
     /* Download the digests in the specified list and invoke the
      * `write_blob_callback` function after each blob is downloaded.
      *
+     * If `temp_directory` is specified, each blob is written into
+     * a file in that directory and the filename is passed to
+     * `write_blob_callback` instead of the blob data. The specified
+     * directory must be empty.
+     *
      * `throw_on_error` determines whether an `std::runtime_error`
      * exception is to be raised on encountering an error during a
      * download.
@@ -321,6 +343,7 @@ class Client {
      */
     DownloadResults downloadBlobs(const std::vector<Digest> &digests,
                                   const WriteBlobCallback &write_blob_callback,
+                                  const std::string *temp_directory,
                                   bool throw_on_error);
 
     typedef std::function<void(const std::vector<Digest> &digest,
@@ -382,6 +405,19 @@ class Client {
 
     std::string makeResourceName(const Digest &digest, bool is_upload);
 
+    /* Given a list of digests, download the data and return it in a map
+     * indexed by hash. Allow each digest to potentially fail separately.
+     *
+     * The returned map's values are pairs of (status, data) where the second
+     * component will be empty if the status contains an non-OK code.
+     *
+     * If `temp_directory` is specified, blobs are written to files in that
+     * directory and the second component of the returned map's values will be
+     * the path to the file. The specified directory must be empty.
+     */
+    DownloadBlobsResult downloadBlobs(const std::vector<Digest> &digests,
+                                      const std::string *temp_directory);
+
     /* Uploads the requests contained in the range [start_index,
      * end_index).
      *
@@ -403,10 +439,11 @@ class Client {
      *
      * Returns a map with the status code received for each Digest.
      */
-    DownloadResults
-    batchDownload(const std::vector<Digest> &digests, const size_t start_index,
-                  const size_t end_index,
-                  const WriteBlobCallback &write_blob_function);
+    DownloadResults batchDownload(const std::vector<Digest> &digests,
+                                  const size_t start_index,
+                                  const size_t end_index,
+                                  const WriteBlobCallback &write_blob_function,
+                                  const std::string *temp_directory = nullptr);
 
     /* Given a list of digests sorted by increasing size, forms batches
      * according to the value of `d_maxBatchTotalSizeBytes`.

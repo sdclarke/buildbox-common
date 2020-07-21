@@ -640,7 +640,8 @@ Client::uploadBlobs(const std::vector<UploadRequest> &requests,
 }
 
 Client::DownloadBlobsResult
-Client::downloadBlobs(const std::vector<Digest> &digests)
+Client::downloadBlobs(const std::vector<Digest> &digests,
+                      const std::string *temp_directory)
 {
     Client::DownloadBlobsResult downloaded_data;
 
@@ -654,7 +655,7 @@ Client::downloadBlobs(const std::vector<Digest> &digests)
     };
 
     const Client::DownloadResults download_results =
-        downloadBlobs(digests, write_blob, false);
+        downloadBlobs(digests, write_blob, temp_directory, false);
 
     // And adding the codes of the hashes that failed into the result:
     for (const auto &entry : download_results) {
@@ -667,6 +668,19 @@ Client::downloadBlobs(const std::vector<Digest> &digests)
     }
 
     return downloaded_data;
+}
+
+Client::DownloadBlobsResult
+Client::downloadBlobs(const std::vector<Digest> &digests)
+{
+    return downloadBlobs(digests, nullptr);
+}
+
+Client::DownloadBlobsResult
+Client::downloadBlobsToDirectory(const std::vector<Digest> &digests,
+                                 const std::string &temp_directory)
+{
+    return downloadBlobs(digests, &temp_directory);
 }
 
 void Client::downloadBlobs(const std::vector<Digest> &digests,
@@ -701,14 +715,15 @@ void Client::downloadBlobs(const std::vector<Digest> &digests,
         }
     };
 
-    downloadBlobs(digests, write_blob, true);
+    downloadBlobs(digests, write_blob, nullptr, true);
     // ^ If an error is encountered during download, aborts by throwing an
     // exception.
 }
 
 Client::DownloadResults
 Client::downloadBlobs(const std::vector<Digest> &digests,
-                      const WriteBlobCallback &write_blob, bool throw_on_error)
+                      const WriteBlobCallback &write_blob,
+                      const std::string *temp_directory, bool throw_on_error)
 {
     DownloadResults download_results;
     download_results.reserve(digests.size());
@@ -730,8 +745,9 @@ Client::downloadBlobs(const std::vector<Digest> &digests,
         // For each batch, we make the request and then store whether it was
         // successful in the result:
         try {
-            const auto batch_results = batchDownload(request_list, batch_start,
-                                                     batch_end, write_blob);
+            const auto batch_results =
+                batchDownload(request_list, batch_start, batch_end, write_blob,
+                              temp_directory);
             std::move(batch_results.cbegin(), batch_results.cend(),
                       std::back_inserter(download_results));
         }
@@ -772,8 +788,33 @@ Client::downloadBlobs(const std::vector<Digest> &digests,
 
         google::rpc::Status download_status;
         try {
-            const auto data = fetchString(digest);
-            write_blob(digest.hash(), data);
+            if (!temp_directory) {
+                const auto data = fetchString(digest);
+                write_blob(digest.hash(), data);
+            }
+            else {
+                // Download blob directly into a file to avoid excessive
+                // memory usage for large files.
+                const auto path = *temp_directory + "/" + digest.hash();
+                int fd =
+                    open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
+                if (fd < 0) {
+                    BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+                        std::system_error, errno, std::generic_category,
+                        "Client::downloadBlobs: Failed to create file \""
+                            << path << "\"");
+                }
+                try {
+                    download(fd, digest);
+                }
+                catch (...) {
+                    close(fd);
+                    throw;
+                }
+                close(fd);
+
+                write_blob(digest.hash(), path);
+            }
             download_status.set_code(grpc::StatusCode::OK);
         }
         catch (const GrpcError &e) {
@@ -977,7 +1018,8 @@ Client::batchUpload(const std::vector<UploadRequest> &requests,
 Client::DownloadResults
 Client::batchDownload(const std::vector<Digest> &digests,
                       const size_t start_index, const size_t end_index,
-                      const WriteBlobCallback &write_blob_function)
+                      const WriteBlobCallback &write_blob_function,
+                      const std::string *temp_directory)
 {
     assert(start_index <= end_index);
     assert(end_index <= digests.size());
@@ -1025,8 +1067,25 @@ Client::batchDownload(const std::vector<Digest> &digests,
                                               status);
                 continue;
             }
-            write_blob_function(downloadResponse.digest().hash(),
-                                downloadResponse.data());
+
+            if (!temp_directory) {
+                write_blob_function(downloadResponse.digest().hash(),
+                                    downloadResponse.data());
+            }
+            else {
+                const auto path =
+                    *temp_directory + "/" + downloadResponse.digest().hash();
+                std::ofstream f(path, std::ofstream::binary);
+                f << downloadResponse.data();
+                f.close();
+                if (!f.good()) {
+                    BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+                        std::system_error, errno, std::system_category,
+                        "Client::batchDownload: Failed to write file \""
+                            << path << "\"");
+                }
+                write_blob_function(downloadResponse.digest().hash(), path);
+            }
         }
 
         download_results.emplace_back(downloadResponse.digest(),
