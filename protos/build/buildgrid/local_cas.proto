@@ -100,6 +100,12 @@ service LocalContentAddressableStorage {
   // If a CAS remote is configured, the blobs are uploaded.
   // The `bypass_local_cache` parameter is a hint to indicate whether the blobs
   // shall be uploaded without first storing them in the local cache.
+  //
+  // The `move_files` parameter is a hint to indicate that files could be
+  // moved into the storage. This can make capturing more efficient by
+  // avoiding copies when it is known that files will not be needed after they
+  // are imported. If a server chooses not to move them, the source files will
+  // still exist after this request.
   rpc CaptureTree(CaptureTreeRequest) returns (CaptureTreeResponse) {}
 
   // Capture files from the local filesystem.
@@ -109,6 +115,12 @@ service LocalContentAddressableStorage {
   // If a CAS remote is configured, the blobs are uploaded.
   // The `bypass_local_cache` parameter is a hint to indicate whether the blobs
   // shall be uploaded without first storing them in the local cache.
+  //
+  // The `move_files` parameter is a hint to indicate that the files could be
+  // moved into the storage. This can make capturing more efficient by
+  // avoiding copies when it is known that files will not be needed after they
+  // are imported. If a server chooses not to move them, the source files will
+  // still exist after this request.
   rpc CaptureFiles(CaptureFilesRequest) returns (CaptureFilesResponse) {}
 
   // Configure remote CAS endpoint.
@@ -292,6 +304,11 @@ message CaptureTreeRequest {
 
   // The properties of path(s) in the local filesystem to capture.
   repeated string node_properties = 4;
+
+  // Hints whether files can be moved into the storage.
+  // If enabled, they MUST NOT be modified after issuing this request in order
+  // to guarantee consistency.
+  bool move_files = 5;
 }
 
 // A response message for
@@ -334,6 +351,11 @@ message CaptureFilesRequest {
 
   // The properties of path(s) in the local filesystem to capture.
   repeated string node_properties = 4;
+
+  // Hints whether the files can be moved into the storage.
+  // If enabled, they MUST NOT be modified after issuing this request in order
+  // to guarantee consistency.
+  bool move_files = 5;
 }
 
 // A response message for
