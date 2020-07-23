@@ -33,6 +33,12 @@ class LogStreamWriter final {
      * end of the previously-written contents.
      *
      * (A writer instance cannot not be shared across threads.)
+     *
+     * When `write()` is called for the first time, it issues a
+     * `QueryWriteStatus()` request to the server. This allows implementations
+     * like BuildGrid to open the stream on-demand when at least a client is
+     * reading the corresponding endpoint, thus avoiding unnecessary transfers
+     * of data.
      */
   public:
     LogStreamWriter(const std::string &resourceName,
@@ -47,16 +53,20 @@ class LogStreamWriter final {
         const int grpcRetryLimit, const int grpcRetryDelay);
 
     // Issue a `ByteStream.Write()` with the given data, appending it to the
-    // previously written contents.
-    // On errors throws a `GrpcError` exception.
-    void write(const std::string &data);
+    // previously written contents and returns whether the write succeeded.
+    //
+    // The first call to this method will issue a `QueryWriteStatus()` request
+    // to verify that the stream is available. Note that some implementations,
+    // like BuildGrid, might block on that call for a long time. If the stream
+    // is not available for writing, returns `false`.
+    bool write(const std::string &data);
 
     // Issue a last `ByteStream.Write()` with `set_finish_write == true` and
     // close the stream.
     // No further writes can be issued after calling this method and it must
     // be invoked only once.
-    // On errors throws a `GrpcError` exception.
-    void commit();
+    // Returns whether the commit operation succeeded.
+    bool commit();
 
     // Copies are disallowed because ownership must be exclusive to the creator
     // of the instance.
@@ -95,6 +105,15 @@ class LogStreamWriter final {
     // Keeps track of whether `commit()` was called to error on subsequent
     // calls to `write()`.
     bool d_writeCommitted;
+
+    // Keeps track of whether the resource is ready for writes. That is, we
+    // successfully received a `QueryWriteStatus()` response.
+    // Before that, no writes will be issued.
+    bool d_resourceReady;
+
+    // Issue a `QueryWriteStatus()` call for `d_resourceName` and return
+    // whether the server returned an OK status.
+    bool queryStreamWriteStatus() const;
 };
 } // namespace buildboxcommon
 

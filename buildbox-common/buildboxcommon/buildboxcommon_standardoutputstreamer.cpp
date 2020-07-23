@@ -42,16 +42,18 @@ StandardOutputStreamer::~StandardOutputStreamer()
     }
 }
 
-void StandardOutputStreamer::stop()
+bool StandardOutputStreamer::stop()
 {
-    if (!d_stopRequested) {
-        BUILDBOX_LOG_DEBUG("Stopping the monitoring of ["
-                           << d_filePath << "] and committing the log");
-        d_fileMonitor.stop();
-        d_logstreamWriter.commit();
+    if (d_stopRequested) {
+        return false;
     }
-
     d_stopRequested = true;
+
+    BUILDBOX_LOG_DEBUG("Stopping the monitoring of ["
+                       << d_filePath << "] and committing the log");
+
+    d_fileMonitor.stop();
+    return d_logstreamWriter.commit();
 }
 
 void StandardOutputStreamer::streamLogChunk(
@@ -62,7 +64,15 @@ void StandardOutputStreamer::streamLogChunk(
                        << " bytes available, streaming to "
                        << "[" << d_url << "/" << d_resourceName << "]");
 
-    d_logstreamWriter.write(std::string(chunk.ptr(), chunk.size()));
+    const bool write_suceeded =
+        d_logstreamWriter.write(std::string(chunk.ptr(), chunk.size()));
+
+    if (!write_suceeded) {
+        BUILDBOX_LOG_DEBUG(
+            "`Write()` call failed, stopping the monitoring thread");
+        d_stopRequested = true;
+        d_fileMonitor.stop();
+    }
 }
 
 } // namespace buildboxcommon

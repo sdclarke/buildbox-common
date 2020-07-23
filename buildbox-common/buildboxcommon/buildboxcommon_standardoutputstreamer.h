@@ -40,8 +40,10 @@ class StandardOutputStreamer {
 
     // Stop monitoring the file, issue a `finish_write` request and close the
     // connection.
-    // If the request fails, it throws a `GrpcError` exception.
-    void stop();
+    // (The monitor might be already stopped by the time this method is called
+    // due to a `write()` request failure.)
+    // Returns whether the data was completely transfered and commited.
+    bool stop();
 
   private:
     void

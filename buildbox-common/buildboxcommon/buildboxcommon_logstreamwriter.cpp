@@ -38,15 +38,40 @@ LogStreamWriter::LogStreamWriter(
     const int grpcRetryLimit, const int grpcRetryDelay)
     : d_resourceName(resourceName), d_grpcRetryLimit(grpcRetryLimit),
       d_grpcRetryDelay(grpcRetryDelay), d_byteStreamClient(bytestreamClient),
-      d_writeOffset(0), d_writeCommitted(false)
+      d_writeOffset(0), d_writeCommitted(false), d_resourceReady(false)
 {
 }
 
-void LogStreamWriter::write(const std::string &data)
+bool LogStreamWriter::write(const std::string &data)
 {
     if (d_writeCommitted) {
         BUILDBOXCOMMON_THROW_EXCEPTION(
             std::runtime_error, "Attempted to `write()` after `commit()`.")
+    }
+
+    if (!d_resourceReady) {
+        BUILDBOX_LOG_DEBUG("First call to `write()`. Issuing a "
+                           "`QueryWriteStatus()` request and waiting "
+                           "for it to return...");
+
+        d_resourceReady = queryStreamWriteStatus();
+        // Implementations like BuildGrid might block this call on the server
+        // side until a reader activates the stream so that we don't send data
+        // that nobody reads.
+        // `QueryWriteStatus()` might also return `NOT_FOUND`, which indicates
+        // that no readers were interested and therefore we don't need to send
+        // any data.
+
+        if (d_resourceReady) {
+            BUILDBOX_LOG_DEBUG(
+                "`QueryWriteStatus()` returned sucessfully. We can "
+                "now start writing to the stream.");
+        }
+        else {
+            BUILDBOX_LOG_DEBUG("`QueryWriteStatus()` failed. Aborting the "
+                               "call to `ByteStream.Write()`");
+            return false;
+        }
     }
 
     WriteRequest request;
@@ -65,12 +90,18 @@ void LogStreamWriter::write(const std::string &data)
         return grpc::Status::OK;
     };
 
-    GrpcRetry::retry(writeLambda, d_grpcRetryLimit, d_grpcRetryDelay);
+    try {
+        GrpcRetry::retry(writeLambda, d_grpcRetryLimit, d_grpcRetryDelay);
+    }
+    catch (const GrpcError &) {
+        return false;
+    }
 
     d_writeOffset += data.size();
+    return true;
 }
 
-void LogStreamWriter::commit()
+bool LogStreamWriter::commit()
 {
     if (d_writeCommitted) {
         BUILDBOXCOMMON_THROW_EXCEPTION(
@@ -109,9 +140,41 @@ void LogStreamWriter::commit()
         return status;
     };
 
-    GrpcRetry::retry(commitWriteLambda, d_grpcRetryLimit, d_grpcRetryDelay);
+    try {
+        GrpcRetry::retry(commitWriteLambda, d_grpcRetryLimit,
+                         d_grpcRetryDelay);
+    }
+    catch (const GrpcError &) { // `retry()` logged this.
+        return false;
+    }
 
     d_writeCommitted = true;
+    return true;
+}
+
+bool LogStreamWriter::queryStreamWriteStatus() const
+{
+    grpc::ClientContext context;
+
+    QueryWriteStatusRequest request;
+    request.set_resource_name(d_resourceName);
+
+    auto queryWriteStatusLambda = [&context, &request,
+                                   this](grpc::ClientContext &) {
+        QueryWriteStatusResponse response;
+
+        return d_byteStreamClient->QueryWriteStatus(&context, request,
+                                                    &response);
+    };
+
+    try {
+        GrpcRetry::retry(queryWriteStatusLambda, d_grpcRetryLimit,
+                         d_grpcRetryDelay);
+        return true;
+    }
+    catch (const GrpcError &) { // `retry()` logged this.
+        return false;
+    }
 }
 
 LogStreamWriter::ByteStreamClientWriter &LogStreamWriter::bytestreamWriter()

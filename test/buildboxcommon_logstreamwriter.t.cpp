@@ -58,6 +58,11 @@ class LogStreamWriterTestFixture : public testing::Test {
 TEST_F(LogStreamWriterTestFixture, TestSuccessfulWrite)
 {
     const std::string data = "Hello!!";
+
+    // Initial `QueryWriteStatus()` request on first call to `write()`:
+    EXPECT_CALL(*byteStreamClient, QueryWriteStatus(_, _, _))
+        .WillOnce(Return(grpc::Status::OK));
+
     WriteResponse response;
     response.set_committed_size(
         static_cast<google::protobuf::int64>(data.size()));
@@ -69,7 +74,7 @@ TEST_F(LogStreamWriterTestFixture, TestSuccessfulWrite)
     EXPECT_CALL(*mockClientWriter, Write(_, _))
         .WillOnce(DoAll(SaveArg<0>(&request), Return(true)));
 
-    EXPECT_NO_THROW(logStreamWriter.write(data));
+    EXPECT_TRUE(logStreamWriter.write(data));
 
     EXPECT_FALSE(request.finish_write());
     EXPECT_EQ(request.resource_name(), TESTING_RESOURCE_NAME);
@@ -77,6 +82,10 @@ TEST_F(LogStreamWriterTestFixture, TestSuccessfulWrite)
 
 TEST_F(LogStreamWriterTestFixture, TestWriteFailsWithUncommitedData)
 {
+    // Initial `QueryWriteStatus()` request on first call to `write()`:
+    EXPECT_CALL(*byteStreamClient, QueryWriteStatus(_, _, _))
+        .WillOnce(Return(grpc::Status::OK));
+
     WriteResponse response;
     response.set_committed_size(0);
 
@@ -87,19 +96,23 @@ TEST_F(LogStreamWriterTestFixture, TestWriteFailsWithUncommitedData)
     EXPECT_CALL(*mockClientWriter, Write(_, _))
         .WillOnce(DoAll(SaveArg<0>(&request), Return(true)));
 
-    EXPECT_NO_THROW(logStreamWriter.write("ABCD"));
+    EXPECT_TRUE(logStreamWriter.write("ABCD"));
 
     EXPECT_CALL(*mockClientWriter, Write(_, _)).WillOnce(Return(true));
     EXPECT_CALL(*mockClientWriter, WritesDone()).WillOnce(Return(true));
     EXPECT_CALL(*mockClientWriter, Finish())
         .WillOnce(Return(grpc::Status::OK));
-    EXPECT_THROW(logStreamWriter.commit(), buildboxcommon::GrpcError);
+    EXPECT_FALSE(logStreamWriter.commit());
 }
 
 TEST_F(LogStreamWriterTestFixture, TestMultipleWritesAndCommit)
 {
     const std::string data1 = "This is the first part...";
     const std::string data2 = "Second part.";
+
+    // Initial `QueryWriteStatus()` request on first call to `write()`:
+    EXPECT_CALL(*byteStreamClient, QueryWriteStatus(_, _, _))
+        .WillOnce(Return(grpc::Status::OK));
 
     WriteResponse write_response;
     write_response.set_committed_size(
@@ -136,7 +149,7 @@ TEST_F(LogStreamWriterTestFixture, TestMultipleWritesAndCommit)
     EXPECT_CALL(*mockClientWriter, Finish())
         .WillOnce(Return(grpc::Status::OK));
 
-    EXPECT_NO_THROW(logStreamWriter.commit());
+    EXPECT_TRUE(logStreamWriter.commit());
     EXPECT_TRUE(commit_request.finish_write());
     EXPECT_EQ(commit_request.write_offset(), data1.size() + data2.size());
 }
@@ -154,7 +167,7 @@ TEST_F(LogStreamWriterTestFixture, TestFinishWrite)
     EXPECT_CALL(*mockClientWriter, Finish())
         .WillOnce(Return(grpc::Status::OK));
 
-    EXPECT_NO_THROW(logStreamWriter.commit());
+    EXPECT_TRUE(logStreamWriter.commit());
     EXPECT_TRUE(request.finish_write());
     EXPECT_EQ(request.resource_name(), TESTING_RESOURCE_NAME);
 }
@@ -168,7 +181,19 @@ TEST_F(LogStreamWriterTestFixture, TestOperationsAfterCommitThrow)
     EXPECT_CALL(*mockClientWriter, Finish())
         .WillOnce(Return(grpc::Status::OK));
 
-    EXPECT_NO_THROW(logStreamWriter.commit());
+    EXPECT_TRUE(logStreamWriter.commit());
     EXPECT_THROW(logStreamWriter.write("More data"), std::runtime_error);
     EXPECT_THROW(logStreamWriter.commit(), std::runtime_error);
+}
+
+TEST_F(LogStreamWriterTestFixture, TestQueryWriteStatusReturnsNotFound)
+{
+    const std::string data = "Hello!!";
+    // The `QueryWriteStatus()` request before performing a
+    // `ByteStream.Write()` returns `NOT_FOUND`. This means we cannot write to
+    // the stream.
+    EXPECT_CALL(*byteStreamClient, QueryWriteStatus(_, _, _))
+        .WillOnce(Return(grpc::Status(grpc::StatusCode::NOT_FOUND, "")));
+
+    EXPECT_FALSE(logStreamWriter.write(data));
 }
