@@ -16,6 +16,7 @@
 
 #include <buildboxcommon_fileutils.h>
 #include <buildboxcommon_stageddirectory.h>
+#include <buildboxcommon_systemutils.h>
 #include <buildboxcommon_temporarydirectory.h>
 
 #include <gtest/gtest.h>
@@ -35,6 +36,8 @@ class MockStagedDirectory : public StagedDirectory, public testing::Test {
         d_dummy_capture_directory_callback = [&](const char *) {
             return OutputDirectory();
         };
+
+        this->d_path = SystemUtils::get_current_working_directory();
     }
 
     ~MockStagedDirectory() override {}

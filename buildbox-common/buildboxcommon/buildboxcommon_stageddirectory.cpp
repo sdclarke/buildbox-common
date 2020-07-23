@@ -78,25 +78,27 @@ void StagedDirectory::captureAllOutputs(
     // used, `output_files` and `output_directories` will be ignored!"
     if (command.output_paths_size() > 0) {
         for (const auto &outputPath : command.output_paths()) {
-            const auto fullPath =
+            const auto relative_path =
                 pathInInputRoot(outputPath, workingDirectory);
+            const std::string absolute_path =
+                FileUtils::makePathAbsolute(relative_path, this->d_path);
 
             mode_t st_mode;
-            const auto pathExists = getStatMode(fullPath, &st_mode);
+            const auto pathExists = getStatMode(absolute_path, &st_mode);
             if (!pathExists) {
                 continue; // Do not fail with paths that do not exist (#30).
             }
 
             if (S_ISDIR(st_mode)) {
-                captureDirectoryAndAddToResult(outputPath, fullPath);
+                captureDirectoryAndAddToResult(outputPath, relative_path);
             }
             else if (S_ISREG(st_mode)) {
-                captureFileAndAddToResult(outputPath, fullPath);
+                captureFileAndAddToResult(outputPath, relative_path);
             }
             else {
                 std::stringstream errorMessage;
                 errorMessage
-                    << "Output path \"" << fullPath
+                    << "Output path \"" << relative_path
                     << "\" is not a file or directory: st_mode == " << st_mode;
                 throw std::invalid_argument(errorMessage.str());
             }
