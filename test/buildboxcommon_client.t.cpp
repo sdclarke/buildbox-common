@@ -1478,3 +1478,36 @@ TEST_F(DownloadBlobsFixture, DownloadBlobsResultErrorCode)
     ASSERT_EQ(result.first.code(), errorStatus.error_code());
     ASSERT_EQ(result.second, "");
 }
+
+TEST_F(DownloadBlobsFixture,
+       DownloadBlobsToDirectoryResultSuccessfulStatusAndPath)
+{
+    // Test the public `downloadBlobsToDirectory()` method to check that the
+    // returned map is correct.
+    const auto data = std::string(MAX_BATCH_SIZE_BYTES + 1, 'A');
+    readResponse.set_data(data);
+
+    const Digest digest = CASHash::hash(data);
+
+    EXPECT_CALL(*bytestreamClient, ReadRaw(_, _)).WillOnce(Return(reader));
+    EXPECT_CALL(*reader, Read(_))
+        .WillOnce(DoAll(SetArgPointee<0>(readResponse), Return(true)))
+        .WillOnce(Return(false));
+    EXPECT_CALL(*reader, Finish()).WillOnce(Return(grpc::Status::OK));
+
+    TemporaryDirectory directory;
+
+    const Client::DownloadBlobsResult download_results =
+        this->downloadBlobsToDirectory({digest}, directory.name());
+    ASSERT_EQ(download_results.count(digest.hash()), 1);
+    ASSERT_EQ(download_results.size(), 1);
+
+    const auto &result = download_results.at(digest.hash());
+    const auto &result_status = result.first;
+    const auto &result_path = result.second;
+
+    const auto result_data = FileUtils::getFileContents(result_path.c_str());
+
+    ASSERT_EQ(result_status.code(), grpc::StatusCode::OK);
+    ASSERT_EQ(result_data, data);
+}
