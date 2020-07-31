@@ -58,7 +58,7 @@ class StreamingStandardOutputFileMonitor final {
 
     // Spawns a thread that monitors a file for changes and reads it as it is
     // being written. When new data is available invokes the given callback.
-    explicit StreamingStandardOutputFileMonitor(
+    StreamingStandardOutputFileMonitor(
         const std::string &path, const DataReadyCallback &dataReadyCallback);
 
     ~StreamingStandardOutputFileMonitor();
@@ -92,7 +92,15 @@ class StreamingStandardOutputFileMonitor final {
     // Thread that performs the monitoring and, when data is available, reads
     // from the file and invokes the callback.
     // It will stop and return only when `d_stop_requested` is set.
-    void monitorFile() const;
+    void monitorFile();
+
+    const size_t d_read_buffer_size;
+    std::unique_ptr<char[]> d_read_buffer;
+    size_t d_read_buffer_offset;
+
+    // Minimum number of bytes that need to be available to invoke
+    // `dataReadyCallback()`.
+    static const size_t s_min_write_batch_size_bytes;
 };
 } // namespace buildboxcommon
 

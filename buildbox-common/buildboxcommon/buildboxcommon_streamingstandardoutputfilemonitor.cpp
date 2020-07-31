@@ -45,6 +45,10 @@ size_t readBufferSizeBytes()
 
 namespace buildboxcommon {
 
+// Invoke `dataReadyCallback()` with at least this number of bytes:
+const size_t StreamingStandardOutputFileMonitor::s_min_write_batch_size_bytes =
+    100;
+
 const std::chrono::milliseconds
     StreamingStandardOutputFileMonitor::s_pollInterval(500);
 
@@ -53,7 +57,10 @@ StreamingStandardOutputFileMonitor::StreamingStandardOutputFileMonitor(
     : d_filePath(path), d_fileFd(openFile(d_filePath)),
       d_dataReadyCallback(readCallback), d_stopRequested(false),
       d_monitoringThread(&StreamingStandardOutputFileMonitor::monitorFile,
-                         this)
+                         this),
+      d_read_buffer_size(readBufferSizeBytes()),
+      d_read_buffer(std::make_unique<char[]>(d_read_buffer_size)),
+      d_read_buffer_offset(0)
 {
 }
 
@@ -94,7 +101,7 @@ bool StreamingStandardOutputFileMonitor::fileHasData() const
     return (st.st_size > 0);
 }
 
-void StreamingStandardOutputFileMonitor::monitorFile() const
+void StreamingStandardOutputFileMonitor::monitorFile()
 {
     const int fd = openFile(d_filePath);
     BUILDBOX_LOG_TRACE("Started monitoring thread for " << d_filePath);
@@ -111,24 +118,41 @@ void StreamingStandardOutputFileMonitor::monitorFile() const
         }
     }
 
-    std::unique_ptr<char[]> buffer(new char[readBufferSizeBytes()]);
     BUILDBOX_LOG_TRACE("Data available from " << d_filePath
                                               << ". Starting to read.");
     while (true) {
-        const ssize_t bytesRead = read(fd, buffer.get(), sizeof(buffer));
+        const auto bufferFreeBytes =
+            d_read_buffer_size - d_read_buffer_offset - 1;
+
+        const auto bufferWriteStart =
+            d_read_buffer.get() + d_read_buffer_offset;
+        const ssize_t bytesRead = read(fd, bufferWriteStart, bufferFreeBytes);
         if (bytesRead == -1) {
             BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
                 std::system_error, errno, std::system_category,
                 "Error reading file " << d_filePath);
         }
 
-        if (bytesRead > 0) {
-            BUILDBOX_LOG_TRACE("Read " << bytesRead << " bytes from "
-                                       << d_filePath);
+        BUILDBOX_LOG_TRACE("Read " << bytesRead << " bytes from "
+                                   << d_filePath);
+
+        d_read_buffer_offset += static_cast<size_t>(bytesRead);
+
+        // If we have enough data or it's the last dump, invoke the callback
+        // function to empty the buffer:
+        const bool batch_larger_than_min =
+            d_read_buffer_offset > s_min_write_batch_size_bytes;
+        const bool last_write = d_read_buffer_offset > 0 && d_stopRequested;
+        if (batch_larger_than_min || last_write) {
             d_dataReadyCallback(
-                FileChunk(buffer.get(), static_cast<size_t>(bytesRead)));
+                FileChunk(d_read_buffer.get(), d_read_buffer_offset));
+            d_read_buffer_offset = 0;
+
+            if (last_write) {
+                return;
+            }
         }
-        else if (d_stopRequested) {
+        else if (bytesRead == 0 && d_stopRequested) {
             return;
         }
         else {
