@@ -144,7 +144,9 @@ bool LogStreamWriter::commit()
         GrpcRetry::retry(commitWriteLambda, d_grpcRetryLimit,
                          d_grpcRetryDelay);
     }
-    catch (const GrpcError &) { // `retry()` logged this.
+    catch (const GrpcError &e) {
+        BUILDBOX_LOG_ERROR(
+            "exception caught in `ByteStream::Write` request: " << e.what());
         return false;
     }
 
@@ -172,7 +174,10 @@ bool LogStreamWriter::queryStreamWriteStatus() const
                          d_grpcRetryDelay);
         return true;
     }
-    catch (const GrpcError &) { // `retry()` logged this.
+    catch (const GrpcError &e) {
+        BUILDBOX_LOG_ERROR(
+            "exception caught in `ByteStream::QueryWriteStatus` request: "
+            << e.what());
         return false;
     }
 }
