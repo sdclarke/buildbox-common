@@ -50,7 +50,7 @@ const size_t StreamingStandardOutputFileMonitor::s_min_write_batch_size_bytes =
     100;
 
 const std::chrono::milliseconds
-    StreamingStandardOutputFileMonitor::s_pollInterval(500);
+    StreamingStandardOutputFileMonitor::s_pollInterval(10);
 
 StreamingStandardOutputFileMonitor::StreamingStandardOutputFileMonitor(
     const std::string &path, const DataReadyCallback &readCallback)
