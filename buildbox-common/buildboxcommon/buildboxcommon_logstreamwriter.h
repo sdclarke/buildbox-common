@@ -19,7 +19,7 @@
 
 #include <buildboxcommon_connectionoptions.h>
 
-#include <google/bytestream/bytestream.grpc.pb.h>
+#include <buildboxcommon_protos.h>
 
 #include <memory>
 #include <string>
@@ -72,6 +72,17 @@ class LogStreamWriter final {
     // of the instance.
     LogStreamWriter(const LogStreamWriter &) = delete;
     LogStreamWriter &operator=(LogStreamWriter const &) = delete;
+
+    // Issue a `CreateLogStream()` call to the given remote. Set the value of
+    // `parent` in the request.
+    static LogStream createLogStream(
+        const std::string &parent,
+        const buildboxcommon::ConnectionOptions &connectionOptions);
+
+    static LogStream
+    createLogStream(const std::string &parent, const int retryLimit,
+                    const int retryDelay,
+                    LogStreamService::StubInterface *logstreamClient);
 
   private:
     const std::string d_resourceName;

@@ -20,6 +20,7 @@
 
 #include <memory>
 
+#include <build/bazel/remote/logstream/v1/remote_logstream_mock.grpc.pb.h>
 #include <google/bytestream/bytestream_mock.grpc.pb.h>
 #include <grpcpp/test/mock_stream.h>
 #include <gtest/gtest.h>
@@ -41,7 +42,10 @@ class LogStreamWriterTestFixture : public testing::Test {
               std::make_shared<google::bytestream::MockByteStreamStub>()),
           logStreamWriter(TESTING_RESOURCE_NAME, byteStreamClient,
                           GRPC_RETRY_LIMIT, GRPC_RETRY_DELAY),
-          mockClientWriter(new MockClientWriter())
+          mockClientWriter(new MockClientWriter()),
+          logStreamClient(std::make_unique<build::bazel::remote::logstream::
+                                               v1::MockLogStreamServiceStub>())
+
     {
     }
 
@@ -53,6 +57,10 @@ class LogStreamWriterTestFixture : public testing::Test {
     MockClientWriter *mockClientWriter;
     // Wrapping this in a smart pointer causes issues on destruction.
     // (It is freed by someone else.)
+
+    std::unique_ptr<
+        build::bazel::remote::logstream::v1::MockLogStreamServiceStub>
+        logStreamClient;
 };
 
 TEST_F(LogStreamWriterTestFixture, TestSuccessfulWrite)
@@ -196,4 +204,45 @@ TEST_F(LogStreamWriterTestFixture, TestQueryWriteStatusReturnsNotFound)
         .WillOnce(Return(grpc::Status(grpc::StatusCode::NOT_FOUND, "")));
 
     EXPECT_FALSE(logStreamWriter.write(data));
+}
+
+TEST_F(LogStreamWriterTestFixture, SuccessfulCreateLogStream)
+{
+    const std::string parent = "parent";
+    const std::string readName = parent + "/foo";
+    const std::string writeName = parent + "/foo/WRITE";
+
+    LogStream response;
+    response.set_name(readName);
+    response.set_write_resource_name(writeName);
+
+    CreateLogStreamRequest request;
+    EXPECT_CALL(*logStreamClient, CreateLogStream(_, _, _))
+        .WillOnce(DoAll(SaveArg<1>(&request), SetArgPointee<2>(response),
+                        Return(grpc::Status::OK)));
+
+    const LogStream returnedLogStream = LogStreamWriter::createLogStream(
+        parent, GRPC_RETRY_LIMIT, GRPC_RETRY_DELAY, logStreamClient.get());
+
+    // The request contains the parent value we specified:
+    EXPECT_EQ(request.parent(), parent);
+
+    // And the returned LogStream matches the one sent by the server:
+    EXPECT_EQ(returnedLogStream.name(), response.name());
+    EXPECT_EQ(returnedLogStream.write_resource_name(),
+              response.write_resource_name());
+}
+
+TEST_F(LogStreamWriterTestFixture, CreateLogStreamReturnsError)
+{
+    const grpc::Status errorStatus = grpc::Status(
+        grpc::StatusCode::UNAVAILABLE, "LogStream server is taking a nap.");
+
+    EXPECT_CALL(*logStreamClient, CreateLogStream(_, _, _))
+        .WillRepeatedly(Return(errorStatus));
+
+    ASSERT_THROW(LogStreamWriter::createLogStream("parent", GRPC_RETRY_LIMIT,
+                                                  GRPC_RETRY_DELAY,
+                                                  logStreamClient.get()),
+                 GrpcError);
 }

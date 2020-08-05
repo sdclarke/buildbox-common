@@ -187,4 +187,44 @@ LogStreamWriter::ByteStreamClientWriter &LogStreamWriter::bytestreamWriter()
     return d_bytestreamWriter;
 }
 
+LogStream LogStreamWriter::createLogStream(
+    const std::string &parent,
+    const buildboxcommon::ConnectionOptions &connectionOptions)
+{
+    const auto channel = connectionOptions.createChannel();
+    std::unique_ptr<LogStreamService::StubInterface> logStreamClient =
+        LogStreamService::NewStub(channel);
+
+    const int retryLimit = std::stoi(connectionOptions.d_retryLimit);
+    const int retryDelay = std::stoi(connectionOptions.d_retryDelay);
+
+    return createLogStream(parent, retryLimit, retryDelay,
+                           logStreamClient.get());
+}
+
+LogStream LogStreamWriter::createLogStream(
+    const std::string &parent, const int retryLimit, const int retryDelay,
+    LogStreamService::StubInterface *logstreamClient)
+{
+    if (logstreamClient == nullptr) {
+        BUILDBOXCOMMON_THROW_EXCEPTION(std::invalid_argument,
+                                       "logstreamClient argument is nullptr");
+    }
+
+    grpc::ClientContext context;
+
+    CreateLogStreamRequest request;
+    request.set_parent(parent);
+
+    LogStream createdLogStream;
+    auto createLogStreamLambda = [&context, &request, &logstreamClient,
+                                  &createdLogStream](grpc::ClientContext &) {
+        return logstreamClient->CreateLogStream(&context, request,
+                                                &createdLogStream);
+    };
+
+    GrpcRetry::retry(createLogStreamLambda, retryLimit, retryDelay);
+    return createdLogStream;
+}
+
 } // namespace buildboxcommon
