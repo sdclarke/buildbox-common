@@ -17,6 +17,7 @@ set(PROTO_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(PROTOS
     build/bazel/remote/asset/v1/remote_asset
     build/bazel/remote/execution/v2/remote_execution
+    build/bazel/remote/logstream/v1/remote_logstream
     build/bazel/semver/semver
     build/buildgrid/local_cas
     google/api/annotations
