@@ -30,7 +30,8 @@ StandardOutputStreamer::StandardOutputStreamer(
       d_logstreamWriter(d_resourceName, connectionOptions),
       d_fileMonitor(d_filePath,
                     std::bind(&StandardOutputStreamer::streamLogChunk, this,
-                              std::placeholders::_1))
+                              std::placeholders::_1)),
+      d_stopRequested(false)
 {
 }
 
