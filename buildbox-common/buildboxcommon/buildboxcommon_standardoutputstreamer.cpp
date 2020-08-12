@@ -60,7 +60,7 @@ bool StandardOutputStreamer::stop()
 void StandardOutputStreamer::streamLogChunk(
     const StreamingStandardOutputFileMonitor::FileChunk &chunk)
 {
-    BUILDBOX_LOG_DEBUG("File monitor reported ["
+    BUILDBOX_LOG_TRACE("File monitor reported ["
                        << d_filePath << "] has " << chunk.size()
                        << " bytes available, streaming to "
                        << "[" << d_url << "/" << d_resourceName << "]");
