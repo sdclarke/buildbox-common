@@ -97,6 +97,39 @@ TEST_F(StreamingStandardOutputFileMonitorTestFixture, ReadDataAndStop)
     ASSERT_EQ(data_read, "Hello, world!\n");
 }
 
+TEST_F(StreamingStandardOutputFileMonitorTestFixture,
+       ReadDataAndStopLargeChunks)
+{
+    std::string data_read;
+    data_ready_callback =
+        [&data_read](
+            const StreamingStandardOutputFileMonitor::FileChunk &chunk) {
+            data_read.append(chunk.ptr(), chunk.size());
+        };
+
+    const auto chunkSize = 2 * 1024 * 1024;
+    const std::string chunk1(chunkSize, 'X');
+    const std::string chunk2(chunkSize, 'Y');
+
+    // Writing data to a file in two chunks:
+    std::ofstream ofs(monitored_file.name(), std::ofstream::out);
+    ofs << chunk1;
+    sleep(2);
+    ofs << chunk2;
+    ofs.close();
+    sleep(1);
+
+    file_monitor.stop();
+
+    ASSERT_TRUE(
+        std::equal(chunk1.cbegin(), chunk1.cend(), data_read.cbegin()));
+    ASSERT_TRUE(
+        std::equal(chunk2.cbegin(), chunk2.cend(),
+                   data_read.cbegin() +
+                       static_cast<std::string::iterator::difference_type>(
+                           chunk1.size())));
+}
+
 TEST(FileMonitorTest, ReadDataAndDestroy)
 {
     buildboxcommon::TemporaryFile file;
