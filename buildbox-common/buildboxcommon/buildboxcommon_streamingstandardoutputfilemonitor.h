@@ -87,12 +87,15 @@ class StreamingStandardOutputFileMonitor final {
 
     static int openFile(const std::string &path);
 
-    bool fileHasData() const;
-
     // Thread that performs the monitoring and, when data is available, reads
     // from the file and invokes the callback.
     // It will stop and return only when `d_stop_requested` is set.
     void monitorFile();
+
+    // Poll the size of the file every `s_pollInterval` until `stop()` is
+    // called. Returns `true` if the file has `st_size > 0` or `false` if
+    // requested to stop.
+    bool waitForInitialFileWrite() const;
 
     const size_t d_read_buffer_size;
     std::unique_ptr<char[]> d_read_buffer;

@@ -89,33 +89,39 @@ int StreamingStandardOutputFileMonitor::openFile(const std::string &path)
     return fd;
 }
 
-bool StreamingStandardOutputFileMonitor::fileHasData() const
+bool StreamingStandardOutputFileMonitor::waitForInitialFileWrite() const
 {
     struct stat st;
-    if (fstat(d_fileFd, &st) == -1) {
-        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(std::system_error, errno,
-                                              std::system_category,
-                                              "Error calling fstat()");
+
+    while (!d_stopRequested) {
+        if (fstat(d_fileFd, &st) == -1) {
+            const auto errorReason = strerror(errno);
+            BUILDBOX_LOG_ERROR("Error calling fstat() for ["
+                               << d_filePath << "]: " << errorReason);
+            return false;
+        }
+
+        if (st.st_size > 0) {
+            return true;
+        }
+
+        std::this_thread::sleep_for(s_pollInterval);
     }
 
-    return (st.st_size > 0);
+    BUILDBOX_LOG_TRACE("Stop requested. File " << d_filePath
+                                               << " was never written.");
+    return false;
 }
 
 void StreamingStandardOutputFileMonitor::monitorFile()
 {
-    const int fd = openFile(d_filePath);
     BUILDBOX_LOG_TRACE("Started monitoring thread for " << d_filePath);
 
     // Polling the file until it has data available for reading or being
     // asked to stop:
-    while (!fileHasData()) {
-        std::this_thread::sleep_for(s_pollInterval);
-
-        if (d_stopRequested) {
-            BUILDBOX_LOG_TRACE("Stop requested. File "
-                               << d_filePath << " was never written.");
-            return;
-        }
+    const bool fileHasData = waitForInitialFileWrite();
+    if (!fileHasData) {
+        return;
     }
 
     BUILDBOX_LOG_TRACE("Data available from " << d_filePath
@@ -126,7 +132,8 @@ void StreamingStandardOutputFileMonitor::monitorFile()
 
         const auto bufferWriteStart =
             d_read_buffer.get() + d_read_buffer_offset;
-        const ssize_t bytesRead = read(fd, bufferWriteStart, bufferFreeBytes);
+        const ssize_t bytesRead =
+            read(d_fileFd, bufferWriteStart, bufferFreeBytes);
         if (bytesRead == -1) {
             BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
                 std::system_error, errno, std::system_category,
