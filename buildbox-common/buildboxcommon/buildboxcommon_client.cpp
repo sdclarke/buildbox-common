@@ -407,8 +407,9 @@ void Client::upload(const std::string &data, const Digest &digest)
 
     const std::string resourceName = this->makeResourceName(digest, true);
 
+    WriteResponse response;
+
     auto uploadLambda = [&](grpc::ClientContext &context) {
-        WriteResponse response;
         auto writer = this->d_bytestreamClient->Write(&context, &response);
 
         size_t offset = 0;
@@ -431,21 +432,27 @@ void Client::upload(const std::string &data, const Digest &digest)
             }
 
             if (!writer->Write(request)) {
-                BUILDBOXCOMMON_THROW_EXCEPTION(
-                    std::runtime_error,
-                    "Upload of " << digest.hash() << " failed: broken stream");
+                break;
             }
         }
 
         writer->WritesDone();
         auto status = writer->Finish();
-        if (static_cast<google::protobuf::int64>(offset) !=
-            digest.size_bytes()) {
+        if (!status.ok()) {
+            BUILDBOXCOMMON_THROW_EXCEPTION(
+                std::runtime_error, "Upload of "
+                                        << digest.hash()
+                                        << " failed: " << status.error_code()
+                                        << ": " << status.error_message());
+        }
+
+        if (response.committed_size() != digest.size_bytes()) {
             BUILDBOXCOMMON_THROW_EXCEPTION(
                 std::runtime_error,
                 "Expected to upload "
                     << digest.size_bytes() << " bytes for " << digest.hash()
-                    << ", but uploaded blob was " << offset << " bytes");
+                    << ", but server reports " << response.committed_size()
+                    << " bytes committed");
         }
 
         BUILDBOX_LOG_DEBUG(resourceName << ": " << offset

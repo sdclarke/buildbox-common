@@ -103,6 +103,7 @@ class ClientTestFixture : public StubsFixture, public Client {
     Digest digest;
     TemporaryFile tmpfile;
     google::bytestream::ReadResponse readResponse;
+    google::bytestream::WriteResponse writeResponse;
 
     grpc::testing::MockClientReader<google::bytestream::ReadResponse> *reader =
         new grpc::testing::MockClientReader<
@@ -303,7 +304,9 @@ TEST_F(ClientTestFixture, UploadStringTest)
     digest.set_size_bytes(content.length());
     digest.set_hash("fakehash");
 
-    EXPECT_CALL(*bytestreamClient, WriteRaw(_, _)).WillOnce(Return(writer));
+    writeResponse.set_committed_size(digest.size_bytes());
+    EXPECT_CALL(*bytestreamClient, WriteRaw(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(writeResponse), Return(writer)));
 
     WriteRequest request;
     EXPECT_CALL(*writer, Write(_, _))
@@ -316,6 +319,24 @@ TEST_F(ClientTestFixture, UploadStringTest)
               client_instance_name);
 }
 
+TEST_F(ClientTestFixture, UploadStringCommittedSizeMismatch)
+{
+    digest.set_size_bytes(content.length());
+    digest.set_hash("fakehash");
+
+    writeResponse.set_committed_size(digest.size_bytes() - 1);
+    EXPECT_CALL(*bytestreamClient, WriteRaw(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(writeResponse), Return(writer)));
+
+    WriteRequest request;
+    EXPECT_CALL(*writer, Write(_, _))
+        .WillOnce(DoAll(SaveArg<0>(&request), Return(true)));
+    EXPECT_CALL(*writer, WritesDone()).WillOnce(Return(true));
+    EXPECT_CALL(*writer, Finish()).WillOnce(Return(grpc::Status::OK));
+
+    ASSERT_THROW(this->upload(content, digest), std::runtime_error);
+}
+
 TEST_F(ClientTestFixture, UploadLargeStringTest)
 {
     int contentLength = 3 * 1024 * 1024;
@@ -323,7 +344,9 @@ TEST_F(ClientTestFixture, UploadLargeStringTest)
     digest.set_size_bytes(contentLength);
     digest.set_hash("fakehash");
 
-    EXPECT_CALL(*bytestreamClient, WriteRaw(_, _)).WillOnce(Return(writer));
+    writeResponse.set_committed_size(digest.size_bytes());
+    EXPECT_CALL(*bytestreamClient, WriteRaw(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(writeResponse), Return(writer)));
 
     EXPECT_CALL(*writer, Write(_, _)).Times(3).WillRepeatedly(Return(true));
     EXPECT_CALL(*writer, WritesDone()).WillOnce(Return(true));
@@ -339,7 +362,9 @@ TEST_F(ClientTestFixture, UploadExactStringTest)
     digest.set_size_bytes(contentLength);
     digest.set_hash("fakehash");
 
-    EXPECT_CALL(*bytestreamClient, WriteRaw(_, _)).WillOnce(Return(writer));
+    writeResponse.set_committed_size(digest.size_bytes());
+    EXPECT_CALL(*bytestreamClient, WriteRaw(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(writeResponse), Return(writer)));
 
     EXPECT_CALL(*writer, Write(_, _)).WillOnce(Return(true));
     EXPECT_CALL(*writer, WritesDone()).WillOnce(Return(true));
@@ -355,7 +380,9 @@ TEST_F(ClientTestFixture, UploadJustLargerThanExactStringTest)
     digest.set_size_bytes(contentLength);
     digest.set_hash("fakehash");
 
-    EXPECT_CALL(*bytestreamClient, WriteRaw(_, _)).WillOnce(Return(writer));
+    writeResponse.set_committed_size(digest.size_bytes());
+    EXPECT_CALL(*bytestreamClient, WriteRaw(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(writeResponse), Return(writer)));
 
     EXPECT_CALL(*writer, Write(_, _)).Times(2).WillRepeatedly(Return(true));
     EXPECT_CALL(*writer, WritesDone()).WillOnce(Return(true));
@@ -371,7 +398,9 @@ TEST_F(ClientTestFixture, UploadJustSmallerThanExactStringTest)
     digest.set_size_bytes(contentLength);
     digest.set_hash("fakehash");
 
-    EXPECT_CALL(*bytestreamClient, WriteRaw(_, _)).WillOnce(Return(writer));
+    writeResponse.set_committed_size(digest.size_bytes());
+    EXPECT_CALL(*bytestreamClient, WriteRaw(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(writeResponse), Return(writer)));
 
     EXPECT_CALL(*writer, Write(_, _)).WillOnce(Return(true));
     EXPECT_CALL(*writer, WritesDone()).WillOnce(Return(true));
@@ -388,16 +417,21 @@ TEST_F(ClientTestFixture, UploadStringSizeMismatch)
     EXPECT_THROW(this->upload(content, digest), std::logic_error);
 }
 
-TEST_F(ClientTestFixture, UploadStringWriteFailure)
+TEST_F(ClientTestFixture, UploadAlreadyExistingString)
 {
-    digest.set_size_bytes(content.length());
-    digest.set_hash("fakehash");
+    const std::string data("This blob is already present in the remote.");
+    const Digest digest = CASHash::hash(data);
 
-    EXPECT_CALL(*bytestreamClient, WriteRaw(_, _)).WillOnce(Return(writer));
+    writeResponse.set_committed_size(digest.size_bytes());
+    EXPECT_CALL(*bytestreamClient, WriteRaw(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(writeResponse), Return(writer)));
 
     EXPECT_CALL(*writer, Write(_, _)).WillOnce(Return(false));
+    EXPECT_CALL(*writer, WritesDone()).WillOnce(Return(true));
+    EXPECT_CALL(*writer, Finish())
+        .WillOnce(Return(grpc::Status(grpc::Status::OK)));
 
-    EXPECT_THROW(this->upload(content, digest), std::runtime_error);
+    ASSERT_NO_THROW(this->upload(data, digest));
 }
 
 TEST_F(ClientTestFixture, UploadStringDidntReturnOk)
@@ -467,7 +501,9 @@ TEST_F(ClientTestFixture, UploadBlobs)
         .WillOnce(DoAll(SaveArg<1>(&request), SetArgPointee<2>(response),
                         Return(grpc::Status::OK)));
     // And digest in index 2 with the Bytestream API:
-    EXPECT_CALL(*bytestreamClient, WriteRaw(_, _)).WillOnce(Return(writer));
+    writeResponse.set_committed_size(requests[2].digest.size_bytes());
+    EXPECT_CALL(*bytestreamClient, WriteRaw(_, _))
+        .WillOnce(DoAll(SetArgPointee<1>(writeResponse), Return(writer)));
 
     EXPECT_CALL(*writer, Write(_, _)).WillOnce(Return(true));
     EXPECT_CALL(*writer, WritesDone()).WillOnce(Return(true));
