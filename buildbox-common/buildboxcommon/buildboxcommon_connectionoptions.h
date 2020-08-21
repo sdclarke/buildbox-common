@@ -17,6 +17,8 @@
 #ifndef INCLUDED_BUILDBOXCOMMON_CONNECTIONOPTIONS
 #define INCLUDED_BUILDBOXCOMMON_CONNECTIONOPTIONS
 
+#include <buildboxcommon_commandlinetypes.h>
+
 #include <grpcpp/channel.h>
 #include <memory>
 #include <string>
@@ -25,6 +27,11 @@
 namespace buildboxcommon {
 
 struct ConnectionOptions {
+
+    ConnectionOptions() = default;
+    ConnectionOptions(const std::string &serviceName,
+                      const std::string &commandLinePrefix);
+
     const char *d_clientCert = nullptr;
     const char *d_clientCertPath = nullptr;
     const char *d_clientKey = nullptr;
@@ -94,6 +101,8 @@ struct ConnectionOptions {
      */
     static void printArgHelp(int padWidth, const char *serviceName = "CAS",
                              const char *prefix = nullptr);
+
+    std::vector<buildboxcommon::CommandLineTypes::ArgumentSpec> d_spec;
 };
 
 } // namespace buildboxcommon

@@ -31,6 +31,11 @@
 
 namespace buildboxcommon {
 
+using ArgumentSpec = buildboxcommon::CommandLineTypes::ArgumentSpec;
+using DataType = buildboxcommon::CommandLineTypes::DataType;
+using TypeInfo = buildboxcommon::CommandLineTypes::TypeInfo;
+using DefaultValue = buildboxcommon::CommandLineTypes::DefaultValue;
+
 namespace {
 static const char *HTTP_PREFIX = "http://";
 static const char *HTTPS_PREFIX = "https://";
@@ -46,7 +51,61 @@ static void printPadded(int padWidth, const std::string &str)
     std::cerr.flags(previousFlags);
     std::cerr.fill(previousFill);
 }
+
 } // namespace
+
+ConnectionOptions::ConnectionOptions(const std::string &serviceName,
+                                     const std::string &commandLinePrefix)
+{
+    d_spec.emplace_back(commandLinePrefix + "-remote",
+                        "URL for the " + serviceName + " service",
+                        TypeInfo(DataType::COMMANDLINE_DT_STRING),
+                        ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG);
+    d_spec.emplace_back(commandLinePrefix + "-instance",
+                        "Name of the " + serviceName + " instance",
+                        TypeInfo(DataType::COMMANDLINE_DT_STRING),
+                        ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG);
+    d_spec.emplace_back(commandLinePrefix + "-server-cert",
+                        "Public server certificate for " + serviceName +
+                            " TLS (PEM-encoded)",
+                        TypeInfo(DataType::COMMANDLINE_DT_STRING),
+                        ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG);
+    d_spec.emplace_back(commandLinePrefix + "-client-key",
+                        "Private client key for " + serviceName +
+                            " TLS (PEM-encoded)",
+                        TypeInfo(DataType::COMMANDLINE_DT_STRING),
+                        ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG);
+    d_spec.emplace_back(commandLinePrefix + "-client-cert",
+                        "Private client certificate for " + serviceName +
+                            " TLS (PEM-encoded)",
+                        TypeInfo(DataType::COMMANDLINE_DT_STRING),
+                        ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG);
+    d_spec.emplace_back(
+        commandLinePrefix + "-access-token",
+        "Access Token for authentication " + serviceName +
+            " (e.g. JWT, OAuth access token, etc), "
+            "will be included as an HTTP Authorization bearer token",
+        TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_OPTIONAL,
+        ArgumentSpec::C_WITH_ARG);
+    d_spec.emplace_back(commandLinePrefix + "-googleapi-auth",
+                        "Use GoogleAPIAuth for " + serviceName + " service",
+                        TypeInfo(DataType::COMMANDLINE_DT_BOOL),
+                        ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG,
+                        DefaultValue(false));
+    d_spec.emplace_back(commandLinePrefix + "-retry-limit",
+                        "Number of times to retry on grpc errors for " +
+                            serviceName + " service",
+                        TypeInfo(DataType::COMMANDLINE_DT_STRING),
+                        ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG,
+                        DefaultValue("4"));
+    d_spec.emplace_back(commandLinePrefix + "-retry-delay",
+                        "How long to wait in milliseconds before the first "
+                        "grpc retry for " +
+                            serviceName + " service",
+                        TypeInfo(DataType::COMMANDLINE_DT_STRING),
+                        ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG,
+                        DefaultValue("1000"));
+}
 
 void ConnectionOptions::setClientCert(const std::string &value)
 {
