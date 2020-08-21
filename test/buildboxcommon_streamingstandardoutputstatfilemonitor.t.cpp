@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <buildboxcommon_streamingstandardoutputfilemonitor.h>
+#include <buildboxcommon_streamingstandardoutputstatfilemonitor.h>
 #include <gtest/gtest.h>
 
 #include <buildboxcommon_fileutils.h>
@@ -27,18 +27,20 @@ using namespace buildboxcommon;
 
 using namespace testing;
 
-class StreamingStandardOutputFileMonitorTestFixture : public testing::Test {
+class StreamingStandardOutputStatFileMonitorTestFixture
+    : public testing::Test {
   protected:
-    StreamingStandardOutputFileMonitorTestFixture()
+    StreamingStandardOutputStatFileMonitorTestFixture()
         : file_monitor(
               monitored_file.strname(),
-              std::bind(
-                  &StreamingStandardOutputFileMonitorTestFixture::dataReady,
-                  this, std::placeholders::_1))
+              std::bind(&StreamingStandardOutputStatFileMonitorTestFixture::
+                            dataReady,
+                        this, std::placeholders::_1))
     {
     }
 
-    void dataReady(const StreamingStandardOutputFileMonitor::FileChunk &chunk)
+    void
+    dataReady(const StreamingStandardOutputStatFileMonitor::FileChunk &chunk)
     {
         if (data_ready_callback) {
             data_ready_callback(chunk);
@@ -46,21 +48,22 @@ class StreamingStandardOutputFileMonitorTestFixture : public testing::Test {
     }
 
     buildboxcommon::TemporaryFile monitored_file;
-    StreamingStandardOutputFileMonitor file_monitor;
-    StreamingStandardOutputFileMonitor::DataReadyCallback data_ready_callback;
+    StreamingStandardOutputStatFileMonitor file_monitor;
+    StreamingStandardOutputStatFileMonitor::DataReadyCallback
+        data_ready_callback;
 };
 
-TEST_F(StreamingStandardOutputFileMonitorTestFixture, TestStop)
+TEST_F(StreamingStandardOutputStatFileMonitorTestFixture, TestStop)
 {
     ASSERT_NO_THROW(file_monitor.stop());
 }
 
-TEST_F(StreamingStandardOutputFileMonitorTestFixture, MonitorEmptyFile)
+TEST_F(StreamingStandardOutputStatFileMonitorTestFixture, MonitorEmptyFile)
 {
     bool callback_invoked = false;
-    StreamingStandardOutputFileMonitor::DataReadyCallback dummy_callback =
+    StreamingStandardOutputStatFileMonitor::DataReadyCallback dummy_callback =
         [&callback_invoked](
-            const StreamingStandardOutputFileMonitor::FileChunk &) {
+            const StreamingStandardOutputStatFileMonitor::FileChunk &) {
             callback_invoked = true;
         };
     data_ready_callback = dummy_callback;
@@ -69,18 +72,18 @@ TEST_F(StreamingStandardOutputFileMonitorTestFixture, MonitorEmptyFile)
     ASSERT_FALSE(callback_invoked);
 }
 
-TEST_F(StreamingStandardOutputFileMonitorTestFixture, StopMoreThanOnce)
+TEST_F(StreamingStandardOutputStatFileMonitorTestFixture, StopMoreThanOnce)
 {
     ASSERT_NO_THROW(file_monitor.stop());
     ASSERT_NO_THROW(file_monitor.stop());
 }
 
-TEST_F(StreamingStandardOutputFileMonitorTestFixture, ReadDataAndStop)
+TEST_F(StreamingStandardOutputStatFileMonitorTestFixture, ReadDataAndStop)
 {
     std::string data_read;
     data_ready_callback =
         [&data_read](
-            const StreamingStandardOutputFileMonitor::FileChunk &chunk) {
+            const StreamingStandardOutputStatFileMonitor::FileChunk &chunk) {
             data_read.append(chunk.ptr(), chunk.size());
         };
 
@@ -136,12 +139,11 @@ TEST(FileMonitorTest, ReadDataAndDestroy)
 
     std::string data_read;
     {
-        StreamingStandardOutputFileMonitor monitor(
+        StreamingStandardOutputStatFileMonitor monitor(
             file.strname(),
             [&data_read](
-                const StreamingStandardOutputFileMonitor::FileChunk &chunk) {
-                data_read.append(chunk.ptr(), chunk.size());
-            });
+                const StreamingStandardOutputStatFileMonitor::FileChunk
+                    &chunk) { data_read.append(chunk.ptr(), chunk.size()); });
 
         std::ofstream ofs(file.strname(), std::ofstream::out);
         ofs << "Hello!";

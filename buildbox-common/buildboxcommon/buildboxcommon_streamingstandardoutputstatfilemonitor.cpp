@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <buildboxcommon_streamingstandardoutputfilemonitor.h>
+#include <buildboxcommon_streamingstandardoutputstatfilemonitor.h>
 
 #include <buildboxcommon_exception.h>
 #include <buildboxcommon_logging.h>
@@ -46,17 +46,17 @@ size_t readBufferSizeBytes()
 namespace buildboxcommon {
 
 // Invoke `dataReadyCallback()` with at least this number of bytes:
-const size_t StreamingStandardOutputFileMonitor::s_min_write_batch_size_bytes =
-    100;
+const size_t
+    StreamingStandardOutputStatFileMonitor::s_min_write_batch_size_bytes = 100;
 
 const std::chrono::milliseconds
-    StreamingStandardOutputFileMonitor::s_pollInterval(10);
+    StreamingStandardOutputStatFileMonitor::s_pollInterval(10);
 
-StreamingStandardOutputFileMonitor::StreamingStandardOutputFileMonitor(
+StreamingStandardOutputStatFileMonitor::StreamingStandardOutputStatFileMonitor(
     const std::string &path, const DataReadyCallback &readCallback)
     : d_filePath(path), d_fileFd(openFile(d_filePath)),
       d_dataReadyCallback(readCallback), d_stopRequested(false),
-      d_monitoringThread(&StreamingStandardOutputFileMonitor::monitorFile,
+      d_monitoringThread(&StreamingStandardOutputStatFileMonitor::monitorFile,
                          this),
       d_read_buffer_size(readBufferSizeBytes()),
       d_read_buffer(std::make_unique<char[]>(d_read_buffer_size)),
@@ -64,13 +64,14 @@ StreamingStandardOutputFileMonitor::StreamingStandardOutputFileMonitor(
 {
 }
 
-StreamingStandardOutputFileMonitor::~StreamingStandardOutputFileMonitor()
+StreamingStandardOutputStatFileMonitor::
+    ~StreamingStandardOutputStatFileMonitor()
 {
     stop();
     close(d_fileFd);
 }
 
-void StreamingStandardOutputFileMonitor::stop()
+void StreamingStandardOutputStatFileMonitor::stop()
 {
     if (!d_stopRequested) {
         d_stopRequested = true;
@@ -78,7 +79,7 @@ void StreamingStandardOutputFileMonitor::stop()
     }
 }
 
-int StreamingStandardOutputFileMonitor::openFile(const std::string &path)
+int StreamingStandardOutputStatFileMonitor::openFile(const std::string &path)
 {
     const int fd = open(path.c_str(), O_RDONLY);
     if (fd == -1) {
@@ -89,7 +90,7 @@ int StreamingStandardOutputFileMonitor::openFile(const std::string &path)
     return fd;
 }
 
-bool StreamingStandardOutputFileMonitor::waitForInitialFileWrite() const
+bool StreamingStandardOutputStatFileMonitor::waitForInitialFileWrite() const
 {
     struct stat st;
 
@@ -113,7 +114,7 @@ bool StreamingStandardOutputFileMonitor::waitForInitialFileWrite() const
     return false;
 }
 
-void StreamingStandardOutputFileMonitor::monitorFile()
+void StreamingStandardOutputStatFileMonitor::monitorFile()
 {
     BUILDBOX_LOG_TRACE("Started monitoring thread for " << d_filePath);
 

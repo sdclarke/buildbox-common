@@ -14,8 +14,8 @@
  * limitations under the License.
  */
 
-#ifndef INCLUDED_BUILDBOXCOMMON_STREAMINGSTANDARDOUTPUTFILEMONITOR
-#define INCLUDED_BUILDBOXCOMMON_STREAMINGSTANDARDOUTPUTFILEMONITOR
+#ifndef INCLUDED_BUILDBOXCOMMON_STREAMINGSTANDARDOUTPUTSTATFILEMONITOR
+#define INCLUDED_BUILDBOXCOMMON_STREAMINGSTANDARDOUTPUTSTATFILEMONITOR
 
 #include <atomic>
 #include <chrono>
@@ -24,7 +24,7 @@
 #include <thread>
 
 namespace buildboxcommon {
-class StreamingStandardOutputFileMonitor final {
+class StreamingStandardOutputStatFileMonitor final {
     /*
      * This class allows to read a file that is being written by a process that
      * is redirecting its standard output (stdout/stderr) to it. As the file
@@ -58,10 +58,10 @@ class StreamingStandardOutputFileMonitor final {
 
     // Spawns a thread that monitors a file for changes and reads it as it is
     // being written. When new data is available invokes the given callback.
-    StreamingStandardOutputFileMonitor(
+    StreamingStandardOutputStatFileMonitor(
         const std::string &path, const DataReadyCallback &dataReadyCallback);
 
-    ~StreamingStandardOutputFileMonitor();
+    ~StreamingStandardOutputStatFileMonitor();
 
     // Stop the monitoring thread.
     // To not lose any data, the caller should make sure that the reader has
@@ -69,10 +69,10 @@ class StreamingStandardOutputFileMonitor final {
     void stop();
 
     // Prevent copies of instances.
-    StreamingStandardOutputFileMonitor(
-        const StreamingStandardOutputFileMonitor &) = delete;
-    StreamingStandardOutputFileMonitor &
-    operator=(StreamingStandardOutputFileMonitor const &) = delete;
+    StreamingStandardOutputStatFileMonitor(
+        const StreamingStandardOutputStatFileMonitor &) = delete;
+    StreamingStandardOutputStatFileMonitor &
+    operator=(StreamingStandardOutputStatFileMonitor const &) = delete;
 
   private:
     const std::string d_filePath;
