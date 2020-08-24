@@ -17,6 +17,8 @@
 #ifndef INCLUDED_BUILDBOXCOMMON_STREAMINGSTANDARDOUTPUTSTATFILEMONITOR
 #define INCLUDED_BUILDBOXCOMMON_STREAMINGSTANDARDOUTPUTSTATFILEMONITOR
 
+#include <buildboxcommon_streamingstandardoutputfilemonitor.h>
+
 #include <atomic>
 #include <chrono>
 #include <functional>
@@ -24,7 +26,8 @@
 #include <thread>
 
 namespace buildboxcommon {
-class StreamingStandardOutputStatFileMonitor final {
+class StreamingStandardOutputStatFileMonitor final
+    : public StreamingStandardOutputFileMonitor {
     /*
      * This class allows to read a file that is being written by a process that
      * is redirecting its standard output (stdout/stderr) to it. As the file
@@ -37,36 +40,17 @@ class StreamingStandardOutputStatFileMonitor final {
      */
 
   public:
-    struct FileChunk {
-        FileChunk(const char *ptr, const size_t size)
-            : d_ptr(ptr), d_size(size)
-        {
-        }
-
-        const char *ptr() const { return d_ptr; }
-        const size_t &size() const { return d_size; }
-
-      private:
-        const char *const d_ptr;
-        const size_t d_size;
-    };
-
-    // Callback invoked with the data that is made available.
-    // Note that this will cause the monitor to block until its return, so no
-    // new data will be read until the callback is done.
-    typedef std::function<void(const FileChunk &)> DataReadyCallback;
-
     // Spawns a thread that monitors a file for changes and reads it as it is
     // being written. When new data is available invokes the given callback.
     StreamingStandardOutputStatFileMonitor(
         const std::string &path, const DataReadyCallback &dataReadyCallback);
 
-    ~StreamingStandardOutputStatFileMonitor();
+    ~StreamingStandardOutputStatFileMonitor() override;
 
     // Stop the monitoring thread.
     // To not lose any data, the caller should make sure that the reader has
     // stopped writing to and closed the file.
-    void stop();
+    void stop() override;
 
     // Prevent copies of instances.
     StreamingStandardOutputStatFileMonitor(
@@ -84,8 +68,6 @@ class StreamingStandardOutputStatFileMonitor final {
 
     // Time waited before polling for new changes:
     static const std::chrono::milliseconds s_pollInterval;
-
-    static int openFile(const std::string &path);
 
     // Thread that performs the monitoring and, when data is available, reads
     // from the file and invokes the callback.

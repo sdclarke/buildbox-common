@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#ifdef FILEMONITOR_USE_INOTIFY
 
 #include <buildboxcommon_streamingstandardoutputinotifyfilemonitor.h>
 
@@ -37,31 +38,13 @@
 #define INOTIFY_BUFFER_SIZE                                                   \
     ((INOTIFY_MAX_NUMBER_OF_EVENTS) * (INOTIFY_EVENT_MAX_SIZE))
 
-namespace {
-size_t readBufferSizeBytes()
-{
-    const auto pageSizeBytes = sysconf(_SC_PAGESIZE);
-    if (pageSizeBytes == -1) {
-        const auto defaultBufferSizeBytes = 4096;
-        BUILDBOX_LOG_ERROR("Could not read `sysconf(_SC_PAGESIZE)`, setting "
-                           "the size of the read buffer to "
-                           << defaultBufferSizeBytes << "bytes");
-        return defaultBufferSizeBytes;
-    }
-
-    BUILDBOX_LOG_TRACE("Setting the size of the read buffer to "
-                       << pageSizeBytes << " bytes");
-    return static_cast<size_t>(pageSizeBytes);
-}
-
-} // namespace
-
 namespace buildboxcommon {
 
 StreamingStandardOutputInotifyFileMonitor::
     StreamingStandardOutputInotifyFileMonitor(
         const std::string &path, const DataReadyCallback &readCallback)
-    : d_filePath(path), d_fileFd(openFile(d_filePath)),
+    : d_filePath(path),
+      d_fileFd(StreamingStandardOutputFileMonitor::openFile(d_filePath)),
       d_dataReadyCallback(readCallback), d_stopRequested(false),
       d_monitoringThread(
           &StreamingStandardOutputInotifyFileMonitor::monitorFile, this),
@@ -108,18 +91,6 @@ void StreamingStandardOutputInotifyFileMonitor::stop()
         d_stopRequested = true;
         d_monitoringThread.join();
     }
-}
-
-int StreamingStandardOutputInotifyFileMonitor::openFile(
-    const std::string &path)
-{
-    const int fd = open(path.c_str(), O_RDONLY);
-    if (fd == -1) {
-        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(std::system_error, errno,
-                                              std::system_category,
-                                              "Error opening file " << path);
-    }
-    return fd;
 }
 
 int StreamingStandardOutputInotifyFileMonitor::waitForInotify() const
@@ -235,7 +206,7 @@ void StreamingStandardOutputInotifyFileMonitor::monitorFile()
     // too soon after initialization, we'll run these number of extra cycles
     // after `d_stopRequested` is set. That way we give the loop a chance to
     // detect, read and stream the changes before shutting down.
-    int timeoutCyclesAfterStop = 2;
+    int timeoutCyclesAfterStop = 3;
 
     while (true) {
         // Poll the inotify instance for changes. If its FD becomes ready, it
@@ -284,3 +255,5 @@ void StreamingStandardOutputInotifyFileMonitor::monitorFile()
 }
 
 } // namespace buildboxcommon
+
+#endif

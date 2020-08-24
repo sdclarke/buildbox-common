@@ -100,7 +100,7 @@ TEST_F(StreamingStandardOutputStatFileMonitorTestFixture, ReadDataAndStop)
     ASSERT_EQ(data_read, "Hello, world!\n");
 }
 
-TEST_F(StreamingStandardOutputFileMonitorTestFixture,
+TEST_F(StreamingStandardOutputStatFileMonitorTestFixture,
        ReadDataAndStopLargeChunks)
 {
     std::string data_read;

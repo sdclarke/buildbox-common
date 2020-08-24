@@ -102,6 +102,11 @@ else()
     target_include_directories(buildboxcommon SYSTEM PRIVATE ${PROTO_GEN_DIR})
 endif()
 
+check_include_file_cxx("sys/inotify.h" HAVE_INOTIFY)
+if (HAVE_INOTIFY)
+    target_compile_definitions(buildboxcommon PUBLIC FILEMONITOR_USE_INOTIFY)
+endif()
+
 set_source_files_properties(${PROTO_GENERATED_SRCS} PROPERTIES GENERATED 1)
 add_dependencies(buildboxcommon generate_protobufs)
 

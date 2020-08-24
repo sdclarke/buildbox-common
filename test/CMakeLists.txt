@@ -71,9 +71,13 @@ add_buildboxcommon_test(metrics_testingutils_test buildboxcommonmetrics_testingu
 add_buildboxcommon_test(metrics_udpwriter_test buildboxcommonmetrics_udpwriter_test.t.cpp)
 add_buildboxcommon_test(commandline_test buildboxcommon_commandline.t.cpp)
 add_buildboxcommon_test(streamingstandardoutputstatfilemonitor buildboxcommon_streamingstandardoutputstatfilemonitor.t.cpp)
-add_buildboxcommon_test(streamingstandardoutputinotifyfilemonitor buildboxcommon_streamingstandardoutputinotifyfilemonitor.t.cpp)
 add_buildboxcommon_test(connectionoptions_commandline_test buildboxcommon_connectionoptions_commandline.t.cpp)
 add_buildboxcommon_test(scopeguard_tests buildboxcommon_scopeguard.t.cpp)
+
+if(HAVE_INOTIFY)
+    add_buildboxcommon_test(streamingstandardoutputinotifyfilemonitor
+        buildboxcommon_streamingstandardoutputinotifyfilemonitor.t.cpp)
+endif()
 
 # These tests use a different cwd.
 add_buildboxcommon_test(cashash_tests buildboxcommon_cashash.t.cpp ${CMAKE_CURRENT_SOURCE_DIR}/data/)

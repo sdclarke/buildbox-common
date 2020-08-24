@@ -24,25 +24,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-namespace {
-size_t readBufferSizeBytes()
-{
-    const auto pageSizeBytes = sysconf(_SC_PAGESIZE);
-    if (pageSizeBytes == -1) {
-        const auto defaultBufferSizeBytes = 4096;
-        BUILDBOX_LOG_ERROR("Could not read `sysconf(_SC_PAGESIZE)`, setting "
-                           "the size of the read buffer to "
-                           << defaultBufferSizeBytes << "bytes");
-        return defaultBufferSizeBytes;
-    }
-
-    BUILDBOX_LOG_TRACE("Setting the size of the read buffer to "
-                       << pageSizeBytes << " bytes");
-    return static_cast<size_t>(pageSizeBytes);
-}
-
-} // namespace
-
 namespace buildboxcommon {
 
 // Invoke `dataReadyCallback()` with at least this number of bytes:
@@ -54,11 +35,13 @@ const std::chrono::milliseconds
 
 StreamingStandardOutputStatFileMonitor::StreamingStandardOutputStatFileMonitor(
     const std::string &path, const DataReadyCallback &readCallback)
-    : d_filePath(path), d_fileFd(openFile(d_filePath)),
+    : d_filePath(path),
+      d_fileFd(StreamingStandardOutputFileMonitor::openFile(d_filePath)),
       d_dataReadyCallback(readCallback), d_stopRequested(false),
       d_monitoringThread(&StreamingStandardOutputStatFileMonitor::monitorFile,
                          this),
-      d_read_buffer_size(readBufferSizeBytes()),
+      d_read_buffer_size(
+          StreamingStandardOutputFileMonitor ::readBufferSizeBytes()),
       d_read_buffer(std::make_unique<char[]>(d_read_buffer_size)),
       d_read_buffer_offset(0)
 {
@@ -77,17 +60,6 @@ void StreamingStandardOutputStatFileMonitor::stop()
         d_stopRequested = true;
         d_monitoringThread.join();
     }
-}
-
-int StreamingStandardOutputStatFileMonitor::openFile(const std::string &path)
-{
-    const int fd = open(path.c_str(), O_RDONLY);
-    if (fd == -1) {
-        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(std::system_error, errno,
-                                              std::system_category,
-                                              "Error opening file " << path);
-    }
-    return fd;
 }
 
 bool StreamingStandardOutputStatFileMonitor::waitForInitialFileWrite() const

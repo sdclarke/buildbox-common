@@ -16,6 +16,10 @@
 #ifndef INCLUDED_BUILDBOXCOMMON_STREAMINGSTANDARDOUTPUTINOTIFYFILEMONITOR
 #define INCLUDED_BUILDBOXCOMMON_STREAMINGSTANDARDOUTPUTINOTIFYFILEMONITOR
 
+#ifdef FILEMONITOR_USE_INOTIFY
+
+#include <buildboxcommon_streamingstandardoutputfilemonitor.h>
+
 #include <atomic>
 #include <chrono>
 #include <functional>
@@ -26,7 +30,8 @@
 #include <sys/inotify.h>
 
 namespace buildboxcommon {
-class StreamingStandardOutputInotifyFileMonitor final {
+class StreamingStandardOutputInotifyFileMonitor final
+    : public StreamingStandardOutputFileMonitor {
     /*
      * This class allows to read a file that is being written by a process that
      * is redirecting its standard output (stdout/stderr) to it. As the file
@@ -50,36 +55,17 @@ class StreamingStandardOutputInotifyFileMonitor final {
      */
 
   public:
-    struct FileChunk {
-        FileChunk(const char *ptr, const size_t size)
-            : d_ptr(ptr), d_size(size)
-        {
-        }
-
-        const char *ptr() const { return d_ptr; }
-        const size_t &size() const { return d_size; }
-
-      private:
-        const char *const d_ptr;
-        const size_t d_size;
-    };
-
-    // Callback invoked with the data that is made available.
-    // Note that this will cause the monitor to block until its return, so no
-    // new data will be read until the callback is done.
-    typedef std::function<void(const FileChunk &)> DataReadyCallback;
-
     // Spawns a thread that monitors a file for changes and reads it as it is
     // being written. When new data is available invokes the given callback.
     StreamingStandardOutputInotifyFileMonitor(
         const std::string &path, const DataReadyCallback &dataReadyCallback);
 
-    ~StreamingStandardOutputInotifyFileMonitor();
+    ~StreamingStandardOutputInotifyFileMonitor() override;
 
     // Stop the monitoring thread.
     // To not lose any data, the caller should make sure that the reader has
     // stopped writing to and closed the file.
-    void stop();
+    void stop() override;
 
     // Prevent copies of instances.
     StreamingStandardOutputInotifyFileMonitor(
@@ -97,8 +83,6 @@ class StreamingStandardOutputInotifyFileMonitor final {
     const DataReadyCallback d_dataReadyCallback;
     std::atomic<bool> d_stopRequested;
     std::thread d_monitoringThread;
-
-    static int openFile(const std::string &path);
 
     // Thread that performs the monitoring and, when data is available, reads
     // from the file and invokes the callback.
@@ -124,5 +108,6 @@ class StreamingStandardOutputInotifyFileMonitor final {
     bool readFileAndStream();
 };
 } // namespace buildboxcommon
+#endif
 
 #endif

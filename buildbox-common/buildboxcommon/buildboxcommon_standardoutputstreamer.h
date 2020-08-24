@@ -19,7 +19,12 @@
 
 #include <buildboxcommon_connectionoptions.h>
 #include <buildboxcommon_logstreamwriter.h>
+
+#ifdef FILEMONITOR_USE_INOTIFY
+#include <buildboxcommon_streamingstandardoutputinotifyfilemonitor.h>
+#else
 #include <buildboxcommon_streamingstandardoutputstatfilemonitor.h>
+#endif
 
 #include <string>
 
@@ -46,15 +51,20 @@ class StandardOutputStreamer {
     bool stop();
 
   private:
-    void streamLogChunk(
-        const StreamingStandardOutputStatFileMonitor::FileChunk &chunk);
+    void
+    streamLogChunk(const StreamingStandardOutputFileMonitor::FileChunk &chunk);
 
     const std::string d_filePath;
     const std::string d_url;
     const std::string d_resourceName;
 
     LogStreamWriter d_logstreamWriter;
+
+#ifdef FILEMONITOR_USE_INOTIFY
+    StreamingStandardOutputInotifyFileMonitor d_fileMonitor;
+#else
     StreamingStandardOutputStatFileMonitor d_fileMonitor;
+#endif
 
     bool d_stopRequested;
 };
