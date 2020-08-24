@@ -109,5 +109,7 @@ class StreamingStandardOutputInotifyFileMonitor final
 };
 } // namespace buildboxcommon
 #endif
-
+#else
+#error                                                                        \
+    "The `StreamingStandardOutputInotifyFileMonitor` class is not available on this system."
 #endif
