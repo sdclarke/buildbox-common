@@ -17,6 +17,7 @@
 #include <buildboxcommon_connectionoptions_commandline.h>
 
 #include <buildboxcommon_connectionoptions.h>
+#include <buildboxcommon_logging.h>
 
 namespace buildboxcommon {
 
@@ -78,43 +79,48 @@ ConnectionOptionsCommandLine::ConnectionOptionsCommandLine(
                         DefaultValue("1000"));
 }
 
-bool ConnectionOptionsCommandLine::configureClient(const CommandLine &cml,
-                                                   const std::string &prefix,
-                                                   ConnectionOptions *client)
+bool ConnectionOptionsCommandLine::configureClient(
+    const CommandLine &cml, const std::string &commandLinePrefix,
+    ConnectionOptions *client)
 {
-    std::string optionName = prefix + "remote";
+    if (client == nullptr) {
+        BUILDBOX_LOG_ERROR("invalid argument: 'client' is nullptr");
+        return false;
+    }
+
+    std::string optionName = commandLinePrefix + "remote";
     client->d_url =
         cml.exists(optionName) ? cml.getString(optionName).c_str() : nullptr;
 
-    optionName = prefix + "instance";
+    optionName = commandLinePrefix + "instance";
     client->d_instanceName =
         cml.exists(optionName) ? cml.getString(optionName).c_str() : nullptr;
 
-    optionName = prefix + "server-cert";
+    optionName = commandLinePrefix + "server-cert";
     client->d_serverCertPath =
         cml.exists(optionName) ? cml.getString(optionName).c_str() : nullptr;
 
-    optionName = prefix + "client-key";
+    optionName = commandLinePrefix + "client-key";
     client->d_clientKeyPath =
         cml.exists(optionName) ? cml.getString(optionName).c_str() : nullptr;
 
-    optionName = prefix + "client-cert";
+    optionName = commandLinePrefix + "client-cert";
     client->d_clientCertPath =
         cml.exists(optionName) ? cml.getString(optionName).c_str() : nullptr;
 
-    optionName = prefix + "access-token";
+    optionName = commandLinePrefix + "access-token";
     client->d_accessTokenPath =
         cml.exists(optionName) ? cml.getString(optionName).c_str() : nullptr;
 
-    optionName = prefix + "googleapi-auth";
+    optionName = commandLinePrefix + "googleapi-auth";
     client->d_useGoogleApiAuth =
         cml.exists(optionName) ? cml.getBool(optionName) : false;
 
-    optionName = prefix + "retry-limit";
+    optionName = commandLinePrefix + "retry-limit";
     client->d_retryLimit =
         cml.exists(optionName) ? cml.getString(optionName).c_str() : nullptr;
 
-    optionName = prefix + "retry-delay";
+    optionName = commandLinePrefix + "retry-delay";
     client->d_retryDelay =
         cml.exists(optionName) ? cml.getString(optionName).c_str() : nullptr;
 

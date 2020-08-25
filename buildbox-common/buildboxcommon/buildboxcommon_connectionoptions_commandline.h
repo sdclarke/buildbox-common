@@ -32,7 +32,7 @@ class ConnectionOptionsCommandLine {
                                  const std::string &commandLinePrefix);
 
     static bool configureClient(const CommandLine &cml,
-                                const std::string &prefix,
+                                const std::string &commandLinePrefix,
                                 ConnectionOptions *client);
 
     const std::vector<buildboxcommon::CommandLineTypes::ArgumentSpec> &
