@@ -32,11 +32,12 @@ ConnectionOptionsCommandLine::ConnectionOptionsCommandLine(
     d_spec.emplace_back(commandLinePrefix + "remote",
                         "URL for the " + serviceName + " service",
                         TypeInfo(DataType::COMMANDLINE_DT_STRING),
-                        ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG);
+                        ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG);
     d_spec.emplace_back(commandLinePrefix + "instance",
                         "Name of the " + serviceName + " instance",
                         TypeInfo(DataType::COMMANDLINE_DT_STRING),
-                        ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG);
+                        ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG,
+                        DefaultValue(""));
     d_spec.emplace_back(commandLinePrefix + "server-cert",
                         "Public server certificate for " + serviceName +
                             " TLS (PEM-encoded)",

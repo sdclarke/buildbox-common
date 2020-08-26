@@ -36,6 +36,11 @@ const char *argvTest[] = {
     "--cas-retry-limit=10",
     "--cas-retry-delay=500"
 };
+
+const char *argvTestRequiredOnly[] = {
+    "/some/path/to/some_program.tsk",
+    "--cas-remote=http://127.0.0.1:50011"
+};
 // clang-format on
 
 TEST(ConnectionOptionsCommandLineTest, BasicTest)
@@ -78,4 +83,36 @@ TEST(ConnectionOptionsCommandLineTest, BasicTest)
 
     ASSERT_TRUE(client.d_retryDelay != nullptr);
     EXPECT_STREQ("500", client.d_retryDelay);
+}
+
+TEST(ConnectionOptionsCommandLineTest, RequiredTest)
+{
+    ConnectionOptionsCommandLine spec("CAS", "cas-");
+    CommandLine commandLine(spec.spec());
+
+    EXPECT_TRUE(
+        commandLine.parse(sizeof(argvTestRequiredOnly) / sizeof(const char *),
+                          argvTestRequiredOnly));
+
+    ConnectionOptions client;
+    EXPECT_TRUE(ConnectionOptionsCommandLine::configureClient(
+        commandLine, "cas-", &client));
+
+    ASSERT_TRUE(client.d_url != nullptr);
+    EXPECT_STREQ("http://127.0.0.1:50011", client.d_url);
+
+    ASSERT_TRUE(client.d_instanceName != nullptr);
+    EXPECT_STREQ("", client.d_instanceName);
+
+    EXPECT_TRUE(client.d_serverCertPath == nullptr);
+    EXPECT_TRUE(client.d_clientKeyPath == nullptr);
+    EXPECT_TRUE(client.d_clientCertPath == nullptr);
+    EXPECT_TRUE(client.d_accessTokenPath == nullptr);
+    EXPECT_FALSE(client.d_useGoogleApiAuth);
+
+    ASSERT_TRUE(client.d_retryLimit != nullptr);
+    EXPECT_STREQ("4", client.d_retryLimit);
+
+    ASSERT_TRUE(client.d_retryDelay != nullptr);
+    EXPECT_STREQ("1000", client.d_retryDelay);
 }
