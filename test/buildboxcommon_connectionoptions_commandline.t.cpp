@@ -37,13 +37,17 @@ const char *argvTest[] = {
     "--cas-retry-delay=500"
 };
 
-const char *argvTestRequiredOnly[] = {
+const char *argvTestDefaults[] = {
     "/some/path/to/some_program.tsk",
     "--cas-remote=http://127.0.0.1:50011"
 };
+
+const char *argvTestRequired[] = {
+    "/some/path/to/some_program.tsk"
+};
 // clang-format on
 
-TEST(ConnectionOptionsCommandLineTest, BasicTest)
+TEST(ConnectionOptionsCommandLineTest, Test)
 {
     ConnectionOptionsCommandLine spec("CAS", "cas-");
     CommandLine commandLine(spec.spec());
@@ -85,14 +89,13 @@ TEST(ConnectionOptionsCommandLineTest, BasicTest)
     EXPECT_STREQ("500", client.d_retryDelay);
 }
 
-TEST(ConnectionOptionsCommandLineTest, RequiredTest)
+TEST(ConnectionOptionsCommandLineTest, TestDefaults)
 {
     ConnectionOptionsCommandLine spec("CAS", "cas-");
     CommandLine commandLine(spec.spec());
 
-    EXPECT_TRUE(
-        commandLine.parse(sizeof(argvTestRequiredOnly) / sizeof(const char *),
-                          argvTestRequiredOnly));
+    EXPECT_TRUE(commandLine.parse(
+        sizeof(argvTestDefaults) / sizeof(const char *), argvTestDefaults));
 
     ConnectionOptions client;
     EXPECT_TRUE(ConnectionOptionsCommandLine::configureClient(
@@ -101,18 +104,27 @@ TEST(ConnectionOptionsCommandLineTest, RequiredTest)
     ASSERT_TRUE(client.d_url != nullptr);
     EXPECT_STREQ("http://127.0.0.1:50011", client.d_url);
 
+    // test default values
     ASSERT_TRUE(client.d_instanceName != nullptr);
     EXPECT_STREQ("", client.d_instanceName);
+    EXPECT_FALSE(client.d_useGoogleApiAuth);
+    ASSERT_TRUE(client.d_retryLimit != nullptr);
+    EXPECT_STREQ("4", client.d_retryLimit);
+    ASSERT_TRUE(client.d_retryDelay != nullptr);
+    EXPECT_STREQ("1000", client.d_retryDelay);
 
+    // untouched
     EXPECT_TRUE(client.d_serverCertPath == nullptr);
     EXPECT_TRUE(client.d_clientKeyPath == nullptr);
     EXPECT_TRUE(client.d_clientCertPath == nullptr);
     EXPECT_TRUE(client.d_accessTokenPath == nullptr);
-    EXPECT_FALSE(client.d_useGoogleApiAuth);
+}
 
-    ASSERT_TRUE(client.d_retryLimit != nullptr);
-    EXPECT_STREQ("4", client.d_retryLimit);
+TEST(ConnectionOptionsCommandLineTest, TestRequired)
+{
+    ConnectionOptionsCommandLine spec("CAS", "cas-", true);
+    CommandLine commandLine(spec.spec());
 
-    ASSERT_TRUE(client.d_retryDelay != nullptr);
-    EXPECT_STREQ("1000", client.d_retryDelay);
+    EXPECT_FALSE(commandLine.parse(
+        sizeof(argvTestRequired) / sizeof(const char *), argvTestRequired));
 }

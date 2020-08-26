@@ -27,12 +27,15 @@ using TypeInfo = buildboxcommon::CommandLineTypes::TypeInfo;
 using DefaultValue = buildboxcommon::CommandLineTypes::DefaultValue;
 
 ConnectionOptionsCommandLine::ConnectionOptionsCommandLine(
-    const std::string &serviceName, const std::string &commandLinePrefix)
+    const std::string &serviceName, const std::string &commandLinePrefix,
+    const bool remoteRequired)
 {
-    d_spec.emplace_back(commandLinePrefix + "remote",
-                        "URL for the " + serviceName + " service",
-                        TypeInfo(DataType::COMMANDLINE_DT_STRING),
-                        ArgumentSpec::O_REQUIRED, ArgumentSpec::C_WITH_ARG);
+    d_spec.emplace_back(
+        commandLinePrefix + "remote",
+        "URL for the " + serviceName + " service",
+        TypeInfo(DataType::COMMANDLINE_DT_STRING),
+        (remoteRequired ? ArgumentSpec::O_REQUIRED : ArgumentSpec::O_OPTIONAL),
+        ArgumentSpec::C_WITH_ARG);
     d_spec.emplace_back(commandLinePrefix + "instance",
                         "Name of the " + serviceName + " instance",
                         TypeInfo(DataType::COMMANDLINE_DT_STRING),
