@@ -30,7 +30,7 @@ class ConnectionOptionsCommandLine {
   public:
     ConnectionOptionsCommandLine(const std::string &serviceName,
                                  const std::string &commandLinePrefix,
-                                 const bool requiredRemote = false);
+                                 const bool connectionRequired = false);
 
     static bool configureClient(const CommandLine &cml,
                                 const std::string &commandLinePrefix,
