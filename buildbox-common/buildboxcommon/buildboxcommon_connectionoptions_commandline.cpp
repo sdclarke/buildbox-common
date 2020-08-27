@@ -83,49 +83,49 @@ ConnectionOptionsCommandLine::ConnectionOptionsCommandLine(
                         DefaultValue("1000"));
 }
 
-bool ConnectionOptionsCommandLine::configureClient(
+bool ConnectionOptionsCommandLine::configureChannel(
     const CommandLine &cml, const std::string &commandLinePrefix,
-    ConnectionOptions *client)
+    ConnectionOptions *channel)
 {
-    if (client == nullptr) {
-        BUILDBOX_LOG_ERROR("invalid argument: 'client' is nullptr");
+    if (channel == nullptr) {
+        BUILDBOX_LOG_ERROR("invalid argument: 'channel' is nullptr");
         return false;
     }
 
     std::string optionName = commandLinePrefix + "remote";
-    client->d_url =
+    channel->d_url =
         cml.exists(optionName) ? cml.getString(optionName).c_str() : nullptr;
 
     optionName = commandLinePrefix + "instance";
-    client->d_instanceName =
+    channel->d_instanceName =
         cml.exists(optionName) ? cml.getString(optionName).c_str() : nullptr;
 
     optionName = commandLinePrefix + "server-cert";
-    client->d_serverCertPath =
+    channel->d_serverCertPath =
         cml.exists(optionName) ? cml.getString(optionName).c_str() : nullptr;
 
     optionName = commandLinePrefix + "client-key";
-    client->d_clientKeyPath =
+    channel->d_clientKeyPath =
         cml.exists(optionName) ? cml.getString(optionName).c_str() : nullptr;
 
     optionName = commandLinePrefix + "client-cert";
-    client->d_clientCertPath =
+    channel->d_clientCertPath =
         cml.exists(optionName) ? cml.getString(optionName).c_str() : nullptr;
 
     optionName = commandLinePrefix + "access-token";
-    client->d_accessTokenPath =
+    channel->d_accessTokenPath =
         cml.exists(optionName) ? cml.getString(optionName).c_str() : nullptr;
 
     optionName = commandLinePrefix + "googleapi-auth";
-    client->d_useGoogleApiAuth =
+    channel->d_useGoogleApiAuth =
         cml.exists(optionName) ? cml.getBool(optionName) : false;
 
     optionName = commandLinePrefix + "retry-limit";
-    client->d_retryLimit =
+    channel->d_retryLimit =
         cml.exists(optionName) ? cml.getString(optionName).c_str() : nullptr;
 
     optionName = commandLinePrefix + "retry-delay";
-    client->d_retryDelay =
+    channel->d_retryDelay =
         cml.exists(optionName) ? cml.getString(optionName).c_str() : nullptr;
 
     return true;

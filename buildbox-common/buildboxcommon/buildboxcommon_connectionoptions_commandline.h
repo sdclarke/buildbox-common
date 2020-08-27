@@ -32,9 +32,9 @@ class ConnectionOptionsCommandLine {
                                  const std::string &commandLinePrefix,
                                  const bool connectionRequired = false);
 
-    static bool configureClient(const CommandLine &cml,
-                                const std::string &commandLinePrefix,
-                                ConnectionOptions *client);
+    static bool configureChannel(const CommandLine &cml,
+                                 const std::string &commandLinePrefix,
+                                 ConnectionOptions *channel);
 
     const std::vector<buildboxcommon::CommandLineTypes::ArgumentSpec> &
     spec() const

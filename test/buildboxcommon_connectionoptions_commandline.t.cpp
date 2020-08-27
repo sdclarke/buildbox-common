@@ -55,38 +55,38 @@ TEST(ConnectionOptionsCommandLineTest, Test)
     EXPECT_TRUE(
         commandLine.parse(sizeof(argvTest) / sizeof(const char *), argvTest));
 
-    EXPECT_FALSE(ConnectionOptionsCommandLine::configureClient(
+    EXPECT_FALSE(ConnectionOptionsCommandLine::configureChannel(
         commandLine, "cas-", nullptr));
 
-    ConnectionOptions client;
-    EXPECT_TRUE(ConnectionOptionsCommandLine::configureClient(
-        commandLine, "cas-", &client));
+    ConnectionOptions channel;
+    EXPECT_TRUE(ConnectionOptionsCommandLine::configureChannel(
+        commandLine, "cas-", &channel));
 
-    ASSERT_TRUE(client.d_url != nullptr);
-    EXPECT_STREQ("http://127.0.0.1:50011", client.d_url);
+    ASSERT_TRUE(channel.d_url != nullptr);
+    EXPECT_STREQ("http://127.0.0.1:50011", channel.d_url);
 
-    ASSERT_TRUE(client.d_instanceName != nullptr);
-    EXPECT_STREQ("dev", client.d_instanceName);
+    ASSERT_TRUE(channel.d_instanceName != nullptr);
+    EXPECT_STREQ("dev", channel.d_instanceName);
 
-    ASSERT_TRUE(client.d_serverCertPath != nullptr);
-    EXPECT_STREQ("my-server-cert", client.d_serverCertPath);
+    ASSERT_TRUE(channel.d_serverCertPath != nullptr);
+    EXPECT_STREQ("my-server-cert", channel.d_serverCertPath);
 
-    ASSERT_TRUE(client.d_clientKeyPath != nullptr);
-    EXPECT_STREQ("my-client-key", client.d_clientKeyPath);
+    ASSERT_TRUE(channel.d_clientKeyPath != nullptr);
+    EXPECT_STREQ("my-client-key", channel.d_clientKeyPath);
 
-    ASSERT_TRUE(client.d_clientCertPath != nullptr);
-    EXPECT_STREQ("my-client-cert", client.d_clientCertPath);
+    ASSERT_TRUE(channel.d_clientCertPath != nullptr);
+    EXPECT_STREQ("my-client-cert", channel.d_clientCertPath);
 
-    ASSERT_TRUE(client.d_accessTokenPath != nullptr);
-    EXPECT_STREQ("my-access-token", client.d_accessTokenPath);
+    ASSERT_TRUE(channel.d_accessTokenPath != nullptr);
+    EXPECT_STREQ("my-access-token", channel.d_accessTokenPath);
 
-    EXPECT_TRUE(client.d_useGoogleApiAuth);
+    EXPECT_TRUE(channel.d_useGoogleApiAuth);
 
-    ASSERT_TRUE(client.d_retryLimit != nullptr);
-    EXPECT_STREQ("10", client.d_retryLimit);
+    ASSERT_TRUE(channel.d_retryLimit != nullptr);
+    EXPECT_STREQ("10", channel.d_retryLimit);
 
-    ASSERT_TRUE(client.d_retryDelay != nullptr);
-    EXPECT_STREQ("500", client.d_retryDelay);
+    ASSERT_TRUE(channel.d_retryDelay != nullptr);
+    EXPECT_STREQ("500", channel.d_retryDelay);
 }
 
 TEST(ConnectionOptionsCommandLineTest, TestDefaults)
@@ -97,27 +97,27 @@ TEST(ConnectionOptionsCommandLineTest, TestDefaults)
     EXPECT_TRUE(commandLine.parse(
         sizeof(argvTestDefaults) / sizeof(const char *), argvTestDefaults));
 
-    ConnectionOptions client;
-    EXPECT_TRUE(ConnectionOptionsCommandLine::configureClient(
-        commandLine, "cas-", &client));
+    ConnectionOptions channel;
+    EXPECT_TRUE(ConnectionOptionsCommandLine::configureChannel(
+        commandLine, "cas-", &channel));
 
-    ASSERT_TRUE(client.d_url != nullptr);
-    EXPECT_STREQ("http://127.0.0.1:50011", client.d_url);
+    ASSERT_TRUE(channel.d_url != nullptr);
+    EXPECT_STREQ("http://127.0.0.1:50011", channel.d_url);
 
     // test default values
-    ASSERT_TRUE(client.d_instanceName != nullptr);
-    EXPECT_STREQ("", client.d_instanceName);
-    EXPECT_FALSE(client.d_useGoogleApiAuth);
-    ASSERT_TRUE(client.d_retryLimit != nullptr);
-    EXPECT_STREQ("4", client.d_retryLimit);
-    ASSERT_TRUE(client.d_retryDelay != nullptr);
-    EXPECT_STREQ("1000", client.d_retryDelay);
+    ASSERT_TRUE(channel.d_instanceName != nullptr);
+    EXPECT_STREQ("", channel.d_instanceName);
+    EXPECT_FALSE(channel.d_useGoogleApiAuth);
+    ASSERT_TRUE(channel.d_retryLimit != nullptr);
+    EXPECT_STREQ("4", channel.d_retryLimit);
+    ASSERT_TRUE(channel.d_retryDelay != nullptr);
+    EXPECT_STREQ("1000", channel.d_retryDelay);
 
     // untouched
-    EXPECT_TRUE(client.d_serverCertPath == nullptr);
-    EXPECT_TRUE(client.d_clientKeyPath == nullptr);
-    EXPECT_TRUE(client.d_clientCertPath == nullptr);
-    EXPECT_TRUE(client.d_accessTokenPath == nullptr);
+    EXPECT_TRUE(channel.d_serverCertPath == nullptr);
+    EXPECT_TRUE(channel.d_clientKeyPath == nullptr);
+    EXPECT_TRUE(channel.d_clientCertPath == nullptr);
+    EXPECT_TRUE(channel.d_accessTokenPath == nullptr);
 }
 
 TEST(ConnectionOptionsCommandLineTest, TestRequired)
