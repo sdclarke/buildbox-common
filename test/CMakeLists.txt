@@ -72,6 +72,8 @@ add_buildboxcommon_test(metrics_udpwriter_test buildboxcommonmetrics_udpwriter_t
 add_buildboxcommon_test(commandline_test buildboxcommon_commandline.t.cpp)
 add_buildboxcommon_test(streamingstandardoutputfilemonitor buildboxcommon_streamingstandardoutputfilemonitor.t.cpp)
 add_buildboxcommon_test(connectionoptions_commandline_test buildboxcommon_connectionoptions_commandline.t.cpp)
+add_buildboxcommon_test(scopeguard_tests buildboxcommon_scopeguard.t.cpp)
+
 
 # These tests use a different cwd.
 add_buildboxcommon_test(cashash_tests buildboxcommon_cashash.t.cpp ${CMAKE_CURRENT_SOURCE_DIR}/data/)
