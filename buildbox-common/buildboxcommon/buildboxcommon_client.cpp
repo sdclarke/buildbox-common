@@ -473,8 +473,8 @@ void Client::upload(int fd, const Digest &digest)
 
     lseek(fd, 0, SEEK_SET);
 
+    WriteResponse response;
     auto uploadLambda = [&](grpc::ClientContext &context) {
-        WriteResponse response;
         auto writer = this->d_bytestreamClient->Write(&context, &response);
 
         ssize_t offset = 0;
@@ -507,9 +507,7 @@ void Client::upload(int fd, const Digest &digest)
             }
 
             if (!writer->Write(request)) {
-                BUILDBOXCOMMON_THROW_EXCEPTION(
-                    std::runtime_error,
-                    "Upload of " << digest.hash() << " failed: broken stream");
+                break;
             }
 
             offset += bytesRead;
@@ -517,10 +515,20 @@ void Client::upload(int fd, const Digest &digest)
 
         writer->WritesDone();
         auto status = writer->Finish();
-        if (offset != digest.size_bytes()) {
-            BUILDBOXCOMMON_THROW_EXCEPTION(std::runtime_error,
-                                           "Upload of " << digest.hash()
-                                                        << " failed");
+        if (!status.ok()) {
+            BUILDBOXCOMMON_THROW_EXCEPTION(
+                std::runtime_error, "Upload of "
+                                        << digest.hash()
+                                        << " failed: " << status.error_code()
+                                        << ": " << status.error_message());
+        }
+        if (response.committed_size() != digest.size_bytes()) {
+            BUILDBOXCOMMON_THROW_EXCEPTION(
+                std::runtime_error,
+                "Expected to upload "
+                    << digest.size_bytes() << " bytes for " << digest.hash()
+                    << ", but server reports " << response.committed_size()
+                    << " bytes committed");
         }
 
         BUILDBOX_LOG_DEBUG(resourceName << ": " << offset
