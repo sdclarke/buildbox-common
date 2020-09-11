@@ -196,6 +196,10 @@ class Runner {
      */
     bool parseArguments(int argc, char *argv[]);
 
+    // If set, `main()` will exit immediately after calling  `parseArguments()`
+    // with an exit code that represents its result.
+    bool d_validateParametersAndExit = false;
+
     /**
      * Upload the contents of `stdout` and `stderr` and return a pair
      * containing their digests in the same order.

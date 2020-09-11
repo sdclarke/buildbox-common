@@ -76,6 +76,11 @@ static void usage(const char *name)
            "contents written to stdout and stderr\n";
     std::clog << "    --capabilities              Print capabilities "
                  "supported by this runner\n";
+    std::clog << "    --validate-parameters       Only check whether all the "
+                 "required parameters are being passed and that no\n"
+                 "                                unknown options are given. "
+                 "Exits with a status code containing "
+                 "the result (0 if successful).\n";
     ConnectionOptions::printArgHelp(BUILDBOXCOMMON_RUNNER_USAGE_PAD_WIDTH);
 }
 
@@ -246,6 +251,13 @@ int Runner::main(int argc, char *argv[])
         printSpecialUsage();
         return 1;
     }
+    else if (this->d_validateParametersAndExit) {
+        BUILDBOX_LOG_DEBUG("Asked to only validate the CLI parameters "
+                           "(--validate-parameters) and the check "
+                           "suceeded: exiting 0.")
+        return 0;
+    }
+
     // -- Worker started --
     const auto worker_start_time = TimeUtils::now();
 
@@ -562,6 +574,9 @@ bool Runner::parseArguments(int argc, char *argv[])
 
                     printSpecialCapabilities();
                     exit(0);
+                }
+                else if (strcmp(arg, "validate-parameters") == 0) {
+                    this->d_validateParametersAndExit = true;
                 }
                 else {
                     std::cerr << "Invalid option " << argv[0] << std::endl;

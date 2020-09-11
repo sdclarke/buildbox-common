@@ -74,6 +74,48 @@ TEST(RunnerTest, PrintingUsageDoesntCrash)
     EXPECT_NO_THROW(runner.main(1, const_cast<char **>(argv)));
 }
 
+TEST(RunnerTest, ValidateParametersOptionEmptyArgumentList)
+{
+    TestRunner runner;
+    const char *argv[] = {"buildbox-run", "--validate-parameters", nullptr};
+    ASSERT_NE(runner.main(1, const_cast<char **>(argv)), 0);
+}
+
+TEST(RunnerTest, ValidateParametersOptionSuccess)
+{
+    TestRunner runner;
+    const char *argv[] = {"buildbox-run",
+                          "--remote=http://cas:50051",
+                          "--action=/path/to/action",
+                          "--action-result=/path/to/action-result",
+                          "--validate-parameters",
+                          nullptr};
+    ASSERT_EQ(runner.main(5, const_cast<char **>(argv)), 0);
+}
+
+TEST(RunnerTest, ValidateParametersOptionMissingOption)
+{
+    TestRunner runner;
+    // Not setting `--remote`:
+    const char *argv[] = {"buildbox-run", "--action=/path/to/action",
+                          "--action-result=/path/to/action-result",
+                          "--validate-parameters", nullptr};
+    ASSERT_NE(runner.main(4, const_cast<char **>(argv)), 0);
+}
+
+TEST(RunnerTest, ValidateParametersOptionExtraOption)
+{
+    TestRunner runner;
+    const char *argv[] = {"buildbox-run",
+                          "--remote=http://cas:50051",
+                          "--action=/path/to/action",
+                          "--action-result=/path/to/action-result",
+                          "--validate-parameters",
+                          "--this-option-is-NOT-valid",
+                          nullptr};
+    ASSERT_NE(runner.main(6, const_cast<char **>(argv)), 0);
+}
+
 void assert_metadata_execution_timestamps_set(const ActionResult &result)
 {
     // `ExecutedActionMetadata` execution timestamps are set:
