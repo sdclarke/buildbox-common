@@ -27,18 +27,29 @@ using namespace buildboxcommon;
 
 TEST(SystemUtilsTests, CommandNotFound)
 {
-    ASSERT_EQ(buildboxcommon::SystemUtils::executeCommand(
-                  {"command-does-not-exist"}),
-              127); // 127 == "command not found" as in Bash
+    const std::vector<std::string> command = {"command-does-not-exist"};
+    const int expectedError = 127; // "command not found" as in Bash
+
+    ASSERT_EQ(buildboxcommon::SystemUtils::executeCommand(command),
+              expectedError);
+
+    ASSERT_EQ(buildboxcommon::SystemUtils::executeCommandAndWait(command),
+              expectedError);
 }
 
 TEST(SystemUtilsTests, CommandIsNotAnExecutable)
 {
     TemporaryFile non_executable_file;
 
+    const auto expectedError = 126; // Command invoked cannot execute
+
     ASSERT_EQ(buildboxcommon::SystemUtils::executeCommand(
                   {non_executable_file.name()}),
-              126); // 126 == Command invoked cannot execute
+              expectedError);
+
+    ASSERT_EQ(buildboxcommon::SystemUtils::executeCommandAndWait(
+                  {non_executable_file.name()}),
+              expectedError);
 }
 
 TEST(SystemUtilsTests, WaitPidExitCode)
@@ -153,15 +164,37 @@ TEST_F(CommandLookupFixture, NonExecutableIgnored)
     ASSERT_EQ(SystemUtils::getPathToCommand(command_name), "");
 }
 
+TEST(SystemUtilsTests, ExecuteCommandAndWaitSuccess)
+{
+    const auto command_name = "true";
+    const auto command_path = SystemUtils::getPathToCommand(command_name);
+    // The command exists:
+    ASSERT_FALSE(SystemUtils::getPathToCommand(command_name).empty());
+
+    ASSERT_EQ(SystemUtils::executeCommandAndWait({command_path}), 0);
+}
+
+TEST(SystemUtilsTests, ExecuteCommandAndWaitError)
+{
+    const auto command_name = "false";
+    const auto command_path = SystemUtils::getPathToCommand(command_name);
+    // The command exists:
+    ASSERT_FALSE(SystemUtils::getPathToCommand(command_name).empty());
+
+    ASSERT_NE(SystemUtils::executeCommandAndWait({command_path}), 0);
+}
+
 TEST(SystemUtilsTests, ExecuteIgnoresPathEnvVar)
 {
     const auto command_name = "echo";
     // The command exists:
     ASSERT_FALSE(SystemUtils::getPathToCommand(command_name).empty());
 
-    // But `executeCommand()` will not find it:
-    ASSERT_EQ(SystemUtils::executeCommand({command_name}),
-              127); // 127 == "command not found" as in Bash
+    // But `executeCommand(andWait)()`  will not find it:
+    const int expectedError = 127; // "command not found" as in Bash
+    ASSERT_EQ(SystemUtils::executeCommand({command_name}), expectedError);
+    ASSERT_EQ(SystemUtils::executeCommandAndWait({command_name}),
+              expectedError);
 }
 
 TEST(SystemUtilsTests, RedirectStandardOutputs)

@@ -76,6 +76,27 @@ int SystemUtils::executeCommand(const std::vector<std::string> &command)
     }
 }
 
+int SystemUtils::executeCommandAndWait(const std::vector<std::string> &command)
+{
+    const pid_t pid = fork();
+    if (pid == -1) {
+        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(std::system_error, errno,
+                                              std::system_category,
+                                              "Error calling fork()");
+    }
+
+    if (pid == 0) { // Child process
+        const auto status = executeCommand(command);
+
+        // Only reached if the underlying call to exec() failed.
+        // `executeCommand()` will log that.
+        _Exit(status);
+    }
+    else { // Parent process
+        return waitPid(pid);
+    }
+}
+
 std::string SystemUtils::getPathToCommand(const std::string &command)
 {
     if (command.find('/') != std::string::npos) {

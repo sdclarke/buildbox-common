@@ -19,6 +19,15 @@ struct SystemUtils {
      */
     static int executeCommand(const std::vector<std::string> &command);
 
+    /*
+     * Launches the given command in a separate process. `command[0]` must be
+     * a path to a binary and the other entries its arguments.
+     *
+     * Returns the exit code returned by the command. Like `executeCommand()`,
+     * follows the Bash convention for error codes.
+     */
+    static int executeCommandAndWait(const std::vector<std::string> &command);
+
     /* Looks for the absolute path to a given command using the `$PATH`
      * environment variable.
      *
