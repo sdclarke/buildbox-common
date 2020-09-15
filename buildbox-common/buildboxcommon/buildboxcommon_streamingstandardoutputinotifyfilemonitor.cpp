@@ -105,12 +105,11 @@ int StreamingStandardOutputInotifyFileMonitor::waitForInotify() const
     // We'll retry the call to `poll()` if finding spurious POLLNVAL` values in
     // `revents`.
 
-    for (auto i = 0; i < maxRetries; i++) {
-        struct pollfd pollFds;
-        pollFds.fd = d_inotifyInstanceFd;
-        pollFds.events = POLLIN;
-        pollFds.revents = 0;
+    struct pollfd pollFds;
+    pollFds.fd = d_inotifyInstanceFd;
+    pollFds.events = POLLIN;
 
+    for (auto i = 0; i < maxRetries; i++) {
         const int numFdsReady = poll(&pollFds, 1, timeoutMs);
         if (numFdsReady < 0) {
             const auto errorReason = strerror(errno);
