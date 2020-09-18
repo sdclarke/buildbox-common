@@ -73,6 +73,7 @@ add_buildboxcommon_test(commandline_test buildboxcommon_commandline.t.cpp)
 add_buildboxcommon_test(streamingstandardoutputstatfilemonitor buildboxcommon_streamingstandardoutputstatfilemonitor.t.cpp)
 add_buildboxcommon_test(connectionoptions_commandline_test buildboxcommon_connectionoptions_commandline.t.cpp)
 add_buildboxcommon_test(scopeguard_tests buildboxcommon_scopeguard.t.cpp)
+add_buildboxcommon_test(stringutils_tests buildboxcommon_stringutils.t.cpp)
 
 if(HAVE_INOTIFY)
     add_buildboxcommon_test(streamingstandardoutputinotifyfilemonitor
