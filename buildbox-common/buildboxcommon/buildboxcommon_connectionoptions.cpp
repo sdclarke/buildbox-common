@@ -18,6 +18,7 @@
 #include <buildboxcommon_exception.h>
 #include <buildboxcommon_fileutils.h>
 #include <buildboxcommon_logging.h>
+#include <buildboxcommon_stringutils.h>
 
 #include <cerrno>
 #include <cstring>
@@ -267,8 +268,13 @@ std::shared_ptr<grpc::Channel> ConnectionOptions::createChannel() const
                 // constructor of `grpc::CompositeChannelCredentials`
                 creds = grpc::SslCredentials(options);
 
-                const std::string accessToken =
+                std::string accessToken =
                     FileUtils::getFileContents(this->d_accessTokenPath);
+
+                // Trim the end of the acccess token of any trailing
+                // whitespace
+                StringUtils::rtrim(&accessToken);
+
                 std::shared_ptr<grpc::CallCredentials> call_creds =
                     grpc::AccessTokenCredentials(accessToken);
                 // Wrap both channel and call creds together
