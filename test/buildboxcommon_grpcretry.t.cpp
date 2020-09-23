@@ -26,6 +26,10 @@ TEST(GrpcRetry, SimpleSucceedTest)
     };
 
     EXPECT_NO_THROW(GrpcRetry::retry(lambda, retryLimit, retryDelay));
+
+    failures = 0;
+    EXPECT_NO_THROW(
+        GrpcRetry::retry(lambda, "lambda()", retryLimit, retryDelay));
 }
 
 TEST(GrpcRetry, SimpleRetrySucceedTest)
@@ -46,6 +50,10 @@ TEST(GrpcRetry, SimpleRetrySucceedTest)
     };
 
     EXPECT_NO_THROW(GrpcRetry::retry(lambda, retryLimit, retryDelay));
+
+    failures = 0;
+    EXPECT_NO_THROW(
+        GrpcRetry::retry(lambda, "lambda()", retryLimit, retryDelay));
 }
 
 TEST(GrpcRetry, SimpleRetryFailTest)
@@ -66,6 +74,10 @@ TEST(GrpcRetry, SimpleRetryFailTest)
     };
 
     EXPECT_THROW(GrpcRetry::retry(lambda, retryLimit, retryDelay),
+                 std::runtime_error);
+
+    failures = 0;
+    EXPECT_THROW(GrpcRetry::retry(lambda, "lambda()", retryLimit, retryDelay),
                  std::runtime_error);
 }
 
@@ -89,4 +101,8 @@ TEST(GrpcRetry, AttachMetadata)
     EXPECT_NO_THROW(
         GrpcRetry::retry(grpc_invocation, 0, 0, metadata_attacher));
     ASSERT_EQ(attacher_calls, 1);
+
+    EXPECT_NO_THROW(GrpcRetry::retry(grpc_invocation, "grpc_invocation()", 0,
+                                     0, metadata_attacher));
+    ASSERT_EQ(attacher_calls, 2);
 }

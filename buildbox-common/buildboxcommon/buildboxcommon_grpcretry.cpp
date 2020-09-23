@@ -22,19 +22,77 @@
 #include <sstream>
 #include <thread>
 
+namespace {
+
+std::string retryingInvocationWarningMessage(
+    const std::string &grpcInvocationName, const grpc::Status &grpcError,
+    const int attemptNumber, const int totalAttempts, const int retryDelay)
+{
+    std::stringstream s;
+    s << "Attempt " << attemptNumber + 1 << "/" << totalAttempts + 1;
+
+    if (!grpcInvocationName.empty()) {
+        s << " for " << grpcInvocationName;
+    }
+
+    s << " failed with gRPC error " << grpcError.error_code() << ": "
+      << grpcError.error_message() << "."
+      << " Retrying in " << retryDelay << " ms...";
+
+    return s.str();
+}
+
+std::string
+retryAttemptsExceededErrorMessage(const std::string &grpcInvocationName,
+                                  const grpc::Status &grpcError)
+{
+    std::stringstream s;
+    if (grpcInvocationName.empty()) {
+        s << "Retry limit exceeded.";
+    }
+    else {
+        s << "Retry limit exceeded for " << grpcInvocationName << ".";
+    }
+
+    s << " Last gRPC error was " << grpcError.error_code() << ": "
+      << grpcError.error_message();
+
+    return s.str();
+}
+} // namespace
+
 namespace buildboxcommon {
 
 void GrpcRetry::retry(
     const std::function<grpc::Status(grpc::ClientContext &)> &grpcInvocation,
     int grpcRetryLimit, int grpcRetryDelay)
 {
-    GrpcRetry::retry(grpcInvocation, grpcRetryLimit, grpcRetryDelay,
+    GrpcRetry::retry(grpcInvocation, "", grpcRetryLimit, grpcRetryDelay,
                      [](grpc::ClientContext *) { return; });
 }
 
 void GrpcRetry::retry(
     const std::function<grpc::Status(grpc::ClientContext &)> &grpcInvocation,
+    const std::string &grpcInvocationName, int grpcRetryLimit,
+    int grpcRetryDelay)
+{
+    GrpcRetry::retry(grpcInvocation, grpcInvocationName, grpcRetryLimit,
+                     grpcRetryDelay, [](grpc::ClientContext *) { return; });
+}
+
+void GrpcRetry::retry(
+    const std::function<grpc::Status(grpc::ClientContext &)> &grpcInvocation,
     int grpcRetryLimit, int grpcRetryDelay,
+    const std::function<void(grpc::ClientContext *)> &metadataAttacher)
+{
+    return retry(grpcInvocation, "", grpcRetryLimit, grpcRetryDelay,
+                 metadataAttacher);
+}
+
+void GrpcRetry::retry(
+    const std::function<grpc::Status(grpc::ClientContext &)> &grpcInvocation,
+    const std::string &grpcInvocationName, int grpcRetryLimit,
+    int grpcRetryDelay,
     const std::function<void(grpc::ClientContext *)> &metadataAttacher)
 {
     int nAttempts = 0;
@@ -54,12 +112,9 @@ void GrpcRetry::retry(
                 const int timeDelay =
                     static_cast<int>(grpcRetryDelay * pow(1.6, nAttempts));
 
-                BUILDBOX_LOG_WARNING(
-                    "Attempt " << nAttempts + 1 << "/" << grpcRetryLimit + 1
-                               << " failed with gRPC error "
-                               << status.error_code() << ": "
-                               << status.error_message() << ". Retrying in "
-                               << timeDelay << " ms...");
+                BUILDBOX_LOG_WARNING(retryingInvocationWarningMessage(
+                    grpcInvocationName, status, nAttempts, grpcRetryLimit,
+                    grpcRetryDelay));
 
                 std::this_thread::sleep_for(
                     std::chrono::milliseconds(timeDelay));
@@ -75,8 +130,7 @@ void GrpcRetry::retry(
     } while (nAttempts < grpcRetryLimit + 1);
 
     const std::string errorMessage =
-        "Retry limit exceeded. Last gRPC error was " +
-        std::to_string(status.error_code()) + ": " + status.error_message();
+        retryAttemptsExceededErrorMessage(grpcInvocationName, status);
     BUILDBOX_LOG_ERROR(errorMessage);
     throw GrpcError(errorMessage, status);
 }

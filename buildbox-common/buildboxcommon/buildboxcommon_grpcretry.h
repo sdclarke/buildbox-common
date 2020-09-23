@@ -46,8 +46,26 @@ class GrpcError : public std::runtime_error {
  * In the second form, also takes a function that can preprocess the context by
  * attaching metadata, setting a timeout, etc.
  *
+ * The `grpcInvocationName` should be set to a human-readable string that
+ * describes the gRPC invocation in order to append it to logs. (It can be set
+ * to the empty string.)
+ *
  */
 struct GrpcRetry {
+    static void retry(const std::function<grpc::Status(grpc::ClientContext &)>
+                          &grpcInvocation,
+                      const std::string &grpcInvocationName,
+                      int grpcRetryLimit, int grpcRetryDelay);
+
+    static void
+    retry(const std::function<grpc::Status(grpc::ClientContext &)>
+              &grpcInvocation,
+          const std::string &grpcInvocationName, int grpcRetryLimit,
+          int grpcRetryDelay,
+          const std::function<void(grpc::ClientContext *)> &metadataAttacher);
+
+    // The versions without a `grpcInvocationName` argument are kept for
+    // backwards compability.
     static void retry(const std::function<grpc::Status(grpc::ClientContext &)>
                           &grpcInvocation,
                       int grpcRetryLimit, int grpcRetryDelay);
