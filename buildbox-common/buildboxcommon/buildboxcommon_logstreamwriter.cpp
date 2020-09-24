@@ -91,7 +91,8 @@ bool LogStreamWriter::write(const std::string &data)
     };
 
     try {
-        GrpcRetry::retry(writeLambda, d_grpcRetryLimit, d_grpcRetryDelay);
+        GrpcRetry::retry(writeLambda, "ByteStream.Write()", d_grpcRetryLimit,
+                         d_grpcRetryDelay);
     }
     catch (const GrpcError &) {
         return false;
@@ -141,8 +142,9 @@ bool LogStreamWriter::commit()
     };
 
     try {
-        GrpcRetry::retry(commitWriteLambda, d_grpcRetryLimit,
-                         d_grpcRetryDelay);
+        GrpcRetry::retry(commitWriteLambda,
+                         "ByteStream.Write(set_finish_write=True)",
+                         d_grpcRetryLimit, d_grpcRetryDelay);
     }
     catch (const GrpcError &e) {
         BUILDBOX_LOG_ERROR(
@@ -170,8 +172,8 @@ bool LogStreamWriter::queryStreamWriteStatus() const
     };
 
     try {
-        GrpcRetry::retry(queryWriteStatusLambda, d_grpcRetryLimit,
-                         d_grpcRetryDelay);
+        GrpcRetry::retry(queryWriteStatusLambda, "QueryWriteStatus()",
+                         d_grpcRetryLimit, d_grpcRetryDelay);
         return true;
     }
     catch (const GrpcError &e) {
@@ -228,7 +230,8 @@ LogStream LogStreamWriter::createLogStream(
                                                 &createdLogStream);
     };
 
-    GrpcRetry::retry(createLogStreamLambda, retryLimit, retryDelay);
+    GrpcRetry::retry(createLogStreamLambda, "CreateLogStream()", retryLimit,
+                     retryDelay);
     return createdLogStream;
 }
 
