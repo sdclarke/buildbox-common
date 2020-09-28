@@ -932,6 +932,26 @@ std::vector<Directory> Client::getTree(const Digest &root_digest)
     return tree;
 }
 
+FetchTreeResponse Client::fetchTree(const Digest &digest,
+                                    const bool fetch_file_blobs)
+{
+    FetchTreeRequest request;
+    request.set_instance_name(d_instanceName);
+    request.set_fetch_file_blobs(fetch_file_blobs);
+    *request.mutable_root_digest() = digest;
+
+    FetchTreeResponse response;
+    const auto fetchTreeLambda = [this, &request,
+                                  &response](grpc::ClientContext &context) {
+        return d_localCasClient->FetchTree(&context, request, &response);
+    };
+
+    GrpcRetry::retry(fetchTreeLambda, "LocalCAS.FetchTree()", d_grpcRetryLimit,
+                     d_grpcRetryDelay, d_metadata_attach_function);
+
+    return response;
+}
+
 CaptureTreeResponse
 Client::captureTree(const std::vector<std::string> &paths,
                     const std::vector<std::string> &properties,

@@ -289,6 +289,26 @@ class Client {
     std::vector<Directory> getTree(const Digest &digest);
 
     /**
+     * Issue a LocalCAS `FetchTree()` call and return the response.
+     *
+     * That call will fetch the entire directory tree rooted at a node from a
+     * remote CAS to a local cache.
+     *
+     * The request is equivalent to `GetTree`, storing the `Directory`
+     * objects in the local cache. If `fetch_file_blobs` is set, it will also
+     * fetch all blobs referenced by the `Directory` objects (equivalent to
+     * `FetchMissingBlobs`).
+     *
+     * If no remote CAS is configured in the LocalCAS server, it will check
+     * presence of the entire directory tree (and optionally also file blobs)
+     * in its local cache.
+     *
+     * On errors throws `GrpcError`.
+     */
+    FetchTreeResponse fetchTree(const Digest &digest,
+                                const bool fetch_file_blobs);
+
+    /**
      * Fetch the Protocol Buffer message of the given type and digest and
      * deserialize it.
      */

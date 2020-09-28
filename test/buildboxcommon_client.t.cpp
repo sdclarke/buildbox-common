@@ -17,6 +17,7 @@
 #include "buildboxcommontest_utils.h"
 #include <buildboxcommon_client.h>
 #include <buildboxcommon_fileutils.h>
+#include <buildboxcommon_grpcretry.h>
 #include <buildboxcommon_merklize.h>
 #include <buildboxcommon_temporarydirectory.h>
 #include <buildboxcommon_temporaryfile.h>
@@ -703,6 +704,56 @@ TEST_F(ClientTestFixture, CaptureFilesErrorThrows)
 
     ASSERT_THROW(this->captureFiles({"/path/to/stage/file.txt"}, {}, false),
                  std::runtime_error);
+}
+
+TEST_F(ClientTestFixture, FetchTree)
+{
+    FetchTreeRequest request;
+    EXPECT_CALL(*localCasClient.get(), FetchTree(_, _, _))
+        .WillOnce(DoAll(SaveArg<1>(&request), Return(grpc::Status::OK)));
+
+    Digest digest;
+    digest.set_hash("treeHash");
+    digest.set_size_bytes(1234);
+
+    ASSERT_NO_THROW(fetchTree(digest, false));
+
+    EXPECT_EQ(request.instance_name(), this->instanceName());
+    EXPECT_EQ(request.root_digest(), digest);
+    EXPECT_FALSE(request.fetch_file_blobs());
+}
+
+TEST_F(ClientTestFixture, FetchTreeWithFiles)
+{
+    FetchTreeRequest request;
+    EXPECT_CALL(*localCasClient.get(), FetchTree(_, _, _))
+        .WillOnce(DoAll(SaveArg<1>(&request), Return(grpc::Status::OK)));
+
+    Digest digest;
+    digest.set_hash("treeHash");
+    digest.set_size_bytes(1234);
+
+    ASSERT_NO_THROW(fetchTree(digest, true));
+
+    EXPECT_EQ(request.instance_name(), this->instanceName());
+    EXPECT_EQ(request.root_digest(), digest);
+    EXPECT_TRUE(request.fetch_file_blobs());
+}
+
+TEST_F(ClientTestFixture, FetchTreeFails)
+{
+    FetchTreeRequest request;
+    EXPECT_CALL(*localCasClient.get(), FetchTree(_, _, _))
+        .WillRepeatedly(DoAll(SaveArg<1>(&request),
+                              Return(grpc::Status(grpc::StatusCode::INTERNAL,
+                                                  "Something went wrong."))));
+
+    Digest digest;
+    digest.set_hash("d");
+    digest.set_size_bytes(1);
+
+    ASSERT_THROW(fetchTree(digest, false), GrpcError);
+    ASSERT_THROW(fetchTree(digest, true), GrpcError);
 }
 
 class GetTreeFixture : public ClientTestFixture {
