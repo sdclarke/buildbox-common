@@ -63,6 +63,10 @@ ConnectionOptionsCommandLine::ConnectionOptionsCommandLine(
             "will be included as an HTTP Authorization bearer token",
         TypeInfo(DataType::COMMANDLINE_DT_STRING), ArgumentSpec::O_OPTIONAL,
         ArgumentSpec::C_WITH_ARG);
+    d_spec.emplace_back(commandLinePrefix + "token-reload-interval",
+                        "How long to wait before refreshing access token",
+                        TypeInfo(DataType::COMMANDLINE_DT_STRING),
+                        ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG);
     d_spec.emplace_back(commandLinePrefix + "googleapi-auth",
                         "Use GoogleAPIAuth for " + serviceName + " service",
                         TypeInfo(DataType::COMMANDLINE_DT_BOOL),
@@ -114,6 +118,10 @@ bool ConnectionOptionsCommandLine::configureChannel(
 
     optionName = commandLinePrefix + "access-token";
     channel->d_accessTokenPath =
+        cml.exists(optionName) ? cml.getString(optionName).c_str() : nullptr;
+
+    optionName = commandLinePrefix + "token-reload-interval";
+    channel->d_tokenReloadInterval =
         cml.exists(optionName) ? cml.getString(optionName).c_str() : nullptr;
 
     optionName = commandLinePrefix + "googleapi-auth";

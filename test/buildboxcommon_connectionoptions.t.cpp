@@ -143,6 +143,7 @@ TEST(ConnectionOptionsTest, PutArgsFull)
     opts.d_clientCertPath = "";
     opts.d_retryLimit = "2";
     opts.d_retryDelay = "200";
+    opts.d_tokenReloadInterval = "7200";
 
     std::vector<std::string> result;
 
@@ -154,6 +155,7 @@ TEST(ConnectionOptionsTest, PutArgsFull)
                                          "--client-key=defg",
                                          "--client-cert=",
                                          "--access-token=hijk",
+                                         "--token-reload-interval=7200",
                                          "--retry-limit=2",
                                          "--retry-delay=200"};
     EXPECT_EQ(result, expected);
@@ -165,6 +167,7 @@ TEST(ConnectionOptionsTest, PutArgsFull)
     expected.push_back("--cas-client-key=defg");
     expected.push_back("--cas-client-cert=");
     expected.push_back("--cas-access-token=hijk");
+    expected.push_back("--cas-token-reload-interval=7200");
     expected.push_back("--cas-retry-limit=2");
     expected.push_back("--cas-retry-delay=200");
     EXPECT_EQ(result, expected);
@@ -249,6 +252,7 @@ TEST(ConnectionOptionsTest, AccessTokenAndGoogleAuthConflict)
     opts.d_retryDelay = "200";
     opts.d_accessTokenPath = "path/to/missingfile";
     opts.d_useGoogleApiAuth = true;
+    opts.d_tokenReloadInterval = "7200";
 
     // This should fail since we specified both access token and GoogleAPIAuth
     // only one of the two is allowed

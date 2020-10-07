@@ -35,6 +35,7 @@ struct ConnectionOptions {
     const char *d_serverCertPath = nullptr;
     const char *d_url = nullptr;
     bool d_useGoogleApiAuth = false;
+    const char *d_tokenReloadInterval = nullptr;
 
     /*
      * These are strings to allow for easier
@@ -62,6 +63,7 @@ struct ConnectionOptions {
     void setClientKey(const std::string &value);
     void setClientKeyPath(const std::string &value);
     void setAccessTokenPath(const std::string &value);
+    void setTokenReloadInterval(const std::string &value);
     void setInstanceName(const std::string &value);
     void setRetryDelay(const std::string &value);
     void setRetryLimit(const std::string &value);

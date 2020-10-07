@@ -18,7 +18,7 @@
 #include <buildboxcommon_exception.h>
 #include <buildboxcommon_fileutils.h>
 #include <buildboxcommon_logging.h>
-#include <buildboxcommon_stringutils.h>
+#include <buildboxcommon_reloadtokenauthenticator.h>
 
 #include <cerrno>
 #include <cstring>
@@ -75,6 +75,11 @@ void ConnectionOptions::setClientKeyPath(const std::string &value)
 void ConnectionOptions::setAccessTokenPath(const std::string &value)
 {
     this->d_accessTokenPath = value.c_str();
+}
+
+void ConnectionOptions::setTokenReloadInterval(const std::string &value)
+{
+    this->d_tokenReloadInterval = value.c_str();
 }
 
 void ConnectionOptions::setInstanceName(const std::string &value)
@@ -161,6 +166,10 @@ bool ConnectionOptions::parseArg(const char *arg, const char *prefix)
             this->d_retryDelay = value;
             return true;
         }
+        else if (key == "token-reload-interval") {
+            this->d_tokenReloadInterval = value;
+            return true;
+        }
     }
     else if (std::string(arg) == "googleapi-auth") {
         this->d_useGoogleApiAuth = true;
@@ -195,6 +204,10 @@ void ConnectionOptions::putArgs(std::vector<std::string> *out,
     if (this->d_accessTokenPath != nullptr) {
         out->push_back("--" + p +
                        "access-token=" + std::string(this->d_accessTokenPath));
+    }
+    if (this->d_tokenReloadInterval != nullptr) {
+        out->push_back("--" + p + "token-reload-interval=" +
+                       std::string(this->d_tokenReloadInterval));
     }
     if (this->d_retryLimit != nullptr) {
         out->push_back("--" + p +
@@ -268,15 +281,11 @@ std::shared_ptr<grpc::Channel> ConnectionOptions::createChannel() const
                 // constructor of `grpc::CompositeChannelCredentials`
                 creds = grpc::SslCredentials(options);
 
-                std::string accessToken =
-                    FileUtils::getFileContents(this->d_accessTokenPath);
-
-                // Trim the end of the acccess token of any trailing
-                // whitespace
-                StringUtils::rtrim(&accessToken);
-
                 std::shared_ptr<grpc::CallCredentials> call_creds =
-                    grpc::AccessTokenCredentials(accessToken);
+                    grpc::MetadataCredentialsFromPlugin(
+                        std::make_unique<ReloadTokenAuthenticator>(
+                            this->d_accessTokenPath,
+                            this->d_tokenReloadInterval));
                 // Wrap both channel and call creds together
                 // so that all requests on this channel use both
                 // the Channel and Call Creds
@@ -336,6 +345,13 @@ void ConnectionOptions::printArgHelp(int padWidth, const char *serviceName,
                  "(e.g. JWT, OAuth access token, etc), "
                  "will be included as an HTTP Authorization bearer token.\n";
 
+    printPadded(padWidth, "--" + p + "token-reload-interval=MINUTES");
+    std::clog
+        << "Time to wait before refreshing access token from disk again. "
+           "The following suffixes can be optionally specified: "
+           "M (minutes), H (hours). "
+           "Value defaults to minutes if suffix not specified.\n";
+
     printPadded(padWidth, "--" + p + "googleapi-auth");
     std::clog << "Use GoogleAPIAuth when this flag is set.\n";
 
@@ -357,6 +373,8 @@ std::ostream &operator<<(std::ostream &out, const ConnectionOptions &obj)
         << safeStream(obj.d_clientCert) << "\", clientCertPath = \""
         << safeStream(obj.d_clientCertPath) << "\", accessTokenPath = \""
         << safeStream(obj.d_accessTokenPath)
+        << "\", token-reload-interval = \""
+        << safeStream(obj.d_tokenReloadInterval)
         << "\", googleapi-auth = " << std::boolalpha << obj.d_useGoogleApiAuth
         << ", retry-limit = \"" << safeStream(obj.d_retryLimit)
         << "\", retry-delay = \"" << safeStream(obj.d_retryDelay) << "\"";

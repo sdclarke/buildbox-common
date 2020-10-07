@@ -74,6 +74,7 @@ add_buildboxcommon_test(streamingstandardoutputstatfilemonitor buildboxcommon_st
 add_buildboxcommon_test(connectionoptions_commandline_test buildboxcommon_connectionoptions_commandline.t.cpp)
 add_buildboxcommon_test(scopeguard_tests buildboxcommon_scopeguard.t.cpp)
 add_buildboxcommon_test(stringutils_tests buildboxcommon_stringutils.t.cpp)
+add_buildboxcommon_test(reloadtokenauthenticator_tests buildboxcommon_reloadtokenauthenticator.t.cpp)
 
 if(HAVE_INOTIFY)
     add_buildboxcommon_test(streamingstandardoutputinotifyfilemonitor
