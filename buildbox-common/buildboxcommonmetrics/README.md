@@ -10,10 +10,11 @@ For example: `"digest_time:2|ms"` describes a `Timing` metric named `digest_time
 Although currently in the same library, `buildboxcommonmetrics` is intended to be stand-alone from `buildboxcommon` and as such does not depend on it.
 
 # Supported metric types
-`buildbox-common` supports three types of metrics
+`buildbox-common` supports four types of metrics
 * `CountingMetricValue`, which implements [Count](https://github.com/statsd/statsd/blob/master/docs/metric_types.md#counting)
 * `GaugeMetricValue`, which implements [Gauge](https://github.com/statsd/statsd/blob/master/docs/metric_types.md#gauges)
 * `DurationMetricValue`<sup>*</sup>, which implements [Timing](https://github.com/statsd/statsd/blob/master/docs/metric_types.md#timing)
+* `DistributionMetricValue`, which implements [Distribution](https://docs.datadoghq.com/metrics/distributions/)
 
 ------------------------------
 <sub>+ While the name of Timing metric types `ms` looks like it would stand for `milliseconds`, it doesn't
@@ -187,6 +188,17 @@ while (!done) {
     GaugeMetricUtil::adjustGauge("gauge0", progress_made);
 }
 ```
+
+## DistributionMetricValue
+Distribution metrics allow to publish discrete values that will be aggregated on the server side to determine the statistical distribution of that set of values.
+
+```c++
+for (const &digest: digests) {
+    DistributionMetricUtil::recordDistributionMetric("blob-sizes", digest.size_bytes());
+}
+```
+
+Because this metric type is not aggregated, in the example above the number of values published will be equal to the number of entries in `digests`.
 
 # Testing Metric Collection
 `buildboxcommonmetrics` comes with several testing methods in `buildboxcommonmetrics_testingutils` to verify metrics are being published as expected in a unit test.
