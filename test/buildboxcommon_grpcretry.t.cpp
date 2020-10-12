@@ -32,6 +32,107 @@ TEST(GrpcRetry, SimpleSucceedTest)
         GrpcRetry::retry(lambda, "lambda()", retryLimit, retryDelay));
 }
 
+TEST(GrpcRetry, OtherException)
+{
+    int failures = 0;
+    int retryLimit = 1;
+    int retryDelay = 100;
+    buildboxcommon::GrpcStatusCodes otherExceptions = {
+        grpc::DEADLINE_EXCEEDED};
+
+    /* Suceed once, if called again fail */
+    auto lambda = [&](grpc::ClientContext &context) {
+        if (failures < 1) {
+            failures++;
+            return grpc::Status(grpc::DEADLINE_EXCEEDED, "failing in test");
+        }
+        else {
+            return grpc::Status::OK;
+        }
+    };
+
+    const auto f = [](grpc::ClientContext *) { return; };
+    EXPECT_NO_THROW(GrpcRetry::retry(lambda, "", retryLimit, retryDelay, f,
+                                     otherExceptions));
+
+    failures = -1;
+    EXPECT_THROW(GrpcRetry::retry(lambda, "lambda()", retryLimit, retryDelay,
+                                  f, otherExceptions),
+                 std::runtime_error);
+}
+
+TEST(GrpcRetry, MultipleException)
+{
+    int failures = 0;
+    int retryLimit = 3;
+    int retryDelay = 100;
+    buildboxcommon::GrpcStatusCodes otherExceptions = {grpc::DEADLINE_EXCEEDED,
+                                                       grpc::INVALID_ARGUMENT};
+
+    /* Suceed once, if called again fail */
+    auto lambda = [&](grpc::ClientContext &context) {
+        switch (failures) {
+            case 0:
+                failures++;
+                return grpc::Status(grpc::DEADLINE_EXCEEDED,
+                                    "failing in test");
+            case 1:
+                failures++;
+                return grpc::Status(grpc::INVALID_ARGUMENT, "failing in test");
+            case 2:
+                failures++;
+                return grpc::Status(grpc::UNAVAILABLE, "failing in test");
+            case 3:
+                return grpc::Status::OK;
+        }
+        return grpc::Status::OK;
+    };
+
+    const auto f = [](grpc::ClientContext *) { return; };
+    EXPECT_NO_THROW(GrpcRetry::retry(lambda, "", retryLimit, retryDelay, f,
+                                     otherExceptions));
+
+    failures = 0;
+    retryLimit = 2;
+    EXPECT_THROW(GrpcRetry::retry(lambda, "lambda()", retryLimit, retryDelay,
+                                  f, otherExceptions),
+                 std::runtime_error);
+}
+
+TEST(GrpcRetry, ExceptionNotIncluded)
+{
+    int failures = 0;
+    int retryLimit = 3;
+    int retryDelay = 100;
+    buildboxcommon::GrpcStatusCodes otherExceptions = {grpc::DEADLINE_EXCEEDED,
+                                                       grpc::INVALID_ARGUMENT};
+
+    /* Suceed once, if called again fail */
+    auto lambda = [&](grpc::ClientContext &context) {
+        switch (failures) {
+            case 0:
+                failures++;
+                return grpc::Status(grpc::DEADLINE_EXCEEDED,
+                                    "failing in test");
+            case 1:
+                failures++;
+                return grpc::Status(grpc::INVALID_ARGUMENT, "failing in test");
+            case 2:
+                failures++;
+                return grpc::Status(grpc::PERMISSION_DENIED,
+                                    "failing in test");
+            case 3:
+                return grpc::Status::OK;
+        }
+        return grpc::Status::OK;
+    };
+
+    const auto f = [](grpc::ClientContext *) { return; };
+    EXPECT_THROW(GrpcRetry::retry(lambda, "", retryLimit, retryDelay, f,
+                                  otherExceptions),
+                 std::runtime_error);
+}
+
 TEST(GrpcRetry, SimpleRetrySucceedTest)
 {
     int failures = 0;

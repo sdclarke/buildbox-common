@@ -36,6 +36,8 @@ class GrpcError : public std::runtime_error {
     grpc::Status status;
 };
 
+typedef std::vector<grpc::StatusCode> GrpcStatusCodes;
+
 /**
  * Call a GRPC method. On failure, retry up to RECC_RETRY_LIMIT times,
  * using binary exponential backoff to delay between calls.
@@ -62,7 +64,8 @@ struct GrpcRetry {
               &grpcInvocation,
           const std::string &grpcInvocationName, int grpcRetryLimit,
           int grpcRetryDelay,
-          const std::function<void(grpc::ClientContext *)> &metadataAttacher);
+          const std::function<void(grpc::ClientContext *)> &metadataAttacher,
+          GrpcStatusCodes errorsToRetryOn = {});
 
     // The versions without a `grpcInvocationName` argument are kept for
     // backwards compability.

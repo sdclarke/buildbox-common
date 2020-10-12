@@ -18,6 +18,7 @@
 #include <buildboxcommon_logging.h>
 #include <buildboxcommon_requestmetadata.h>
 
+#include <algorithm>
 #include <math.h>
 #include <sstream>
 #include <thread>
@@ -93,10 +94,12 @@ void GrpcRetry::retry(
     const std::function<grpc::Status(grpc::ClientContext &)> &grpcInvocation,
     const std::string &grpcInvocationName, int grpcRetryLimit,
     int grpcRetryDelay,
-    const std::function<void(grpc::ClientContext *)> &metadataAttacher)
+    const std::function<void(grpc::ClientContext *)> &metadataAttacher,
+    GrpcStatusCodes errorsToRetryOn)
 {
     int nAttempts = 0;
     grpc::Status status;
+    errorsToRetryOn.emplace_back(grpc::StatusCode::UNAVAILABLE);
     do {
         grpc::ClientContext context;
         metadataAttacher(&context);
@@ -105,7 +108,8 @@ void GrpcRetry::retry(
         if (status.ok()) {
             return;
         }
-        else if (status.error_code() == grpc::StatusCode::UNAVAILABLE) {
+        else if (std::find(errorsToRetryOn.begin(), errorsToRetryOn.end(),
+                           status.error_code()) != errorsToRetryOn.end()) {
             /* The call failed and is retryable on its own. */
             if (nAttempts < grpcRetryLimit) {
                 /* Delay the next call based on the number of attempts made */
