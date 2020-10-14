@@ -36,6 +36,7 @@ buildbox-common relies on:
 * Protobuf
 * CMake
 * GoogleTest
+* glog
 * pkg-config
 * OpenSSL
 
@@ -46,7 +47,7 @@ GNU/Linux
 
 Install major dependencies along with some other packages through `apt`::
 
-    [sudo] apt-get install cmake gcc g++ googletest pkg-config libssl-dev uuid-dev
+    [sudo] apt-get install cmake gcc g++ googletest libgoogle-glog-dev pkg-config libssl-dev uuid-dev
 
 Install the `googletest`, and `googlemock` binaries ::
 

@@ -42,6 +42,8 @@ else()
 endif()
 add_subdirectory(protos)
 
+include(${CMAKE_SOURCE_DIR}/cmake/BuildboxGlogSetup.cmake)
+
 include_directories("buildbox-common/buildboxcommon")
 include_directories("buildbox-common/buildboxcommonmetrics")
 
@@ -83,7 +85,7 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "AIX")
     target_compile_options(buildboxcommon PUBLIC -D_H_SYSMACROS)
 endif()
 
-target_link_libraries(buildboxcommon ${PROTOBUF_TARGET} ${GRPC_TARGET} ${OPENSSL_TARGET})
+target_link_libraries(buildboxcommon ${PROTOBUF_TARGET} ${GRPC_TARGET} ${OPENSSL_TARGET} ${GLOG_TARGET})
 
 if(NOT APPLE)
     # macOS includes UUID generation functionality in libc, but on other platforms
@@ -167,6 +169,7 @@ install(
     FILES cmake/BuildboxCommonConfig.cmake
           cmake/BuildboxGTestSetup.cmake
           cmake/BuildboxBenchmarkSetup.cmake
+          cmake/BuildboxGlogSetup.cmake
           "${CMAKE_CURRENT_BINARY_DIR}/BuildboxCommon/BuildboxCommonConfigVersion.cmake"
     DESTINATION lib/cmake/BuildboxCommon
 )

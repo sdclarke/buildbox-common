@@ -55,7 +55,17 @@ static void usage(const char *name)
                  "verbosity: "
               << buildboxcommon::logging::stringifyLogLevels() << "\n";
     std::clog << "    --verbose                   Set log level to debug\n";
-    std::clog << "    --log-file=FILE             File to write log to\n";
+
+    std::string programName(name); // Binary name without path components
+    programName = programName.substr(
+        std::max<size_t>(0, programName.find_last_of("/") + 1));
+    std::clog << "    --log-directory=DIR         Write logs to this "
+                 "directory with filenames:\n"
+                 "                                "
+              << programName
+              << ".<hostname>.<user name>.log.<severity "
+                 "level>.<date>.<time>.<pid>\n";
+
     std::clog
         << "    --use-localcas              Use LocalCAS protocol methods "
            "(default behavior)\n"
@@ -252,11 +262,14 @@ int Runner::main(int argc, char *argv[])
         return 1;
     }
     else if (this->d_validateParametersAndExit) {
-        BUILDBOX_LOG_DEBUG("Asked to only validate the CLI parameters "
-                           "(--validate-parameters) and the check "
-                           "suceeded: exiting 0.")
+        std::cerr << "Asked to only validate the CLI parameters "
+                     "(--validate-parameters) and the check "
+                     "suceeded: exiting 0. \n";
         return 0;
     }
+
+    logging::Logger::getLoggerInstance().initialize(argv[0]);
+    // (`parseArguments()` already set the destination of logs.)
 
     // -- Worker started --
     const auto worker_start_time = TimeUtils::now();
@@ -486,6 +499,9 @@ std::unique_ptr<StagedDirectory> Runner::stageDirectory(const Digest &digest)
 
 bool Runner::parseArguments(int argc, char *argv[])
 {
+    // The logger instance is not yet initialized at this point, write messages
+    // to std::cout/std::cerr.
+
     argv++;
     argc--;
 
@@ -525,14 +541,21 @@ bool Runner::parseArguments(int argc, char *argv[])
                         logging::stringToLogLevel.at(level));
                 }
                 else if (key == "log-file") {
-                    FILE *fp = fopen(value, "w");
-                    if (fp == nullptr) {
-                        std::cerr << "--log-file: unable to write to "
-                                  << std::string(value) << std::endl;
+                    std::cerr << "Option --log-file is no longer supported. "
+                                 "To redirect logs to files, use "
+                                 "--log-directory=DIR.\n";
+                    return false;
+                }
+                else if (key == "log-directory") {
+                    if (!FileUtils::isDirectory(value)) {
+                        std::cerr << "--log-directory: directory ["
+                                  << std::string(value)
+                                  << "] does not exist\n";
                         return false;
                     }
-                    fclose(fp);
-                    BUILDBOX_LOG_SET_FILE(value);
+
+                    auto &logger = logging::Logger::getLoggerInstance();
+                    logger.setOutputDirectory(value);
                 }
                 else if (key == "stdout-file") {
                     this->d_standardOutputsCaptureConfig.stdout_file_path =
@@ -554,9 +577,10 @@ bool Runner::parseArguments(int argc, char *argv[])
                     exit(0);
                 }
                 else if (strcmp(arg, "use-localcas") == 0) {
-                    BUILDBOX_LOG_WARNING(
-                        "The --use-localcas option will be deprecated. "
-                        "LocalCAS support is now enabled by default.");
+                    std::cerr
+                        << "WARNING: The --use-localcas option will be "
+                           "deprecated. "
+                           "LocalCAS support is now enabled by default.\n";
                     this->d_use_localcas_protocol = true;
                 }
                 else if (strcmp(arg, "disable-localcas") == 0) {

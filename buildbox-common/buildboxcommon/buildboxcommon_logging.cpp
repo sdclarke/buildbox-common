@@ -17,48 +17,91 @@
 #include <buildboxcommon_logging.h>
 
 #include <algorithm>
+#include <chrono>
 #include <iomanip>
 #include <iterator>
-#include <pthread.h>
-#include <sys/types.h>
-#include <time.h>
-#include <unistd.h>
+#include <sstream>
 
 namespace buildboxcommon {
-namespace {
-
-class StreamGuard {
-  public:
-    StreamGuard(std::ostream &os)
-        : d_stream(os), d_flags(os.flags()), d_prec(os.precision()),
-          d_width(os.width()), d_fill(os.fill())
-    {
-    }
-
-    ~StreamGuard() { reset(); }
-    void reset()
-    {
-        d_stream.flags(d_flags);
-        d_stream.precision(d_prec);
-        d_stream.width(d_width);
-        d_stream.fill(d_fill);
-    }
-
-  private:
-    std::ostream &d_stream;
-    std::ios_base::fmtflags d_flags;
-    std::streamsize d_prec;
-    std::streamsize d_width;
-    std::ostream::char_type d_fill;
-
-    // NOT IMPLEMENTED
-    StreamGuard(const StreamGuard &);
-    StreamGuard &operator=(const StreamGuard &);
-};
-
-} // namespace
 
 namespace logging {
+Logger::Logger() : d_logOutputDirectory(nullptr), d_glogInitialized(false) {}
+
+Logger &Logger::getLoggerInstance()
+{
+    static Logger logger;
+    return logger;
+}
+
+void Logger::setOutputDirectory(const char *outputDirectory)
+{
+    if (d_glogInitialized) {
+        BUILDBOXCOMMON_THROW_EXCEPTION(
+            std::runtime_error, "Output directories must be specified "
+                                "before Logger instance is initialized.");
+    }
+
+    d_logOutputDirectory = outputDirectory;
+}
+
+void Logger::initialize(const char *programName)
+{
+    if (programName == nullptr || strlen(programName) == 0) {
+        BUILDBOXCOMMON_THROW_EXCEPTION(
+            std::runtime_error,
+            "Initialize() must be called with a non-empty program name");
+    }
+
+    if (d_glogInitialized) {
+        BUILDBOXCOMMON_THROW_EXCEPTION(
+            std::runtime_error,
+            "Attempted to initialize Logger instance more than once.");
+    }
+
+    if (d_logOutputDirectory) {
+        FLAGS_log_dir = d_logOutputDirectory;
+        FLAGS_logtostderr = false;
+        FLAGS_alsologtostderr = false;
+    }
+    else {
+        FLAGS_logtostderr = true;
+    }
+
+    // Since we will add our own, we also disable glog's own prefix using
+    // the following global variable.
+    FLAGS_log_prefix = false;
+
+    google::InitGoogleLogging(programName);
+    d_glogInitialized = true;
+}
+
+void Logger::setLogLevel(LogLevel logLevel)
+{
+    if (FLAGS_logtostderr || FLAGS_alsologtostderr) {
+        google::LogSeverity glogMinSeverity;
+        if (logLevel == buildboxcommon::LogLevel::WARNING) {
+            glogMinSeverity = google::GLOG_WARNING;
+        }
+        else if (logLevel == buildboxcommon::LogLevel::ERROR) {
+            glogMinSeverity = google::GLOG_ERROR;
+        }
+        else {
+            /* By default show all messages */
+            glogMinSeverity = google::GLOG_INFO;
+        }
+
+        google::SetStderrLogging(glogMinSeverity);
+
+        /* For the verbose levels, we also set the VLOG max. level */
+        if (logLevel == LogLevel::DEBUG) {
+            google::SetVLOGLevel("*", GlogVlogLevels::GLOG_VLOG_LEVEL_DEBUG);
+        }
+        else if (logLevel == LogLevel::TRACE) {
+            google::SetVLOGLevel("*", GlogVlogLevels::GLOG_VLOG_LEVEL_TRACE);
+        }
+    }
+}
+
 std::string stringifyLogLevels()
 {
     std::string logLevels;
@@ -83,59 +126,39 @@ std::string printableCommandLine(const std::vector<std::string> &commandLine)
     return commandLineStream.str();
 }
 
-} // namespace logging
-
-LoggerState &LoggerState::getInstance()
+std::string logPrefix(const std::string &severity, const std::string file,
+                      const int lineNumber)
 {
-    static LoggerState instance(std::clog, LogLevel::INFO);
-    return instance;
+    std::ostringstream os;
+    writeLogPrefix(severity, file, lineNumber, os);
+    return os.str();
 }
 
-void LoggerState::setLogLevel(LogLevel level) { d_level = level; }
-
-void LoggerState::setLogFile(const std::string &filename)
+std::ostream &writeLogPrefix(const std::string &severity,
+                             const std::string &file, const int lineNumber,
+                             std::ostream &os)
 {
-    d_of.close();
-    d_of.open(filename, std::ios_base::app);
-    std::streambuf *buf = d_of.rdbuf();
-    d_os = std::make_shared<std::ostream>(buf);
-}
+    const std::chrono::system_clock::time_point now =
+        std::chrono::system_clock::now();
+    const time_t nowAsTimeT = std::chrono::system_clock::to_time_t(now);
+    const std::chrono::milliseconds nowMs =
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            now.time_since_epoch()) %
+        1000;
+    struct tm localtime;
+    localtime_r(&nowAsTimeT, &localtime);
 
-void LoggerState::setLogStream(std::ostream &stream)
-{
-    d_os = std::make_shared<std::ostream>(stream.rdbuf());
-}
+    const auto basenameStart = std::max<size_t>(file.find_last_of("/") + 1, 0);
 
-// Helper function for writePrefixIfNecessary below
-std::string getBasename(const std::string &fullPath)
-{
-    size_t startAt = std::max<size_t>(fullPath.find_last_of("/") + 1, 0);
-    return fullPath.substr(startAt);
-}
-
-// 'file' purposely passed in by value
-void writePrefixIfNecessary(std::ostream &os, const std::string &severity,
-                            const std::string file, const int lineNumber)
-{
-    if (LoggerState::getInstance().isPrefixEnabled()) {
-        const std::chrono::system_clock::time_point now =
-            std::chrono::system_clock::now();
-        const time_t nowAsTimeT = std::chrono::system_clock::to_time_t(now);
-        const std::chrono::milliseconds nowMs =
-            std::chrono::duration_cast<std::chrono::milliseconds>(
-                now.time_since_epoch()) %
-            1000;
-        struct tm localtime;
-        localtime_r(&nowAsTimeT, &localtime);
-
-        StreamGuard guard(os);
-        os << std::put_time(&localtime, "%FT%T") << '.' << std::setfill('0')
-           << std::setw(3) << nowMs.count() << std::put_time(&localtime, "%z")
-           << " [" << getpid() << ":" << pthread_self() << "] ["
-           << getBasename(file) << ":" << lineNumber << "] ";
-    }
-
+    os << std::put_time(&localtime, "%FT%T") << '.' << std::setfill('0')
+       << std::setw(3) << nowMs.count() << std::put_time(&localtime, "%z")
+       << " [" << getpid() << ":" << pthread_self() << "] ["
+       << file.substr(basenameStart) << ":" << lineNumber << "] ";
     os << "[" << severity << "] ";
+
+    return os;
 }
+
+} // namespace logging
 
 } // namespace buildboxcommon

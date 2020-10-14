@@ -34,4 +34,6 @@ if(NOT APPLE)
     pkg_check_modules(uuid REQUIRED IMPORTED_TARGET uuid)
 endif()
 
+include("${CMAKE_CURRENT_LIST_DIR}/BuildboxGlogSetup.cmake")
+
 include("${CMAKE_CURRENT_LIST_DIR}/BuildboxCommonTargets.cmake")

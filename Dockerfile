@@ -11,6 +11,7 @@ RUN apt-get update && apt-get install -y \
     googletest \
     grpc++ \
     libbenchmark-dev \
+    libgoogle-glog-dev \
     libssl-dev \
     pkg-config \
     uuid-dev \

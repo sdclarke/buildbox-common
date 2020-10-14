@@ -17,16 +17,35 @@
 #ifndef INCLUDED_BUILDBOXCOMMON_LOGGING
 #define INCLUDED_BUILDBOXCOMMON_LOGGING
 
-#include <chrono>
-#include <ctime>
-#include <fstream>
-#include <iostream>
+#include <buildboxcommon_exception.h>
+
+#pragma GCC diagnostic ignored "-Wsuggest-override"
+#include <glog/logging.h>
+#pragma GCC diagnostic pop
+
 #include <map>
-#include <memory>
-#include <sstream>
 #include <string>
-#include <unordered_map>
-#include <vector>
+
+namespace {
+// glog supports these standard levels: FATAL, ERROR, WARNING, and INFO.
+// FATAL terminates the program (!)
+
+// For `LogLevel::DEBUG` and `LogLevel::TRACE` we will rely on glog's verbose
+// logging.
+// That allows assigning arbitrary levels (int values) for messages that should
+// be displayed only in verbose mode. Users can then specify a limit with the
+// `--v=L` option so that they see messages from levels that do not exceed
+// `L`.
+
+enum GlogVlogLevels { GLOG_VLOG_LEVEL_DEBUG = 1, GLOG_VLOG_LEVEL_TRACE = 2 };
+
+// For example: if `--v==2`, `TRACE` messages will be shown but not if
+// `--v==1`.
+//
+// This is an implementation detail, so we hide those values.
+// Users of `buildboxcommon_logging.h` will always refer to
+// `buildboxcommon::LogLevel` values.
+} // namespace
 
 namespace buildboxcommon {
 
@@ -35,6 +54,62 @@ enum LogLevel { TRACE = 0, DEBUG = 1, INFO = 2, WARNING = 3, ERROR = 4 };
 // TODO: Expand this namespace to encompass the whole file
 // Will require lots of MRs in dependent projects
 namespace logging {
+
+class Logger {
+    /*
+     * This singleton class helps configure and initialize glog.
+     *
+     * Example usage:
+     *
+     * ```
+     *  int main(int argc, char *argv[]) {
+     *    auto &logger = buildboxcommon::logging::Logger::getLoggerInstance();
+     *
+     *    if (argv contains option to write logs to files) {
+     *      // Redirecting outputs *before* initializing logger:
+     *      logger.setOutputDirectory(outputDirectory);
+     *    }
+     *
+     *    logger.initialize(argv[0]); // Must be always called.
+     *
+     *    BUILDBOX_LOG_SET_LEVEL(buildboxcommon::LogLevel::TRACE);
+     *    // (Levels can be changed after initialization)
+     * }
+     * ```
+     */
+  public:
+    static Logger &getLoggerInstance();
+
+    // Write logs to files in the given directory (ERROR messages
+    // will still be printed to stderr).
+    // Files will be named "<programName>.<hostname>.<user name>.log.<severity
+    // level>.<date>.<time>.<pid>".
+    // This method must be called before initializing the Logger instance, so
+    // the destination cannot be changed again.
+    void setOutputDirectory(const char *outputDirectory);
+
+    // Set the necessary configuration and initialize glog. Must be called only
+    // once, before starting to write log messages. (Program name should
+    // generally be `argv[0]`.)
+    void initialize(const char *programName);
+
+    // Set the maximum log level of messages that will be shown in stderr.
+    // (This function can be called after initialization.)
+    void setLogLevel(LogLevel logLevel);
+
+    Logger(const Logger &) = delete;
+    Logger &operator=(Logger const &) = delete;
+
+  private:
+    Logger();
+
+    // Optional directory to which log files are written to.
+    const char *d_logOutputDirectory;
+
+    // Keeps track of whether `initialize()` has been called.
+    bool d_glogInitialized;
+
+}; // namespace logging
 
 const std::map<std::string, LogLevel> stringToLogLevel = {
     {"trace", LogLevel::TRACE},
@@ -54,128 +129,59 @@ std::string stringifyLogLevels();
 
 std::string printableCommandLine(const std::vector<std::string> &commandLine);
 
+// This function generates the prefix that gets attached to every log line.
+std::string logPrefix(const std::string &severity, const std::string file,
+                      const int lineNumber);
+
+// Write the log prefix to the given ostream and return a reference to it to
+// allow chaining.
+std::ostream &writeLogPrefix(const std::string &severity,
+                             const std::string &file, const int lineNumber,
+                             std::ostream &os);
+
 } // namespace logging
-
-/**
- * Singleton class that maintains the logging state for the various logger
- * macros defined below. State includes the output stream, log level, and
- * whether to output the log prefix.
- */
-class LoggerState {
-  private:
-    LoggerState();
-    LoggerState(std::ostream &os, LogLevel level) : d_level(level)
-    {
-        d_os = std::make_shared<std::ostream>(os.rdbuf());
-    }
-
-    std::shared_ptr<std::ostream> d_os;
-
-    // We need an ofstream member to support setLogFile().
-    std::ofstream d_of;
-    LogLevel d_level;
-    bool d_prefixEnabled = true;
-    std::stringstream d_stringstream;
-
-  public:
-    static LoggerState &getInstance();
-
-    void setLogLevel(LogLevel level);
-    LogLevel getLogLevel() { return d_level; }
-
-    void setLogFile(const std::string &filename);
-    void setLogStream(std::ostream &stream);
-    std::shared_ptr<std::ostream> getOutputStream() { return d_os; }
-
-    void enablePrefix() { d_prefixEnabled = true; }
-    void disablePrefix() { d_prefixEnabled = false; }
-    bool isPrefixEnabled() { return d_prefixEnabled; }
-};
-
-void writePrefixIfNecessary(std::ostream &ss, const std::string &severity,
-                            const std::string file, const int lineNumber);
-
 } // namespace buildboxcommon
 
+// This sets the minimum level what will be logged to stderr.
+// By default we use `INFO`.
 #define BUILDBOX_LOG_SET_LEVEL(logLevel)                                      \
-    buildboxcommon::LoggerState::getInstance().setLogLevel(logLevel);
-
-#define BUILDBOX_LOG_SET_FILE(filename)                                       \
-    buildboxcommon::LoggerState::getInstance().setLogFile(filename);
-
-#define BUILDBOX_LOG_SET_STREAM(stream)                                       \
-    buildboxcommon::LoggerState::getInstance().setLogStream(stream);
-
-#define BUILDBOX_LOG_ENABLE_PREFIX()                                          \
-    buildboxcommon::LoggerState::getInstance().enablePrefix();
-
-#define BUILDBOX_LOG_DISABLE_PREFIX()                                         \
-    buildboxcommon::LoggerState::getInstance().disablePrefix();
-
-/*
- * These logger macros work by formatting the logline with a stringstream,
- * then passing it to the appropriate logger function. The prefix is added to
- * the stringstream before the logline if enabled.
- */
+    buildboxcommon::logging::Logger::getLoggerInstance().setLogLevel(logLevel);
 
 #define BUILDBOX_LOG_TRACE(x)                                                 \
     {                                                                         \
-        if (buildboxcommon::LoggerState::getInstance().getLogLevel() <=       \
-            buildboxcommon::LogLevel::TRACE) {                                \
-            auto _bb_log_os =                                                 \
-                buildboxcommon::LoggerState::getInstance().getOutputStream(); \
-            buildboxcommon::writePrefixIfNecessary(*_bb_log_os, "TRACE",      \
-                                                   __FILE__, __LINE__);       \
-            *_bb_log_os << x << std::endl << std::flush;                      \
-        }                                                                     \
+        VLOG(GlogVlogLevels::GLOG_VLOG_LEVEL_TRACE)                           \
+            << buildboxcommon::logging::logPrefix("TRACE", __FILE__,          \
+                                                  __LINE__)                   \
+            << x;                                                             \
     }
 
 #define BUILDBOX_LOG_DEBUG(x)                                                 \
     {                                                                         \
-        if (buildboxcommon::LoggerState::getInstance().getLogLevel() <=       \
-            buildboxcommon::LogLevel::DEBUG) {                                \
-            auto _bb_log_os =                                                 \
-                buildboxcommon::LoggerState::getInstance().getOutputStream(); \
-            buildboxcommon::writePrefixIfNecessary(*_bb_log_os, "DEBUG",      \
-                                                   __FILE__, __LINE__);       \
-            *_bb_log_os << x << std::endl << std::flush;                      \
-        }                                                                     \
+        VLOG(GlogVlogLevels::GLOG_VLOG_LEVEL_DEBUG)                           \
+            << buildboxcommon::logging::logPrefix("DEBUG", __FILE__,          \
+                                                  __LINE__)                   \
+            << x;                                                             \
     }
 
 #define BUILDBOX_LOG_INFO(x)                                                  \
     {                                                                         \
-        if (buildboxcommon::LoggerState::getInstance().getLogLevel() <=       \
-            buildboxcommon::LogLevel::INFO) {                                 \
-            auto _bb_log_os =                                                 \
-                buildboxcommon::LoggerState::getInstance().getOutputStream(); \
-            buildboxcommon::writePrefixIfNecessary(*_bb_log_os, "INFO",       \
-                                                   __FILE__, __LINE__);       \
-            *_bb_log_os << x << std::endl << std::flush;                      \
-        }                                                                     \
+        buildboxcommon::logging::writeLogPrefix("INFO", __FILE__, __LINE__,   \
+                                                LOG(INFO))                    \
+            << x;                                                             \
     }
 
 #define BUILDBOX_LOG_WARNING(x)                                               \
     {                                                                         \
-        if (buildboxcommon::LoggerState::getInstance().getLogLevel() <=       \
-            buildboxcommon::LogLevel::WARNING) {                              \
-            auto _bb_log_os =                                                 \
-                buildboxcommon::LoggerState::getInstance().getOutputStream(); \
-            buildboxcommon::writePrefixIfNecessary(*_bb_log_os, "WARNING",    \
-                                                   __FILE__, __LINE__);       \
-            *_bb_log_os << x << std::endl << std::flush;                      \
-        }                                                                     \
+        buildboxcommon::logging::writeLogPrefix("WARNING", __FILE__,          \
+                                                __LINE__, LOG(WARNING))       \
+            << x;                                                             \
     }
 
 #define BUILDBOX_LOG_ERROR(x)                                                 \
     {                                                                         \
-        if (buildboxcommon::LoggerState::getInstance().getLogLevel() <=       \
-            buildboxcommon::LogLevel::ERROR) {                                \
-            auto _bb_log_os =                                                 \
-                buildboxcommon::LoggerState::getInstance().getOutputStream(); \
-            buildboxcommon::writePrefixIfNecessary(*_bb_log_os, "ERROR",      \
-                                                   __FILE__, __LINE__);       \
-            *_bb_log_os << x << std::endl << std::flush;                      \
-        }                                                                     \
+        buildboxcommon::logging::writeLogPrefix("ERROR", __FILE__, __LINE__,  \
+                                                LOG(ERROR))                   \
+            << x;                                                             \
     }
 
 #endif
