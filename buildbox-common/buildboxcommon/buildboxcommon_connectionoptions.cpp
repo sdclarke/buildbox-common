@@ -117,6 +117,11 @@ void ConnectionOptions::setUseGoogleApiAuth(const bool value)
     this->d_useGoogleApiAuth = value;
 }
 
+void ConnectionOptions::setLoadBalancingPolicy(const std::string &value)
+{
+    this->d_loadBalancingPolicy = value.c_str();
+}
+
 bool ConnectionOptions::parseArg(const char *arg, const char *prefix)
 {
     if (arg == nullptr || arg[0] != '-' || arg[1] != '-') {
@@ -170,6 +175,10 @@ bool ConnectionOptions::parseArg(const char *arg, const char *prefix)
             this->d_tokenReloadInterval = value;
             return true;
         }
+        else if (key == "load-balancing-policy") {
+            this->d_loadBalancingPolicy = value;
+            return true;
+        }
     }
     else if (std::string(arg) == "googleapi-auth") {
         this->d_useGoogleApiAuth = true;
@@ -220,6 +229,10 @@ void ConnectionOptions::putArgs(std::vector<std::string> *out,
     if (this->d_useGoogleApiAuth) {
         out->push_back("--googleapi-auth");
     }
+    if (this->d_loadBalancingPolicy != nullptr) {
+        out->push_back("--" + p + "load-balancing-policy=" +
+                       std::string(this->d_loadBalancingPolicy));
+    }
 }
 
 std::shared_ptr<grpc::Channel> ConnectionOptions::createChannel() const
@@ -227,6 +240,7 @@ std::shared_ptr<grpc::Channel> ConnectionOptions::createChannel() const
     BUILDBOX_LOG_DEBUG("Creating grpc channel to [" << this->d_url << "]");
     std::string target;
     std::shared_ptr<grpc::ChannelCredentials> creds;
+    grpc::ChannelArguments channel_args;
 
     if (strncmp(this->d_url, HTTP_PREFIX, strlen(HTTP_PREFIX)) == 0) {
         target = this->d_url + strlen(HTTP_PREFIX);
@@ -317,7 +331,10 @@ std::shared_ptr<grpc::Channel> ConnectionOptions::createChannel() const
         }
     }
 
-    return grpc::CreateChannel(target, creds);
+    if (this->d_loadBalancingPolicy) {
+        channel_args.SetLoadBalancingPolicyName(this->d_loadBalancingPolicy);
+    }
+    return grpc::CreateCustomChannel(target, creds, channel_args);
 }
 
 void ConnectionOptions::printArgHelp(int padWidth, const char *serviceName,
@@ -360,6 +377,10 @@ void ConnectionOptions::printArgHelp(int padWidth, const char *serviceName,
 
     printPadded(padWidth, "--" + p + "retry-delay=MILLISECONDS");
     std::clog << "How long to wait before the first grpc retry\n";
+
+    printPadded(padWidth, "--" + p + "load-balancing-policy");
+    std::clog << "Which grpc load balancing policy to use. "
+                 "Valid options are 'round_robin' and 'grpclb'\n";
 }
 
 std::ostream &operator<<(std::ostream &out, const ConnectionOptions &obj)
@@ -377,7 +398,9 @@ std::ostream &operator<<(std::ostream &out, const ConnectionOptions &obj)
         << safeStream(obj.d_tokenReloadInterval)
         << "\", googleapi-auth = " << std::boolalpha << obj.d_useGoogleApiAuth
         << ", retry-limit = \"" << safeStream(obj.d_retryLimit)
-        << "\", retry-delay = \"" << safeStream(obj.d_retryDelay) << "\"";
+        << "\", retry-delay = \"" << safeStream(obj.d_retryDelay) << "\""
+        << "\", load-balancing-policy = \""
+        << safeStream(obj.d_loadBalancingPolicy) << "\"";
 
     return out;
 }

@@ -85,6 +85,13 @@ ConnectionOptionsCommandLine::ConnectionOptionsCommandLine(
                         TypeInfo(DataType::COMMANDLINE_DT_STRING),
                         ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG,
                         DefaultValue("1000"));
+    d_spec.emplace_back(commandLinePrefix + "load-balancing-policy",
+                        "Which grpc load balancing policy to use for " +
+                            serviceName +
+                            " service.\n"
+                            "Valid options are 'round_robin' and 'grpclb'",
+                        TypeInfo(DataType::COMMANDLINE_DT_STRING),
+                        ArgumentSpec::O_OPTIONAL, ArgumentSpec::C_WITH_ARG);
 }
 
 bool ConnectionOptionsCommandLine::configureChannel(
@@ -134,6 +141,10 @@ bool ConnectionOptionsCommandLine::configureChannel(
 
     optionName = commandLinePrefix + "retry-delay";
     channel->d_retryDelay =
+        cml.exists(optionName) ? cml.getString(optionName).c_str() : nullptr;
+
+    optionName = commandLinePrefix + "load-balancing-policy";
+    channel->d_loadBalancingPolicy =
         cml.exists(optionName) ? cml.getString(optionName).c_str() : nullptr;
 
     return true;

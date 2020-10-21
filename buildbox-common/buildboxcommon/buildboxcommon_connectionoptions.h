@@ -36,6 +36,7 @@ struct ConnectionOptions {
     const char *d_url = nullptr;
     bool d_useGoogleApiAuth = false;
     const char *d_tokenReloadInterval = nullptr;
+    const char *d_loadBalancingPolicy = nullptr;
 
     /*
      * These are strings to allow for easier
@@ -71,6 +72,7 @@ struct ConnectionOptions {
     void setServerCertPath(const std::string &value);
     void setUrl(const std::string &value);
     void setUseGoogleApiAuth(const bool value);
+    void setLoadBalancingPolicy(const std::string &value);
 
     /**
      * Add arguments corresponding to this struct's settings to the given

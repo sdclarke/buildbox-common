@@ -34,7 +34,8 @@ const char *argvTest[] = {
     "--cas-access-token=my-access-token",
     "--cas-googleapi-auth=true",
     "--cas-retry-limit=10",
-    "--cas-retry-delay=500"
+    "--cas-retry-delay=500",
+    "--cas-load-balancing-policy=round_robin"
 };
 
 const char *argvTestDefaults[] = {
@@ -87,6 +88,9 @@ TEST(ConnectionOptionsCommandLineTest, Test)
 
     ASSERT_TRUE(channel.d_retryDelay != nullptr);
     EXPECT_STREQ("500", channel.d_retryDelay);
+
+    ASSERT_TRUE(channel.d_loadBalancingPolicy != nullptr);
+    EXPECT_STREQ("round_robin", channel.d_loadBalancingPolicy);
 }
 
 TEST(ConnectionOptionsCommandLineTest, TestDefaults)

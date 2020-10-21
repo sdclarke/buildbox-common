@@ -32,6 +32,7 @@ TEST(ConnectionOptionsTest, DefaultsToNullptrs)
     EXPECT_EQ(opts.d_accessTokenPath, nullptr);
     EXPECT_EQ(opts.d_clientCert, nullptr);
     EXPECT_EQ(opts.d_clientCertPath, nullptr);
+    EXPECT_EQ(opts.d_loadBalancingPolicy, nullptr);
 }
 
 TEST(ConnectionOptionsTest, ParseArgIgnoresInvalidArgs)
@@ -144,20 +145,23 @@ TEST(ConnectionOptionsTest, PutArgsFull)
     opts.d_retryLimit = "2";
     opts.d_retryDelay = "200";
     opts.d_tokenReloadInterval = "7200";
+    opts.d_loadBalancingPolicy = "round_robin";
 
     std::vector<std::string> result;
 
     opts.putArgs(&result);
 
-    std::vector<std::string> expected = {"--remote=http://example.com/",
-                                         "--instance=instanceA",
-                                         "--server-cert=abc",
-                                         "--client-key=defg",
-                                         "--client-cert=",
-                                         "--access-token=hijk",
-                                         "--token-reload-interval=7200",
-                                         "--retry-limit=2",
-                                         "--retry-delay=200"};
+    std::vector<std::string> expected = {
+        "--remote=http://example.com/",
+        "--instance=instanceA",
+        "--server-cert=abc",
+        "--client-key=defg",
+        "--client-cert=",
+        "--access-token=hijk",
+        "--token-reload-interval=7200",
+        "--retry-limit=2",
+        "--retry-delay=200",
+        "--load-balancing-policy=round_robin"};
     EXPECT_EQ(result, expected);
 
     opts.putArgs(&result, "cas-");
@@ -170,6 +174,7 @@ TEST(ConnectionOptionsTest, PutArgsFull)
     expected.push_back("--cas-token-reload-interval=7200");
     expected.push_back("--cas-retry-limit=2");
     expected.push_back("--cas-retry-delay=200");
+    expected.push_back("--cas-load-balancing-policy=round_robin");
     EXPECT_EQ(result, expected);
 }
 
