@@ -450,3 +450,12 @@ TEST(RunnerTest, CustomStandardOutputDestinations)
 
     EXPECT_EQ(result.exit_code(), 0);
 }
+
+TEST(RunnerTest, ErrorStatusFilePath)
+{
+    const std::string path = "/path/to/actionresult123";
+    ASSERT_EQ(Runner::errorStatusCodeFilePath(path),
+              "/path/to/actionresult123.error-status");
+
+    ASSERT_EQ(Runner::errorStatusCodeFilePath(""), "");
+}

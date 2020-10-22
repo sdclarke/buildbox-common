@@ -81,6 +81,13 @@ class Runner {
     int main(int argc, char *argv[]);
     virtual ~Runner(){};
 
+    // When a Runner exits early (non-zero exit code), it will attempt to write
+    // a `StatusCode` proto that describes the cause of the error next to where
+    // the `ActionResult` is expected. This function returns the path where
+    // that proto might be found.
+    static std::string
+    errorStatusCodeFilePath(const std::string &actionResultPath);
+
   protected:
     /**
      * Execute the given command (without attempting to sandbox it) and
@@ -229,6 +236,12 @@ class Runner {
 
     void writeActionResult(const ActionResult &action_result,
                            const std::string &path) const;
+
+    void writeErrorStatusFile(const google::protobuf::int32 errorCode,
+                              const std::string &errorMessage) const;
+
+    void writeStatusFile(const google::rpc::Status &status,
+                         const std::string &path) const;
 
     // Fetch a `Command` message from the remote CAS. If that fails, log
     // the error and `exit(1)`.

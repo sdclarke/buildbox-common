@@ -20,6 +20,7 @@
 #include <buildboxcommon_exception.h>
 #include <buildboxcommon_fallbackstageddirectory.h>
 #include <buildboxcommon_fileutils.h>
+#include <buildboxcommon_grpcretry.h>
 #include <buildboxcommon_localcasstageddirectory.h>
 #include <buildboxcommon_logging.h>
 #include <buildboxcommon_systemutils.h>
@@ -186,23 +187,20 @@ void Runner::registerSignals() const
 
 Action Runner::readAction(const std::string &path) const
 {
-    const int fd = open(path.c_str(), O_RDONLY);
-    if (fd == -1) {
-        BUILDBOX_RUNNER_LOG(ERROR, "Could not open Action file "
-                                       << path << ": " << strerror(errno));
-        perror("buildbox-run input");
-        exit(1);
+    try {
+        return ProtoUtils::readProtobufFromFile<Action>(path);
+    }
+    catch (const std::runtime_error &e) {
+        std::ostringstream errorMessage;
+        errorMessage << "Failed to read Action from [" << path
+                     << "]: " << e.what();
+
+        const auto errorMessageStr = errorMessage.str();
+        BUILDBOX_RUNNER_LOG(ERROR, errorMessageStr);
+
+        writeErrorStatusFile(grpc::StatusCode::INTERNAL, errorMessageStr);
     }
 
-    Action input;
-    const bool successful_read = input.ParseFromFileDescriptor(fd);
-    close(fd);
-
-    if (successful_read) {
-        return input;
-    }
-
-    BUILDBOX_RUNNER_LOG(ERROR, "Failed to parse Action from " << path);
     exit(1);
 }
 
@@ -223,35 +221,74 @@ void Runner::initializeCasClient() const
 void Runner::writeActionResult(const ActionResult &action_result,
                                const std::string &path) const
 {
-    const int fd = open(path.c_str(), O_WRONLY);
-    if (fd == -1) {
-        BUILDBOX_RUNNER_LOG(ERROR, "Could not save ActionResult to "
-                                       << path << ": " << strerror(errno));
-        perror("buildbox-run output");
+    try {
+        ProtoUtils::writeProtobufToFile(action_result, path);
+    }
+    catch (const std::runtime_error &e) {
+        BUILDBOX_RUNNER_LOG(ERROR,
+                            "Could not save ActionResult: " << e.what());
         exit(1);
     }
+}
 
-    const bool successful_write = action_result.SerializeToFileDescriptor(fd);
-    close(fd);
+void Runner::writeErrorStatusFile(const google::protobuf::int32 errorCode,
+                                  const std::string &errorMessage) const
+{
+    if (!d_outputPath.empty()) {
+        google::rpc::Status status;
+        status.set_code(errorCode);
+        status.set_message(errorMessage);
 
-    if (!successful_write) {
-        BUILDBOX_RUNNER_LOG(ERROR, "Failed to write ActionResult to " << path);
-        exit(1);
+        writeStatusFile(status, errorStatusCodeFilePath(d_outputPath));
+    }
+}
+
+std::string
+Runner::errorStatusCodeFilePath(const std::string &actionResultPath)
+{
+    if (actionResultPath.empty()) {
+        return "";
+    }
+    return actionResultPath + ".error-status";
+}
+
+void Runner::writeStatusFile(const google::rpc::Status &status,
+                             const std::string &path) const
+{
+    try {
+        ProtoUtils::writeProtobufToFile(status, path);
+    }
+    catch (const std::runtime_error &e) {
+        BUILDBOX_RUNNER_LOG(ERROR,
+                            "Could not save Status proto file: " << e.what());
     }
 }
 
 Command Runner::fetchCommand(const Digest &command_digest) const
 {
+    google::rpc::Status errorStatus;
     try {
         return this->d_casClient->fetchMessage<Command>(command_digest);
     }
-    catch (const std::runtime_error &e) {
-        BUILDBOX_RUNNER_LOG(ERROR, "Error fetching Command with digest \""
-                                       << command_digest << "\" from \""
-                                       << d_casRemote.d_url
-                                       << "\": " << e.what());
-        exit(1);
+    catch (const GrpcError &e) {
+        errorStatus.set_code(e.status.error_code());
+        errorStatus.set_message(e.status.error_message());
     }
+    catch (const std::runtime_error &e) {
+        errorStatus.set_code(grpc::StatusCode::INTERNAL);
+        errorStatus.set_message(e.what());
+    }
+
+    std::ostringstream errorMessage;
+    errorMessage << "Error fetching Command with digest \"" << command_digest
+                 << "\" from \"" << d_casRemote.d_url
+                 << "\": " << errorStatus.message();
+
+    const std::string errorMessageStr = errorMessage.str();
+    BUILDBOX_RUNNER_LOG(ERROR, errorMessageStr);
+
+    writeErrorStatusFile(errorStatus.code(), errorMessageStr);
+    exit(1);
 }
 
 int Runner::main(int argc, char *argv[])
@@ -296,6 +333,10 @@ int Runner::main(int argc, char *argv[])
     }
     catch (const std::exception &e) {
         BUILDBOX_RUNNER_LOG(ERROR, "Error executing command: " << e.what());
+
+        writeErrorStatusFile(grpc::StatusCode::INTERNAL,
+                             "execute() threw: " + std::string(e.what()));
+
         return EXIT_FAILURE;
     }
     //  -- Worker finished, set start/completed timestamps --

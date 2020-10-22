@@ -23,6 +23,13 @@
 #include <build/buildgrid/local_cas.grpc.pb.h>
 #include <google/bytestream/bytestream.grpc.pb.h>
 
+#include <buildboxcommon_exception.h>
+
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
 namespace buildboxcommon {
 
 using namespace google::bytestream;
@@ -30,6 +37,51 @@ using namespace build::bazel::remote::asset::v1;
 using namespace build::bazel::remote::execution::v2;
 using namespace build::bazel::remote::logstream::v1;
 using namespace build::buildgrid;
+
+struct ProtoUtils {
+    template <typename T>
+    static void writeProtobufToFile(const T &proto, const std::string &path)
+    {
+        const int fd = open(path.c_str(), O_WRONLY);
+        if (fd == -1) {
+            BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+                std::system_error, errno, std::system_category,
+                "Could not open [" << path << "]");
+        }
+
+        const bool writeSucceeded = proto.SerializeToFileDescriptor(fd);
+        close(fd);
+
+        if (!writeSucceeded) {
+            BUILDBOXCOMMON_THROW_EXCEPTION(std::runtime_error,
+                                           "Failed to write protobuf to ["
+                                               << path << "]");
+        }
+    }
+
+    template <typename T>
+    static T readProtobufFromFile(const std::string &path)
+    {
+        const int fd = open(path.c_str(), O_RDONLY);
+        if (fd == -1) {
+            BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+                std::system_error, errno, std::system_category,
+                "Could not open [" << path << "]");
+        }
+
+        T proto;
+        const bool readSucceeded = proto.ParseFromFileDescriptor(fd);
+        close(fd);
+
+        if (readSucceeded) {
+            return proto;
+        }
+
+        BUILDBOXCOMMON_THROW_EXCEPTION(std::runtime_error,
+                                       "Failed to parse protobuf from ["
+                                           << path << "]");
+    }
+};
 
 } // namespace buildboxcommon
 

@@ -17,6 +17,10 @@
 #include <buildboxcommon_protos.h>
 
 #include <buildboxcommon_cashash.h>
+#include <buildboxcommon_fileutils.h>
+#include <buildboxcommon_temporarydirectory.h>
+#include <buildboxcommon_temporaryfile.h>
+
 #include <gtest/gtest.h>
 
 using namespace buildboxcommon;
@@ -112,4 +116,66 @@ TEST(ProtosHeaderTest, DigestToString)
     std::stringstream output;
     output << digest;
     ASSERT_EQ(output.str(), expected_output);
+}
+
+TEST(ProtosUtilsTest, WriteProtoToFile)
+{
+    const Digest digest =
+        CASHash::hash("We'll write the digest of this data to a file");
+
+    TemporaryFile outputFile;
+    ASSERT_NO_THROW(
+        ProtoUtils::writeProtobufToFile(digest, outputFile.name()));
+
+    std::string fileContents;
+    ASSERT_NO_THROW(fileContents =
+                        FileUtils::getFileContents(outputFile.name()));
+
+    Digest readDigest;
+    ASSERT_TRUE(readDigest.ParseFromString(fileContents));
+    ASSERT_EQ(readDigest, digest);
+}
+
+TEST(ProtosUtilsTest, WriteProtoToFileThrowsOnError)
+{
+    google::rpc::Status statusProto;
+    statusProto.set_message("Attempting to write to a directory will fail.");
+
+    TemporaryDirectory directory;
+    ASSERT_THROW(
+        ProtoUtils::writeProtobufToFile(statusProto, directory.name()),
+        std::system_error);
+}
+
+TEST(ProtosUtilsTest, ReadProtoFromFile)
+{
+    TemporaryFile outputFile;
+
+    const Digest writtenDigest = CASHash::hash("Hash123");
+    ASSERT_NO_THROW(
+        ProtoUtils::writeProtobufToFile(writtenDigest, outputFile.name()));
+
+    Digest readDigest;
+    ASSERT_NO_THROW(readDigest = ProtoUtils::readProtobufFromFile<Digest>(
+                        outputFile.name()));
+
+    ASSERT_EQ(readDigest, writtenDigest);
+}
+
+TEST(ProtosUtilsTest, ReadProtoFromNonExistentPathThrows)
+{
+    const auto nonExistentPath = "/file/does/not/exist";
+    ASSERT_FALSE(FileUtils::isRegularFile(nonExistentPath));
+
+    EXPECT_THROW(ProtoUtils::readProtobufFromFile<Digest>(nonExistentPath),
+                 std::runtime_error);
+}
+
+TEST(ProtosUtilsTest, ReadProtoFromMismatchedTypeThrows)
+{
+    TemporaryFile outputFile;
+    ASSERT_NO_THROW(ProtoUtils::writeProtobufToFile(CASHash::hash("ABC"),
+                                                    outputFile.name()));
+    ASSERT_THROW(ProtoUtils::readProtobufFromFile<Action>(outputFile.name()),
+                 std::runtime_error);
 }
