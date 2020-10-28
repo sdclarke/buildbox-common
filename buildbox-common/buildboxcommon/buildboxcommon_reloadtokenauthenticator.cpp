@@ -56,7 +56,7 @@ grpc::Status ReloadTokenAuthenticator::GetMetadata(
                        << service_url << " " << method_name
                        << "] and access token from path: [" << d_token_path
                        << "]");
-    metadata->emplace("Authorization", tmp_token_string);
+    metadata->emplace("authorization", tmp_token_string);
     return grpc::Status::OK;
 }
 
