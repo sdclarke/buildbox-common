@@ -308,6 +308,9 @@ int Runner::main(int argc, char *argv[])
     logging::Logger::getLoggerInstance().initialize(argv[0]);
     // (`parseArguments()` already set the destination of logs.)
 
+    // now set the logging ver;bosity level after the init
+    BUILDBOX_LOG_SET_LEVEL(this->d_logLevel);
+
     // -- Worker started --
     const auto worker_start_time = TimeUtils::now();
 
@@ -578,8 +581,9 @@ bool Runner::parseArguments(int argc, char *argv[])
                         std::cerr << "Invalid log level." << std::endl;
                         return false;
                     }
-                    BUILDBOX_LOG_SET_LEVEL(
-                        logging::stringToLogLevel.at(level));
+                    // save the value, then set log level after logger is
+                    // initialized
+                    this->d_logLevel = logging::stringToLogLevel.at(level);
                 }
                 else if (key == "log-file") {
                     std::cerr << "Option --log-file is no longer supported. "

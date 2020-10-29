@@ -225,6 +225,8 @@ class Runner {
 
     static volatile sig_atomic_t d_signal_status;
 
+    LogLevel d_logLevel = LogLevel::INFO;
+
     std::array<int, 2> createPipe() const;
 
     /**
