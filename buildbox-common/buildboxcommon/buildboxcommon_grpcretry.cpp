@@ -118,7 +118,7 @@ void GrpcRetry::retry(
 
                 BUILDBOX_LOG_WARNING(retryingInvocationWarningMessage(
                     grpcInvocationName, status, nAttempts, grpcRetryLimit,
-                    grpcRetryDelay));
+                    timeDelay));
 
                 std::this_thread::sleep_for(
                     std::chrono::milliseconds(timeDelay));
