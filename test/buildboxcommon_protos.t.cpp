@@ -123,9 +123,31 @@ TEST(ProtosUtilsTest, WriteProtoToFile)
     const Digest digest =
         CASHash::hash("We'll write the digest of this data to a file");
 
+    TemporaryDirectory outputDirectory;
+    const auto outputFile = buildboxcommon::FileUtils::joinPathSegments(
+        outputDirectory.name(), "proto.out");
+
+    ASSERT_NO_THROW(ProtoUtils::writeProtobufToFile(digest, outputFile));
+    ASSERT_TRUE(buildboxcommon::FileUtils::isRegularFile(outputFile.c_str()));
+
+    std::string fileContents;
+    ASSERT_NO_THROW(fileContents =
+                        FileUtils::getFileContents(outputFile.c_str()));
+
+    Digest readDigest;
+    ASSERT_TRUE(readDigest.ParseFromString(fileContents));
+    ASSERT_EQ(readDigest, digest);
+}
+
+TEST(ProtosUtilsTest, WriteProtoToFileOverwritesContents)
+{
     TemporaryFile outputFile;
-    ASSERT_NO_THROW(
-        ProtoUtils::writeProtobufToFile(digest, outputFile.name()));
+
+    const Digest digestA = CASHash::hash("DigestA");
+    ProtoUtils::writeProtobufToFile(digestA, outputFile.name());
+
+    const Digest digestB = CASHash::hash("DigestB");
+    ProtoUtils::writeProtobufToFile(digestB, outputFile.name());
 
     std::string fileContents;
     ASSERT_NO_THROW(fileContents =
@@ -133,7 +155,7 @@ TEST(ProtosUtilsTest, WriteProtoToFile)
 
     Digest readDigest;
     ASSERT_TRUE(readDigest.ParseFromString(fileContents));
-    ASSERT_EQ(readDigest, digest);
+    ASSERT_EQ(readDigest, digestB);
 }
 
 TEST(ProtosUtilsTest, WriteProtoToFileThrowsOnError)
