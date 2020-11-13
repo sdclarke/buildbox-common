@@ -42,7 +42,7 @@ struct ProtoUtils {
     template <typename T>
     static void writeProtobufToFile(const T &proto, const std::string &path)
     {
-        const int fd = open(path.c_str(), O_CREAT | O_TRUNC | O_WRONLY);
+        const int fd = open(path.c_str(), O_CREAT | O_TRUNC | O_WRONLY, 0666);
         if (fd == -1) {
             BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
                 std::system_error, errno, std::system_category,
