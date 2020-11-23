@@ -36,7 +36,7 @@ class GrpcError : public std::runtime_error {
     grpc::Status status;
 };
 
-typedef std::vector<grpc::StatusCode> GrpcStatusCodes;
+typedef std::set<grpc::StatusCode> GrpcStatusCodes;
 
 /**
  * Call a GRPC method. On failure, retry up to RECC_RETRY_LIMIT times,
@@ -57,13 +57,13 @@ struct GrpcRetry {
     static void retry(const std::function<grpc::Status(grpc::ClientContext &)>
                           &grpcInvocation,
                       const std::string &grpcInvocationName,
-                      int grpcRetryLimit, int grpcRetryDelay);
+                      const int grpcRetryLimit, const int grpcRetryDelay);
 
     static void
     retry(const std::function<grpc::Status(grpc::ClientContext &)>
               &grpcInvocation,
-          const std::string &grpcInvocationName, int grpcRetryLimit,
-          int grpcRetryDelay,
+          const std::string &grpcInvocationName, const int grpcRetryLimit,
+          const int grpcRetryDelay,
           const std::function<void(grpc::ClientContext *)> &metadataAttacher,
           GrpcStatusCodes errorsToRetryOn = {});
 
@@ -71,12 +71,12 @@ struct GrpcRetry {
     // backwards compability.
     static void retry(const std::function<grpc::Status(grpc::ClientContext &)>
                           &grpcInvocation,
-                      int grpcRetryLimit, int grpcRetryDelay);
+                      const int grpcRetryLimit, const int grpcRetryDelay);
 
     static void
     retry(const std::function<grpc::Status(grpc::ClientContext &)>
               &grpcInvocation,
-          int grpcRetryLimit, int grpcRetryDelay,
+          const int grpcRetryLimit, const int grpcRetryDelay,
           const std::function<void(grpc::ClientContext *)> &metadataAttacher);
 };
 

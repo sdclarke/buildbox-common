@@ -69,7 +69,7 @@ TEST(GrpcRetry, MultipleException)
     buildboxcommon::GrpcStatusCodes otherExceptions = {grpc::DEADLINE_EXCEEDED,
                                                        grpc::INVALID_ARGUMENT};
 
-    /* Suceed once, if called again fail */
+    /* Succeed once, if called again fail */
     auto lambda = [&](grpc::ClientContext &context) {
         switch (failures) {
             case 0:
