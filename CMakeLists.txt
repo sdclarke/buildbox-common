@@ -9,6 +9,9 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "AIX" AND ${CMAKE_CXX_COMPILER_ID} MATCHES "GNU"
     set(CMAKE_NO_SYSTEM_FROM_IMPORTED ON)
 endif()
 
+set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
+find_package(Threads REQUIRED)
+
 find_package(OpenSSL REQUIRED)
 set(OPENSSL_TARGET OpenSSL::Crypto)
 
@@ -85,7 +88,7 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "AIX")
     target_compile_options(buildboxcommon PUBLIC -D_H_SYSMACROS)
 endif()
 
-target_link_libraries(buildboxcommon ${PROTOBUF_TARGET} ${GRPC_TARGET} ${OPENSSL_TARGET} ${GLOG_TARGET})
+target_link_libraries(buildboxcommon Threads::Threads ${PROTOBUF_TARGET} ${GRPC_TARGET} ${OPENSSL_TARGET} ${GLOG_TARGET})
 
 if(NOT APPLE)
     # macOS includes UUID generation functionality in libc, but on other platforms
