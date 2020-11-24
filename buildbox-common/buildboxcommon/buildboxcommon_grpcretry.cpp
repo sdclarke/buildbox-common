@@ -65,28 +65,31 @@ namespace buildboxcommon {
 
 void GrpcRetry::retry(
     const std::function<grpc::Status(grpc::ClientContext &)> &grpcInvocation,
-    const int grpcRetryLimit, const int grpcRetryDelay)
+    const int grpcRetryLimit, const int grpcRetryDelay,
+    GrpcStatusCodes errorsToRetryOn)
 {
     GrpcRetry::retry(grpcInvocation, "", grpcRetryLimit, grpcRetryDelay,
-                     [](grpc::ClientContext *) { return; });
+                     [](grpc::ClientContext *) { return; }, errorsToRetryOn);
 }
 
 void GrpcRetry::retry(
     const std::function<grpc::Status(grpc::ClientContext &)> &grpcInvocation,
     const std::string &grpcInvocationName, const int grpcRetryLimit,
-    const int grpcRetryDelay)
+    const int grpcRetryDelay, GrpcStatusCodes errorsToRetryOn)
 {
     GrpcRetry::retry(grpcInvocation, grpcInvocationName, grpcRetryLimit,
-                     grpcRetryDelay, [](grpc::ClientContext *) { return; });
+                     grpcRetryDelay, [](grpc::ClientContext *) { return; },
+                     errorsToRetryOn);
 }
 
 void GrpcRetry::retry(
     const std::function<grpc::Status(grpc::ClientContext &)> &grpcInvocation,
     const int grpcRetryLimit, const int grpcRetryDelay,
-    const std::function<void(grpc::ClientContext *)> &metadataAttacher)
+    const std::function<void(grpc::ClientContext *)> &metadataAttacher,
+    GrpcStatusCodes errorsToRetryOn)
 {
     return retry(grpcInvocation, "", grpcRetryLimit, grpcRetryDelay,
-                 metadataAttacher);
+                 metadataAttacher, errorsToRetryOn);
 }
 
 void GrpcRetry::retry(
@@ -100,7 +103,7 @@ void GrpcRetry::retry(
     grpc::Status status;
 
     // We always retry on UNAVAILABLE
-    errorsToRetryOn.insert(grpc::StatusCode::UNAVAILABLE);
+    errorsToRetryOn.emplace(grpc::StatusCode::UNAVAILABLE);
 
     do {
         grpc::ClientContext context;

@@ -57,7 +57,8 @@ struct GrpcRetry {
     static void retry(const std::function<grpc::Status(grpc::ClientContext &)>
                           &grpcInvocation,
                       const std::string &grpcInvocationName,
-                      const int grpcRetryLimit, const int grpcRetryDelay);
+                      const int grpcRetryLimit, const int grpcRetryDelay,
+                      GrpcStatusCodes errorsToRetryOn = {});
 
     static void
     retry(const std::function<grpc::Status(grpc::ClientContext &)>
@@ -71,13 +72,15 @@ struct GrpcRetry {
     // backwards compability.
     static void retry(const std::function<grpc::Status(grpc::ClientContext &)>
                           &grpcInvocation,
-                      const int grpcRetryLimit, const int grpcRetryDelay);
+                      const int grpcRetryLimit, const int grpcRetryDelay,
+                      GrpcStatusCodes errorsToRetryOn = {});
 
     static void
     retry(const std::function<grpc::Status(grpc::ClientContext &)>
               &grpcInvocation,
           const int grpcRetryLimit, const int grpcRetryDelay,
-          const std::function<void(grpc::ClientContext *)> &metadataAttacher);
+          const std::function<void(grpc::ClientContext *)> &metadataAttacher,
+          GrpcStatusCodes errorsToRetryOn = {});
 };
 
 #define grpcRetry GrpcRetry::retry
