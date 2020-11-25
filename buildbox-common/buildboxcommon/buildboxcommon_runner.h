@@ -183,6 +183,12 @@ class Runner {
             metadata->mutable_output_upload_completed_timestamp());
     }
 
+    void writeErrorStatusFile(const google::protobuf::int32 errorCode,
+                              const std::string &errorMessage) const;
+
+    void writeStatusFile(const google::rpc::Status &status,
+                         const std::string &path) const;
+
     struct StandardOutputsCaptureConfig {
         // If not empty, redirect the command's standard output to that file.
         std::string stdout_file_path;
@@ -238,12 +244,6 @@ class Runner {
 
     void writeActionResult(const ActionResult &action_result,
                            const std::string &path) const;
-
-    void writeErrorStatusFile(const google::protobuf::int32 errorCode,
-                              const std::string &errorMessage) const;
-
-    void writeStatusFile(const google::rpc::Status &status,
-                         const std::string &path) const;
 
     // Fetch a `Command` message from the remote CAS. If that fails, log
     // the error and `exit(1)`.
