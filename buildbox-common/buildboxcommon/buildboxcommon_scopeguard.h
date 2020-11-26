@@ -40,7 +40,10 @@ class ScopeGuard final {
     ScopeGuard &operator=(ScopeGuard const &) = delete;
 
   private:
-    const std::function<void()> &d_callback;
+    const std::function<void()> d_callback;
+    // Since we are going to call it during destruction time, to avoid
+    // potential issues with the order of deletions, we keep a copy of the
+    // callback.
 };
 
 } // namespace buildboxcommon

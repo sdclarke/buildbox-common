@@ -59,3 +59,20 @@ TEST(ScopeGuardTest, GuardCatchesAnyException)
 
     ASSERT_EQ(numberOfInvocations, 1);
 }
+
+TEST(ScopeGuardTest, CallbackCopied)
+{
+    // Making sure that the `ScopeGuard` saves a copy of the callback to make
+    // sure that it hasn't been destroyed by the time of invoking it.
+    int value = 0;
+
+    std::function<void()> f;
+    f = [&value]() { value = 123; };
+
+    {
+        buildboxcommon::ScopeGuard g(f);
+        f = []() { /* doing nothing */ };
+    }
+
+    ASSERT_EQ(value, 123);
+}
