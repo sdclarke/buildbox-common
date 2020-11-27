@@ -17,6 +17,7 @@
 #include <buildboxcommon_reloadtokenauthenticator.h>
 #include <buildboxcommon_temporaryfile.h>
 
+#include <chrono>
 #include <fstream>
 #include <grpcpp/client_context.h>
 #include <grpcpp/create_channel.h>
@@ -25,6 +26,7 @@
 #include <iostream>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <thread>
 #include <unistd.h>
 
 using namespace buildboxcommon;
@@ -50,7 +52,7 @@ TEST(ReloadTokenAuthenticatorTest, TestReloadTime)
     struct stat first;
     fstat(tmpfile.fd(), &first);
 
-    usleep(1 * 1000000);
+    std::this_thread::sleep_for(std::chrono::seconds(1));
     r.RefreshTokenIfNeeded();
 
     struct stat second;
@@ -67,7 +69,7 @@ TEST(ReloadTokenAuthenticatorTest, TestNoReload)
     struct stat first;
     fstat(tmpfile.fd(), &first);
 
-    usleep(1 * 1000000);
+    std::this_thread::sleep_for(std::chrono::seconds(1));
     r.RefreshTokenIfNeeded();
 
     struct stat second;
@@ -84,7 +86,7 @@ TEST(ReloadTokenAuthenticatorTest, TestNoReloadMinute)
     struct stat first;
     fstat(tmpfile.fd(), &first);
 
-    usleep(2 * 1000000);
+    std::this_thread::sleep_for(std::chrono::seconds(2));
     r.RefreshTokenIfNeeded();
 
     struct stat second;
