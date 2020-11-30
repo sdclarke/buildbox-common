@@ -23,6 +23,7 @@
 
 #include <buildboxcommon_client.h>
 #include <buildboxcommon_connectionoptions.h>
+#include <buildboxcommon_exception.h>
 #include <buildboxcommon_logging.h>
 #include <buildboxcommon_stageddirectory.h>
 #include <buildboxcommon_temporaryfile.h>
@@ -188,6 +189,17 @@ class Runner {
 
     void writeStatusFile(const google::rpc::Status &status,
                          const std::string &path) const;
+
+    // Allow derived classes the ability to set output path for testing
+    void setOutputPath(const std::string &path)
+    {
+        if (!this->d_outputPath.empty()) {
+            BUILDBOXCOMMON_THROW_EXCEPTION(std::runtime_error,
+                                           "output path already set to \"" +
+                                               d_outputPath + "\"");
+        }
+        this->d_outputPath = path;
+    }
 
     struct StandardOutputsCaptureConfig {
         // If not empty, redirect the command's standard output to that file.
