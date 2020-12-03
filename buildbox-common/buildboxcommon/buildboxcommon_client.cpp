@@ -210,41 +210,32 @@ std::string Client::fetchString(const Digest &digest)
         }
 
         const grpc::Status read_status = reader->Finish();
-        if (!read_status.ok()) {
-            if (read_status.error_code() == grpc::StatusCode::NOT_FOUND) {
-                // If the blob is not found, we don't want `grpcRetry` to
-                // re-issue this call. Also, the error code should reach the
-                // caller, so we throw it.
-                throw GrpcError("Blob not found: " +
-                                    read_status.error_message(),
-                                read_status);
+        if (read_status.ok()) {
+            const auto bytes_downloaded =
+                static_cast<google::protobuf::int64>(downloaded_data.size());
+            if (bytes_downloaded != digest.size_bytes()) {
+                BUILDBOXCOMMON_THROW_EXCEPTION(
+                    std::runtime_error,
+                    "Expected " << digest.size_bytes()
+                                << " bytes, but downloaded blob was "
+                                << bytes_downloaded << " bytes");
             }
 
-            return read_status;
+            const auto downloaded_digest =
+                d_digestGenerator.hash(downloaded_data);
+            if (downloaded_digest != digest) {
+                BUILDBOXCOMMON_THROW_EXCEPTION(
+                    std::runtime_error,
+                    "Expected blob with digest "
+                        << digest << ", but downloaded blob has digest "
+                        << downloaded_digest);
+            }
+
+            BUILDBOX_LOG_TRACE(resourceName << ": " << bytes_downloaded
+                                            << " bytes retrieved");
+            result = std::move(downloaded_data);
         }
 
-        const auto bytes_downloaded =
-            static_cast<google::protobuf::int64>(downloaded_data.size());
-        if (bytes_downloaded != digest.size_bytes()) {
-            BUILDBOXCOMMON_THROW_EXCEPTION(
-                std::runtime_error, "Expected "
-                                        << digest.size_bytes()
-                                        << " bytes, but downloaded blob was "
-                                        << bytes_downloaded << " bytes");
-        }
-
-        const auto downloaded_digest = d_digestGenerator.hash(downloaded_data);
-        if (downloaded_digest != digest) {
-            BUILDBOXCOMMON_THROW_EXCEPTION(
-                std::runtime_error, "Expected blob with digest "
-                                        << digest
-                                        << ", but downloaded blob has digest "
-                                        << downloaded_digest);
-        }
-
-        BUILDBOX_LOG_TRACE(resourceName << ": " << bytes_downloaded
-                                        << " bytes retrieved");
-        result = std::move(downloaded_data);
         return read_status;
     };
 
