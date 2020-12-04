@@ -8,7 +8,7 @@ function(load_glog)
   CMake new enough to fetch from upstream. Please specify CMake
   GLOG_SOURCE_ROOT variable to path to local copy of glog. For example,
   -DGLOG_SOURCE_ROOT=/path/to/extracted/copy/of/glog/tarball")
-  endif("${FetchContentModule}" STREQUAL "NOTFOUND")
+  endif()
 
   FetchContent_Declare(
     glog
@@ -24,7 +24,6 @@ function(load_glog)
   endif()
 endfunction(load_glog)
 
-
 find_package(glog CONFIG)
 if (glog_FOUND)
   message(STATUS "Found glog CMake Config")
@@ -35,6 +34,26 @@ else()
     if (glog_FOUND)
       message(STATUS "Found glog via pkg-config")
       set(GLOG_TARGET PkgConfig::glog)
+    endif()
+    # This is a workaround that includes libgflags for statically
+    # linked applications. The shared library libglog.so contains
+    # meta-data on it's dependencies which includes libgflags
+    # in particular. As a result, link failures are not a problem when
+    # linking dynamically, but it is when linking statically. Seeing
+    # libgflags is included on the link-line indirectly for dynamically
+    # linked applications, it shouldn't be harmful to explicitly include
+    # here.
+    # $ readelf -d /usr/lib/x86_64-linux-gnu/libglog.so
+    #   Tag        Type                         Name/Value
+    #   0x0000000000000001 (NEEDED)             Shared library: [libgflags.so.2.2]
+    #   0x0000000000000001 (NEEDED)             Shared library: [libunwind.so.8]
+    #   0x0000000000000001 (NEEDED)             Shared library: [libpthread.so.0]
+    #   0x0000000000000001 (NEEDED)             Shared library: [libstdc++.so.6]
+    #   0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+    pkg_check_modules(gflags IMPORTED_TARGET gflags)
+    if (gflags_FOUND)
+      message(STATUS "Found gflags via pkg-config")
+      set(GFLAGS_TARGET PkgConfig::gflags)
     endif()
 endif()
 

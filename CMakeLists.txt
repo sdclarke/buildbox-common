@@ -88,7 +88,14 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "AIX")
     target_compile_options(buildboxcommon PUBLIC -D_H_SYSMACROS)
 endif()
 
-target_link_libraries(buildboxcommon Threads::Threads ${PROTOBUF_TARGET} ${GRPC_TARGET} ${OPENSSL_TARGET} ${GLOG_TARGET})
+target_link_libraries(buildboxcommon
+    Threads::Threads
+    ${PROTOBUF_TARGET}
+    ${GRPC_TARGET}
+    ${OPENSSL_TARGET}
+    ${GLOG_TARGET}
+    ${GFLAGS_TARGET}
+)
 
 if(NOT APPLE)
     # macOS includes UUID generation functionality in libc, but on other platforms
