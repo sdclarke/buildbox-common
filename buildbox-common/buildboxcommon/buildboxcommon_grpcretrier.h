@@ -26,6 +26,7 @@
 #include <string>
 
 namespace buildboxcommon {
+
 class GrpcRetrier final {
 
     /* This class wraps a function that issues a gRPC request and will attempt
@@ -156,6 +157,39 @@ class GrpcRetrier final {
 
     // Returns whether the status can be retried or should be considered final.
     bool statusIsRetryable(const grpc::Status &status) const;
+};
+
+class GrpcRetrierFactory final {
+    /*
+     * This class allows to easily construct `GrpcRetrier` instances by
+     * configuring the global values once and only passing request-specific
+     * arguments on each instantiation.
+     */
+  public:
+    GrpcRetrierFactory(const unsigned int retryLimit,
+                       const std::chrono::milliseconds &retryDelayBase)
+        : GrpcRetrierFactory(retryLimit, retryDelayBase, nullptr)
+    {
+    }
+
+    GrpcRetrierFactory(const unsigned int retryLimit,
+                       const std::chrono::milliseconds &retryDelayBase,
+                       const GrpcRetrier::MetadataAttacher &metadataAttacher)
+        : d_retryLimit(retryLimit), d_retryDelayBase(retryDelayBase),
+          d_metadataAttacher(metadataAttacher)
+    {
+    }
+
+    GrpcRetrier makeRetrier(
+        const GrpcRetrier::GrpcInvocation &grpcInvocation,
+        const std::string &grpcInvocationName,
+        const GrpcRetrier::GrpcStatusCodes &retryableStatusCodes = {}) const;
+
+  private:
+    const unsigned int d_retryLimit;
+    const std::chrono::milliseconds d_retryDelayBase;
+
+    const GrpcRetrier::MetadataAttacher d_metadataAttacher;
 };
 
 } // namespace buildboxcommon

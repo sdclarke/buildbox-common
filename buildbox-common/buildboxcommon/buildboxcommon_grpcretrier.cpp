@@ -104,4 +104,20 @@ bool GrpcRetrier::statusIsRetryable(const grpc::Status &status) const
 {
     return d_retryableStatusCodes.count(status.error_code());
 }
+
+GrpcRetrier GrpcRetrierFactory::makeRetrier(
+    const GrpcRetrier::GrpcInvocation &grpcInvocation,
+    const std::string &grpcInvocationName,
+    const GrpcRetrier::GrpcStatusCodes &retryableStatusCodes) const
+{
+    GrpcRetrier retrier(d_retryLimit, d_retryDelayBase, grpcInvocation,
+                        grpcInvocationName, retryableStatusCodes);
+
+    if (d_metadataAttacher) {
+        retrier.setMetadataAttacher(d_metadataAttacher);
+    }
+
+    return retrier;
+}
+
 } // namespace buildboxcommon

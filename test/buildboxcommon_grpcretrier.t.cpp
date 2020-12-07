@@ -8,6 +8,7 @@
 #include <iostream>
 
 using buildboxcommon::GrpcRetrier;
+using buildboxcommon::GrpcRetrierFactory;
 
 TEST(GrpcRetrier, TestDefaultRetriableCode)
 {
@@ -16,9 +17,20 @@ TEST(GrpcRetrier, TestDefaultRetriableCode)
 
     auto lambda = [&](grpc::ClientContext &) { return grpc::Status::OK; };
 
-    GrpcRetrier r(retryLimit, retryDelay, lambda, "lambda()");
-    ASSERT_EQ(r.retryableStatusCodes().size(), 1);
-    ASSERT_TRUE(r.retryableStatusCodes().count(grpc::StatusCode::UNAVAILABLE));
+    {
+        GrpcRetrierFactory retrierFactory(retryLimit, retryDelay);
+        GrpcRetrier r(retrierFactory.makeRetrier(lambda, "lambda()"));
+        ASSERT_EQ(r.retryableStatusCodes().size(), 1);
+        ASSERT_TRUE(
+            r.retryableStatusCodes().count(grpc::StatusCode::UNAVAILABLE));
+    }
+
+    {
+        GrpcRetrier r(retryLimit, retryDelay, lambda, "lambda()");
+        ASSERT_EQ(r.retryableStatusCodes().size(), 1);
+        ASSERT_TRUE(
+            r.retryableStatusCodes().count(grpc::StatusCode::UNAVAILABLE));
+    }
 }
 
 TEST(GrpcRetrier, TestGetters)
@@ -26,9 +38,11 @@ TEST(GrpcRetrier, TestGetters)
     const int retryLimit = 4;
     const std::chrono::milliseconds retryDelay(150);
 
+    GrpcRetrierFactory retrierFactory(retryLimit, retryDelay);
+
     auto lambda = [&](grpc::ClientContext &) { return grpc::Status::OK; };
 
-    GrpcRetrier r(retryLimit, retryDelay, lambda, "lambda()");
+    GrpcRetrier r(retrierFactory.makeRetrier(lambda, "lambda()"));
     EXPECT_EQ(r.retryLimit(), retryLimit);
     EXPECT_EQ(r.retryDelayBase(), retryDelay);
 }
@@ -230,7 +244,11 @@ TEST(GrpcRetrier, AttachMetadata)
     unsigned int retryLimit = 0;
     const std::chrono::milliseconds retryDelay(0);
 
-    GrpcRetrier r(retryLimit, retryDelay, grpc_invocation, "");
+    GrpcRetrierFactory retrierFactory(retryLimit, retryDelay,
+                                      metadata_attacher);
+
+    GrpcRetrier r(
+        retrierFactory.makeRetrier(grpc_invocation, "grpc_invocation()"));
     r.setMetadataAttacher(metadata_attacher);
 
     ASSERT_TRUE(r.issueRequest());
