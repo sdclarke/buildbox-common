@@ -28,33 +28,18 @@ find_package(glog CONFIG)
 if (glog_FOUND)
   message(STATUS "Found glog CMake Config")
   set(GLOG_TARGET glog::glog)
-else()
-    find_package(PkgConfig)
-    pkg_check_modules(glog IMPORTED_TARGET libglog)
-    if (glog_FOUND)
-      message(STATUS "Found glog via pkg-config")
-      set(GLOG_TARGET PkgConfig::glog)
-    endif()
-    # This is a workaround that includes libgflags for statically
-    # linked applications. The shared library libglog.so contains
-    # meta-data on it's dependencies which includes libgflags
-    # in particular. As a result, link failures are not a problem when
-    # linking dynamically, but it is when linking statically. Seeing
-    # libgflags is included on the link-line indirectly for dynamically
-    # linked applications, it shouldn't be harmful to explicitly include
-    # here.
-    # $ readelf -d /usr/lib/x86_64-linux-gnu/libglog.so
-    #   Tag        Type                         Name/Value
-    #   0x0000000000000001 (NEEDED)             Shared library: [libgflags.so.2.2]
-    #   0x0000000000000001 (NEEDED)             Shared library: [libunwind.so.8]
-    #   0x0000000000000001 (NEEDED)             Shared library: [libpthread.so.0]
-    #   0x0000000000000001 (NEEDED)             Shared library: [libstdc++.so.6]
-    #   0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
-    pkg_check_modules(gflags IMPORTED_TARGET gflags)
-    if (gflags_FOUND)
-      message(STATUS "Found gflags via pkg-config")
-      set(GFLAGS_TARGET PkgConfig::gflags)
-    endif()
+elseif()
+  find_package(PkgConfig)
+  pkg_check_modules(glog IMPORTED_TARGET libglog)
+  if (glog_FOUND)
+    message(STATUS "Found glog via pkg-config")
+    set(GLOG_TARGET PkgConfig::glog)
+  endif()
+  pkg_check_modules(gflags IMPORTED_TARGET gflags)
+  if (gflags_FOUND)
+    message(STATUS "Found gflags via pkg-config")
+    set(GFLAGS_TARGET PkgConfig::gflags)
+  endif()
 endif()
 
 if (glog_FOUND)
@@ -67,4 +52,5 @@ else()
   message(STATUS "Attempting to fetch glog from github")
   load_glog()
   set(GLOG_TARGET glog)
+  message(STATUS "Found glog via github: ${GLOG_TARGET}")
 endif()
