@@ -273,33 +273,30 @@ void Client::download(int fd, const Digest &digest)
         }
 
         const auto read_status = reader->Finish();
-        if (!read_status.ok()) {
-            BUILDBOXCOMMON_THROW_EXCEPTION(std::runtime_error,
-                                           "Error downloading blob: " +
-                                               read_status.error_message());
+        if (read_status.ok()) {
+            struct stat st;
+            fstat(fd, &st);
+            if (st.st_size != digest.size_bytes()) {
+                BUILDBOXCOMMON_THROW_EXCEPTION(
+                    std::runtime_error,
+                    "Expected " << digest.size_bytes()
+                                << " bytes, but downloaded blob was "
+                                << st.st_size << " bytes");
+            }
+
+            const auto downloaded_digest = digestContext.finalizeDigest();
+            if (downloaded_digest != digest) {
+                BUILDBOXCOMMON_THROW_EXCEPTION(
+                    std::runtime_error,
+                    "Expected blob with digest "
+                        << digest << ", but downloaded blob has digest "
+                        << downloaded_digest);
+            }
+
+            BUILDBOX_LOG_TRACE(resourceName << ": " << st.st_size
+                                            << " bytes retrieved");
         }
 
-        struct stat st;
-        fstat(fd, &st);
-        if (st.st_size != digest.size_bytes()) {
-            BUILDBOXCOMMON_THROW_EXCEPTION(
-                std::runtime_error, "Expected "
-                                        << digest.size_bytes()
-                                        << " bytes, but downloaded blob was "
-                                        << st.st_size << " bytes");
-        }
-
-        const auto downloaded_digest = digestContext.finalizeDigest();
-        if (downloaded_digest != digest) {
-            BUILDBOXCOMMON_THROW_EXCEPTION(
-                std::runtime_error, "Expected blob with digest "
-                                        << digest
-                                        << ", but downloaded blob has digest "
-                                        << downloaded_digest);
-        }
-
-        BUILDBOX_LOG_TRACE(resourceName << ": " << st.st_size
-                                        << " bytes retrieved");
         return read_status;
     };
 
@@ -430,25 +427,20 @@ void Client::upload(const std::string &data, const Digest &digest)
 
         writer->WritesDone();
         auto status = writer->Finish();
-        if (!status.ok()) {
-            BUILDBOXCOMMON_THROW_EXCEPTION(
-                std::runtime_error, "Upload of "
-                                        << digest.hash()
-                                        << " failed: " << status.error_code()
-                                        << ": " << status.error_message());
+        if (status.ok()) {
+            if (response.committed_size() != digest.size_bytes()) {
+                BUILDBOXCOMMON_THROW_EXCEPTION(
+                    std::runtime_error,
+                    "Expected to upload "
+                        << digest.size_bytes() << " bytes for "
+                        << digest.hash() << ", but server reports "
+                        << response.committed_size() << " bytes committed");
+            }
+
+            BUILDBOX_LOG_DEBUG(resourceName << ": " << offset
+                                            << " bytes uploaded");
         }
 
-        if (response.committed_size() != digest.size_bytes()) {
-            BUILDBOXCOMMON_THROW_EXCEPTION(
-                std::runtime_error,
-                "Expected to upload "
-                    << digest.size_bytes() << " bytes for " << digest.hash()
-                    << ", but server reports " << response.committed_size()
-                    << " bytes committed");
-        }
-
-        BUILDBOX_LOG_DEBUG(resourceName << ": " << offset
-                                        << " bytes uploaded");
         return status;
     };
 
@@ -508,24 +500,19 @@ void Client::upload(int fd, const Digest &digest)
 
         writer->WritesDone();
         auto status = writer->Finish();
-        if (!status.ok()) {
-            BUILDBOXCOMMON_THROW_EXCEPTION(
-                std::runtime_error, "Upload of "
-                                        << digest.hash()
-                                        << " failed: " << status.error_code()
-                                        << ": " << status.error_message());
-        }
-        if (response.committed_size() != digest.size_bytes()) {
-            BUILDBOXCOMMON_THROW_EXCEPTION(
-                std::runtime_error,
-                "Expected to upload "
-                    << digest.size_bytes() << " bytes for " << digest.hash()
-                    << ", but server reports " << response.committed_size()
-                    << " bytes committed");
-        }
+        if (status.ok()) {
+            if (response.committed_size() != digest.size_bytes()) {
+                BUILDBOXCOMMON_THROW_EXCEPTION(
+                    std::runtime_error,
+                    "Expected to upload "
+                        << digest.size_bytes() << " bytes for "
+                        << digest.hash() << ", but server reports "
+                        << response.committed_size() << " bytes committed");
+            }
 
-        BUILDBOX_LOG_DEBUG(resourceName << ": " << offset
-                                        << " bytes uploaded");
+            BUILDBOX_LOG_DEBUG(resourceName << ": " << offset
+                                            << " bytes uploaded");
+        }
         return status;
     };
 

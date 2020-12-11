@@ -297,7 +297,7 @@ TEST_F(ClientTestFixture, DownloadServerError)
     EXPECT_CALL(*reader, Finish())
         .WillOnce(Return(grpc::Status(grpc::StatusCode::UNAVAILABLE,
                                       "Server stopped responding")));
-    EXPECT_THROW(this->download(tmpfile.fd(), digest), std::runtime_error);
+    EXPECT_THROW(this->download(tmpfile.fd(), digest), GrpcError);
 }
 
 TEST_F(ClientTestFixture, UploadStringTest)
@@ -448,7 +448,7 @@ TEST_F(ClientTestFixture, UploadStringDidntReturnOk)
         .WillOnce(Return(
             grpc::Status(grpc::FAILED_PRECONDITION, "failing for test")));
 
-    EXPECT_THROW(this->upload(content, digest), std::runtime_error);
+    EXPECT_THROW(this->upload(content, digest), GrpcError);
 }
 
 TEST_F(ClientTestFixture, FileTooLargeToBatchUpload)
