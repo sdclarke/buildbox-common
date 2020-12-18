@@ -2,13 +2,8 @@ FROM debian:buster
 
 WORKDIR /app
 
-ARG EXTRA_CMAKE_FLAGS=
-ARG BUILD_TESTS=OFF
-
 RUN apt-get update && apt-get install -y \
-    attr \
     cmake \
-    gcc \
     g++ \
     git \
     googletest \
@@ -18,9 +13,14 @@ RUN apt-get update && apt-get install -y \
     pkg-config \
     uuid-dev \
     && apt-get clean \
-    && cd /usr/src/googletest \
-    && mkdir build && cd build && cmake .. && make install
+    && rm -rf /var/lib/apt/lists/*
+
+ARG EXTRA_CMAKE_FLAGS=
+ARG BUILD_TESTS=OFF
+
+RUN cd /usr/src/googletest \
+    && mkdir build && cd build && cmake .. && make install && make clean
 
 COPY . /buildbox-common
 
-RUN cd /buildbox-common && mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=DEBUG -DBUILD_TESTING=${BUILD_TESTS} "${EXTRA_CMAKE_FLAGS}" .. && make -j$(nproc) install
+RUN cd /buildbox-common && mkdir build && cd build && cmake -DBUILD_TESTING=${BUILD_TESTS} "${EXTRA_CMAKE_FLAGS}" .. && make -j$(nproc) install
