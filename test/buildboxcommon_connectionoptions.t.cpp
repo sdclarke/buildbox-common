@@ -195,6 +195,32 @@ TEST(ConnectionOptionsTest, CreateSimpleChannelTest)
     ASSERT_NO_THROW(opts.createChannel());
 }
 
+TEST(ConnectionOptionTest, CreateSimpleChannelGRPCTest)
+{
+    ConnectionOptions opts;
+    opts.d_url = "grpc://example.com/";
+    opts.d_instanceName = "instanceA";
+    opts.d_retryLimit = "2";
+    opts.d_retryDelay = "200";
+
+    std::shared_ptr<grpc::Channel> channel;
+
+    ASSERT_NO_THROW(channel = opts.createChannel());
+}
+
+TEST(ConnectionOptionTest, CreateSimpleChannelGRPCSTest)
+{
+    ConnectionOptions opts;
+    opts.d_url = "grpcs://example.com/";
+    opts.d_instanceName = "instanceA";
+    opts.d_retryLimit = "2";
+    opts.d_retryDelay = "200";
+
+    std::shared_ptr<grpc::Channel> channel;
+
+    ASSERT_NO_THROW(channel = opts.createChannel());
+}
+
 TEST(ConnectionOptionsTest, AccessTokenExists)
 {
     ConnectionOptions opts;

@@ -35,6 +35,8 @@ namespace buildboxcommon {
 namespace {
 static const char *HTTP_PREFIX = "http://";
 static const char *HTTPS_PREFIX = "https://";
+static const char *GRPC_PREFIX = "grpc://";
+static const char *GRPCS_PREFIX = "grpcs://";
 static const char *UNIX_SOCKET_PREFIX = "unix:";
 
 static void printPadded(int padWidth, const std::string &str)
@@ -241,11 +243,31 @@ std::shared_ptr<grpc::Channel> ConnectionOptions::createChannel() const
     std::string target;
     std::shared_ptr<grpc::ChannelCredentials> creds;
     grpc::ChannelArguments channel_args;
+    bool secure = false;
 
     if (strncmp(this->d_url, HTTP_PREFIX, strlen(HTTP_PREFIX)) == 0) {
         target = this->d_url + strlen(HTTP_PREFIX);
     }
+    else if (strncmp(this->d_url, GRPC_PREFIX, strlen(GRPC_PREFIX)) == 0) {
+        target = this->d_url + strlen(GRPC_PREFIX);
+    }
     else if (strncmp(this->d_url, HTTPS_PREFIX, strlen(HTTPS_PREFIX)) == 0) {
+        target = this->d_url + strlen(HTTPS_PREFIX);
+        secure = true;
+    }
+    else if (strncmp(this->d_url, GRPCS_PREFIX, strlen(GRPCS_PREFIX)) == 0) {
+        target = this->d_url + strlen(GRPCS_PREFIX);
+        secure = true;
+    }
+    else if (strncmp(this->d_url, UNIX_SOCKET_PREFIX,
+                     strlen(UNIX_SOCKET_PREFIX)) == 0) {
+        target = this->d_url;
+    }
+    else {
+        BUILDBOXCOMMON_THROW_EXCEPTION(std::runtime_error,
+                                       "Unsupported URL scheme");
+    }
+    if (secure) {
         auto options = grpc::SslCredentialsOptions();
         if (this->d_serverCert) {
             options.pem_root_certs = this->d_serverCert;
@@ -268,7 +290,6 @@ std::shared_ptr<grpc::Channel> ConnectionOptions::createChannel() const
             options.pem_cert_chain =
                 FileUtils::getFileContents(this->d_clientCertPath);
         }
-        target = this->d_url + strlen(HTTPS_PREFIX);
 
         if (this->d_accessTokenPath && this->d_useGoogleApiAuth) {
             BUILDBOXCOMMON_THROW_EXCEPTION(
@@ -307,15 +328,6 @@ std::shared_ptr<grpc::Channel> ConnectionOptions::createChannel() const
             }
         }
     }
-    else if (strncmp(this->d_url, UNIX_SOCKET_PREFIX,
-                     strlen(UNIX_SOCKET_PREFIX)) == 0) {
-        target = this->d_url;
-    }
-    else {
-        BUILDBOXCOMMON_THROW_EXCEPTION(std::runtime_error,
-                                       "Unsupported URL scheme");
-    }
-
     if (!creds) {
         // Secure creds weren't set, use default insecure
         creds = grpc::InsecureChannelCredentials();
