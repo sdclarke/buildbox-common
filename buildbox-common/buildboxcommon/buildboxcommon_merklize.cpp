@@ -211,30 +211,44 @@ static NestedDirectory
 make_nesteddirectory(int basedirfd, const std::string prefix, const char *path,
                      const FileDigestFunction &fileDigestFunc,
                      digest_string_map *fileMap,
-                     const std::vector<std::string> &capture_properties);
+                     const std::vector<std::string> &capture_properties,
+                     const bool followSymlinks);
+
+NestedDirectory make_nesteddirectory(const char *path,
+                                     digest_string_map *fileMap,
+                                     const bool followSymlinks)
+{
+    const std::vector<std::string> capture_properties;
+    return make_nesteddirectory(path, fileMap, capture_properties,
+                                followSymlinks);
+}
 
 NestedDirectory
 make_nesteddirectory(const char *path, digest_string_map *fileMap,
-                     const std::vector<std::string> &capture_properties)
+                     const std::vector<std::string> &capture_properties,
+                     const bool followSymlinks)
 {
-    return make_nesteddirectory(path, hashFile, fileMap, capture_properties);
+    return make_nesteddirectory(path, hashFile, fileMap, capture_properties,
+                                followSymlinks);
 }
 
 NestedDirectory
 make_nesteddirectory(const char *path,
                      const FileDigestFunction &fileDigestFunc,
                      digest_string_map *fileMap,
-                     const std::vector<std::string> &capture_properties)
+                     const std::vector<std::string> &capture_properties,
+                     const bool followSymlinks)
 {
     return make_nesteddirectory(AT_FDCWD, "", path, fileDigestFunc, fileMap,
-                                capture_properties);
+                                capture_properties, followSymlinks);
 }
 
 NestedDirectory
 make_nesteddirectory(int basedirfd, const std::string prefix, const char *path,
                      const FileDigestFunction &fileDigestFunc,
                      digest_string_map *fileMap,
-                     const std::vector<std::string> &capture_properties)
+                     const std::vector<std::string> &capture_properties,
+                     const bool followSymlinks)
 {
     NestedDirectory result;
     const int dirfd = openat(basedirfd, path, O_RDONLY | O_DIRECTORY);
@@ -263,15 +277,18 @@ make_nesteddirectory(int basedirfd, const std::string prefix, const char *path,
         const std::string entityPath = newprefix + entityName;
 
         struct stat statResult;
-        if (fstatat(dirfd, dirent->d_name, &statResult, AT_SYMLINK_NOFOLLOW) !=
-            0) {
+        int statFlags = 0;
+        if (!followSymlinks) {
+            statFlags = AT_SYMLINK_NOFOLLOW;
+        }
+        if (fstatat(dirfd, dirent->d_name, &statResult, statFlags) != 0) {
             continue;
         }
 
         if (S_ISDIR(statResult.st_mode)) {
             (*result.d_subdirs)[entityName] = make_nesteddirectory(
                 dirfd, newprefix, dirent->d_name, fileDigestFunc, fileMap,
-                capture_properties);
+                capture_properties, followSymlinks);
         }
         else if (S_ISREG(statResult.st_mode)) {
             const File file(dirfd, dirent->d_name, fileDigestFunc,

@@ -134,16 +134,21 @@ inline Digest make_digest(const google::protobuf::MessageLite &message)
  * If a fileMap is passed, paths to all files referenced by the NestedDirectory
  * will be stored in it using their Digest messages as the keys.
  */
+NestedDirectory make_nesteddirectory(const char *path,
+                                     digest_string_map *fileMap,
+                                     const bool followSymlinks);
 NestedDirectory
 make_nesteddirectory(const char *path, digest_string_map *fileMap = nullptr,
                      const std::vector<std::string> &capture_properties =
-                         std::vector<std::string>());
+                         std::vector<std::string>(),
+                     const bool followSymlinks = false);
 NestedDirectory
 make_nesteddirectory(const char *path,
                      const FileDigestFunction &fileDigestFunc,
                      digest_string_map *fileMap = nullptr,
                      const std::vector<std::string> &capture_properties =
-                         std::vector<std::string>());
+                         std::vector<std::string>(),
+                     const bool followSymlinks = false);
 
 } // namespace buildboxcommon
 
