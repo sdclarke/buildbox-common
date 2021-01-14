@@ -205,6 +205,32 @@ Tree NestedDirectory::to_tree() const
     return result;
 }
 
+void NestedDirectory::print(std::ostream &out,
+                            const std::string &dirName) const
+{
+    out << "directory: \"" << dirName << "\"" << std::endl;
+
+    const std::string prefix = dirName.empty() ? "" : dirName + "/";
+
+    out << d_files.size() << " files" << std::endl;
+    for (const auto &it : d_files) {
+        const std::string path = prefix + it.first;
+        out << "    \"" << path << "\"" << std::endl;
+    }
+
+    out << d_symlinks.size() << " symlinks" << std::endl;
+    for (const auto &it : d_symlinks) {
+        const std::string path = prefix + it.first;
+        out << "    \"" << path << "\", \"" << it.second << "\"" << std::endl;
+    }
+
+    out << d_subdirs->size() << " sub-directories" << std::endl << std::endl;
+    for (const auto &it : *d_subdirs) {
+        const std::string path = prefix + it.first;
+        it.second.print(out, path);
+    }
+}
+
 Digest make_digest(const std::string &blob) { return CASHash::hash(blob); }
 
 static NestedDirectory
@@ -318,6 +344,12 @@ make_nesteddirectory(int basedirfd, const std::string prefix, const char *path,
     // This will implicitly close `dirfd`.
     closedir(dir);
     return result;
+}
+
+std::ostream &operator<<(std::ostream &out, const NestedDirectory &obj)
+{
+    obj.print(out);
+    return out;
 }
 
 } // namespace buildboxcommon

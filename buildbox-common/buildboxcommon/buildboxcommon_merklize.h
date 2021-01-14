@@ -112,6 +112,8 @@ struct NestedDirectory {
      * Convert this NestedDirectory to a Tree message.
      */
     Tree to_tree() const;
+
+    void print(std::ostream &out, const std::string &dirName = "") const;
 };
 
 /**
@@ -149,6 +151,8 @@ make_nesteddirectory(const char *path,
                      const std::vector<std::string> &capture_properties =
                          std::vector<std::string>(),
                      const bool followSymlinks = false);
+
+std::ostream &operator<<(std::ostream &out, const NestedDirectory &obj);
 
 } // namespace buildboxcommon
 
