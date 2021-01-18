@@ -269,12 +269,44 @@ TEST(NestedDirectoryTest, MakeNestedDirectory)
         FileUtils::getFileContents(
             fileMap[nestedDirectory.d_files["abc.txt"].d_digest].c_str()));
 
-    EXPECT_EQ("target", nestedDirectory.d_symlinks["symlink"]);
+    EXPECT_EQ("abc.txt", nestedDirectory.d_symlinks["symlink"]);
 
     auto subdirectory = &(*nestedDirectory.d_subdirs)["subdir"];
     EXPECT_EQ(0, subdirectory->d_subdirs->size());
     EXPECT_EQ(1, subdirectory->d_files.size());
     EXPECT_EQ(0, subdirectory->d_symlinks.size());
+    EXPECT_EQ("abc",
+              FileUtils::getFileContents(
+                  fileMap[subdirectory->d_files["abc.txt"].d_digest].c_str()));
+}
+
+TEST(NestedDirectoryTest, MakeNestedDirectoryFollowingSymlinks)
+{
+    std::unordered_map<buildboxcommon::Digest, std::string> fileMap;
+
+    const bool followSymlinks = true;
+    auto nestedDirectory = make_nesteddirectory(".", &fileMap, followSymlinks);
+
+    EXPECT_EQ(1, nestedDirectory.d_subdirs->size());
+    EXPECT_EQ(2 + 1, nestedDirectory.d_files.size());
+    // The symlink was resolved.
+    EXPECT_TRUE(nestedDirectory.d_symlinks.empty());
+
+    EXPECT_EQ(
+        "abc",
+        FileUtils::getFileContents(
+            fileMap[nestedDirectory.d_files["abc.txt"].d_digest].c_str()));
+
+    EXPECT_EQ(
+        "abc",
+        FileUtils::getFileContents(
+            fileMap[nestedDirectory.d_files["symlink"].d_digest].c_str()));
+
+    auto subdirectory = &(*nestedDirectory.d_subdirs)["subdir"];
+    EXPECT_EQ(0, subdirectory->d_subdirs->size());
+    EXPECT_EQ(1, subdirectory->d_files.size());
+    EXPECT_EQ(0, subdirectory->d_symlinks.size());
+
     EXPECT_EQ("abc",
               FileUtils::getFileContents(
                   fileMap[subdirectory->d_files["abc.txt"].d_digest].c_str()));
