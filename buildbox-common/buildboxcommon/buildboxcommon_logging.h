@@ -97,6 +97,9 @@ class Logger {
     // (This function can be called after initialization.)
     void setLogLevel(LogLevel logLevel);
 
+    // Stop printing log messages to stderr.
+    void disableStderr();
+
     Logger(const Logger &) = delete;
     Logger &operator=(Logger const &) = delete;
 

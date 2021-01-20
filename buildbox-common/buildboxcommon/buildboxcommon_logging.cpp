@@ -127,6 +127,17 @@ void Logger::setLogLevel(LogLevel logLevel)
     }
 }
 
+void Logger::disableStderr()
+{
+    FLAGS_logtostderr = false;
+    FLAGS_alsologtostderr = false;
+
+    // Setting the minimum severity to FATAL, which we never use, to
+    // effectively hide all messages from stderr because otherwise glog still
+    // prints ERRORs.
+    FLAGS_stderrthreshold = google::GLOG_FATAL;
+}
+
 std::string stringifyLogLevels()
 {
     std::string logLevels;
