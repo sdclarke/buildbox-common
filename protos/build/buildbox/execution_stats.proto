@@ -1,0 +1,55 @@
+// Copyright (C) 2021 Bloomberg LP
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+syntax = "proto3";
+
+package build.buildbox;
+
+import "google/protobuf/duration.proto";
+
+
+// Message containing metrics about the execution of a command. To be attached
+// to `build.bazel.remote.execution.v2.ExecutedActionMetadata.auxiliary_metadata`.
+message ExecutionStatistics {
+
+message ProcessResourceUsage {
+  // Values gathered from `getrusage(2)`.
+
+  // User CPU time used
+  google.protobuf.Duration utime = 1;
+
+  // System CPU time used
+  google.protobuf.Duration stime = 2;
+
+  // Maximum resident set size used [kb]
+  int64 maxrss = 3;
+
+  // Number of page faults serviced without I/O activity (reclaims)
+  int64 minflt = 4;
+  // Number of page faults serviced that required I/O activity (faults)
+  int64 majflt = 5;
+
+  // Number of times the filesystem performed inputs/outputs
+  int64 inblock = 6;
+  int64 oublock = 7;
+
+  // Number of voluntary/involuntary context switches
+  int64 nvcsw = 8;
+  int64 nivcsw = 9;
+}
+
+// `getrusage()` measurements from the command's execution
+ProcessResourceUsage command_rusage = 1;
+}
+

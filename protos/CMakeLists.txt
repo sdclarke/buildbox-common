@@ -19,6 +19,7 @@ set(PROTOS
     build/bazel/remote/execution/v2/remote_execution
     build/bazel/remote/logstream/v1/remote_logstream
     build/bazel/semver/semver
+    build/buildbox/execution_stats
     build/buildgrid/local_cas
     google/api/annotations
     google/api/http
