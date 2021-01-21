@@ -573,17 +573,18 @@ bool Runner::parseArguments(int argc, char *argv[])
                     this->d_stage_path = std::string(value);
                 }
                 else if (key == "log-level") {
+                    const auto &validLogLevels(logging::stringToLogLevelMap());
+
                     std::string level(value);
                     std::transform(level.begin(), level.end(), level.begin(),
                                    ::tolower);
-                    if (logging::stringToLogLevel.find(level) ==
-                        logging::stringToLogLevel.end()) {
+                    if (validLogLevels.count(level) == 0) {
                         std::cerr << "Invalid log level." << std::endl;
                         return false;
                     }
                     // save the value, then set log level after logger is
                     // initialized
-                    this->d_logLevel = logging::stringToLogLevel.at(level);
+                    this->d_logLevel = validLogLevels.at(level);
                 }
                 else if (key == "log-file") {
                     std::cerr << "Option --log-file is no longer supported. "

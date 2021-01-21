@@ -25,6 +25,31 @@
 namespace buildboxcommon {
 
 namespace logging {
+
+const std::map<std::string, LogLevel> &stringToLogLevelMap()
+{
+    static const std::map<std::string, LogLevel> map = {
+        {"trace", LogLevel::TRACE},
+        {"debug", LogLevel::DEBUG},
+        {"info", LogLevel::INFO},
+        {"warning", LogLevel::WARNING},
+        {"error", LogLevel::ERROR}};
+
+    return map;
+}
+
+const std::map<LogLevel, std::string> &logLevelToStringMap()
+{
+    static const std::map<LogLevel, std::string> map = {
+        {LogLevel::TRACE, "trace"},
+        {LogLevel::DEBUG, "debug"},
+        {LogLevel::INFO, "info"},
+        {LogLevel::WARNING, "warning"},
+        {LogLevel::ERROR, "error"}};
+
+    return map;
+}
+
 Logger::Logger() : d_logOutputDirectory(nullptr), d_glogInitialized(false) {}
 
 Logger &Logger::getLoggerInstance()
@@ -106,7 +131,7 @@ std::string stringifyLogLevels()
 {
     std::string logLevels;
     for (const auto &stringLevelPair :
-         buildboxcommon::logging::logLevelToString) {
+         buildboxcommon::logging::logLevelToStringMap()) {
         logLevels += stringLevelPair.second + "/";
     }
     logLevels.pop_back();

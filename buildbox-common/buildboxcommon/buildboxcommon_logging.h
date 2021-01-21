@@ -111,6 +111,8 @@ class Logger {
 
 }; // namespace logging
 
+// These maps will be deprecated. Use `stringToLogLevelMap()` and
+// `logLevelToStringMap()` instead.
 const std::map<std::string, LogLevel> stringToLogLevel = {
     {"trace", LogLevel::TRACE},
     {"debug", LogLevel::DEBUG},
@@ -118,12 +120,16 @@ const std::map<std::string, LogLevel> stringToLogLevel = {
     {"warning", LogLevel::WARNING},
     {"error", LogLevel::ERROR}};
 
+const std::map<std::string, LogLevel> &stringToLogLevelMap();
+
 const std::map<LogLevel, std::string> logLevelToString = {
     {LogLevel::TRACE, "trace"},
     {LogLevel::DEBUG, "debug"},
     {LogLevel::INFO, "info"},
     {LogLevel::WARNING, "warning"},
     {LogLevel::ERROR, "error"}};
+
+const std::map<LogLevel, std::string> &logLevelToStringMap();
 
 std::string stringifyLogLevels();
 
