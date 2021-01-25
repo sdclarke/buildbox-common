@@ -26,6 +26,7 @@ set(PROTOS
     google/longrunning/operations
     google/rpc/code
     google/rpc/status
+    google/rpc/error_details
     google/devtools/remoteworkers/v1test2/bots
     google/devtools/remoteworkers/v1test2/worker)
 set(PROTO_GENERATED_SRCS "")
