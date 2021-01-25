@@ -16,6 +16,9 @@
 
 #include <buildboxcommon_logging.h>
 
+#include <google/protobuf/util/time_util.h>
+#include <google/rpc/error_details.grpc.pb.h>
+
 #include <math.h>
 #include <thread>
 
@@ -77,6 +80,24 @@ bool GrpcRetrier::issueRequest()
             }
 
             return true;
+        }
+
+        // The error might contain a `RetryInfo` message specifying a number of
+        // seconds to wait before retrying. If so, use it for the base value.
+        if (d_retryAttempts == 0 && !d_status.error_details().empty()) {
+            google::rpc::RetryInfo retryInfo;
+            if (retryInfo.ParseFromString(d_status.error_details())) {
+                const google::protobuf::int64 serverDelay =
+                    google::protobuf::util::TimeUtil::DurationToMilliseconds(
+                        retryInfo.retry_delay());
+
+                if (serverDelay > 0) {
+                    d_retryDelayBase = std::chrono::milliseconds(serverDelay);
+                    BUILDBOX_LOG_DEBUG("Overriding retry delay base with "
+                                       "value specified by server: "
+                                       << d_retryDelayBase.count() << " ms");
+                }
+            }
         }
 
         // The call failed and could be retryable on its own.

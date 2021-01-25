@@ -142,7 +142,19 @@ class GrpcRetrier final {
 
     // Maximum number of attempts and delay between retries:
     const unsigned int d_retryLimit;
-    const std::chrono::milliseconds d_retryDelayBase;
+
+    std::chrono::milliseconds d_retryDelayBase;
+    // The value set in the constructor for this variable will be used unless
+    // the server attaches a `RetryInfo` with a non-zero `Duration in the first
+    // error Status, in which case it will be overwritten.
+    //
+    // According to `google.rpc.RetryInfo` docs:
+    // "Clients should wait until `retry_delay` [...] has passed since
+    // receiving the error response before retrying.
+    // If retrying requests also fail, clients should use an exponential
+    // backoff [...] based on  `retry_delay`, until either a maximum number of
+    // retries have been reached or a maximum retry delay cap has been
+    // reached."
 
     // Status codes to retry:
     GrpcStatusCodes d_retryableStatusCodes;

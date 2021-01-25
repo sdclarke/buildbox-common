@@ -3,6 +3,8 @@
 
 #include <gtest/gtest.h>
 
+#include <google/rpc/error_details.grpc.pb.h>
+
 #include <chrono>
 #include <functional>
 #include <iostream>
@@ -222,6 +224,40 @@ TEST(GrpcRetrier, SimpleRetryFailTest)
     EXPECT_EQ(r.status().error_code(), grpc::UNAVAILABLE);
     EXPECT_EQ(r.status().error_message(), "failing in test");
     EXPECT_EQ(r.retryAttempts(), 2);
+}
+
+TEST(GrpcRetrier, ServerProvidedDelay)
+{
+    const int retryLimit = 2;
+    const std::chrono::milliseconds retryDelay(100);
+
+    /* Fail one time, then succeed. */
+    bool firstRequest = true;
+    const std::chrono::milliseconds serverSpecifiedDelay(500);
+    auto lambda = [&](grpc::ClientContext &) {
+        if (!firstRequest) {
+            return grpc::Status::OK;
+        }
+
+        firstRequest = false;
+
+        google::protobuf::Duration delay;
+        delay.set_seconds(0);
+        delay.set_nanos(
+            std::chrono::nanoseconds(serverSpecifiedDelay).count());
+
+        google::rpc::RetryInfo retryInfo;
+        *retryInfo.mutable_retry_delay() = delay;
+
+        return grpc::Status(grpc::UNAVAILABLE, "failing in test",
+                            retryInfo.SerializeAsString());
+    };
+
+    GrpcRetrier r(retryLimit, retryDelay, lambda, "");
+    EXPECT_TRUE(r.issueRequest());
+    EXPECT_TRUE(r.status().ok());
+    EXPECT_EQ(r.retryAttempts(), 1);
+    EXPECT_EQ(r.retryDelayBase(), serverSpecifiedDelay); // 500 ms
 }
 
 TEST(GrpcRetrier, AttachMetadata)
