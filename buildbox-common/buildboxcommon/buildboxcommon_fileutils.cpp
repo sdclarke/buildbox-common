@@ -388,10 +388,10 @@ void FileUtils::copyFile(const char *src_path, const char *dest_path)
     }
 }
 
-int FileUtils::writeFileAtomically(const std::string &path,
-                                   const std::string &data, mode_t mode,
-                                   const std::string &intermediate_directory,
-                                   const std::string &prefix)
+void FileUtils::writeFileAtomically(const std::string &path,
+                                    const std::string &data, mode_t mode,
+                                    const std::string &intermediate_directory,
+                                    const std::string &prefix)
 {
     std::string temporary_directory;
     if (!intermediate_directory.empty()) {
@@ -444,12 +444,13 @@ int FileUtils::writeFileAtomically(const std::string &path,
             "Failed writing to temporary file \"" << temp_filename << "\"");
     }
 
-    // Creating a hard link (atomic operation) from the destination to the
-    // temporary file:
-    if (link(temp_filename.c_str(), path.c_str()) == 0) {
-        return 0;
+    // Atomically rename temporary file to the final path
+    if (rename(temp_filename.c_str(), path.c_str()) != 0) {
+        BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
+            std::system_error, errno, std::system_category,
+            "Could not atomically rename temporary file \""
+                << temp_filename << "\" to \"" << path << "\"");
     }
-    return errno;
 }
 
 void FileUtils::deleteRecursively(const char *path,

@@ -984,7 +984,7 @@ TEST(FileUtilsTests, WriteFileAtomically)
                                   'o', 'r', 'l', 'd', '\0', '!'};
     const std::string data_string(raw_data.cbegin(), raw_data.cend());
 
-    ASSERT_EQ(FileUtils::writeFileAtomically(output_path, data_string), 0);
+    ASSERT_NO_THROW(FileUtils::writeFileAtomically(output_path, data_string));
 
     // Data is correct:
     std::ifstream file(output_path, std::ifstream::binary);
@@ -1004,7 +1004,7 @@ TEST(FileUtilsTests, WriteFileAtomically)
     ASSERT_EQ(file_permissions, 0600);
 }
 
-TEST(FileUtilsTests, WriteFileAtomicallyReturnsLinkResult)
+TEST(FileUtilsTests, WriteFileAtomicallyReplacesFile)
 {
     TemporaryDirectory output_directory;
 
@@ -1013,8 +1013,11 @@ TEST(FileUtilsTests, WriteFileAtomicallyReturnsLinkResult)
 
     ASSERT_FALSE(FileUtils::isRegularFile(output_path.c_str()));
 
-    ASSERT_EQ(FileUtils::writeFileAtomically(output_path, ""), 0);
-    ASSERT_EQ(FileUtils::writeFileAtomically(output_path, ""), EEXIST);
+    ASSERT_NO_THROW(FileUtils::writeFileAtomically(output_path, "1"));
+    ASSERT_EQ(FileUtils::getFileContents(output_path.c_str()), "1");
+
+    ASSERT_NO_THROW(FileUtils::writeFileAtomically(output_path, "2"));
+    ASSERT_EQ(FileUtils::getFileContents(output_path.c_str()), "2");
 }
 
 TEST(FileUtilsTests, WriteFileAtomicallyPermissions)
@@ -1027,7 +1030,7 @@ TEST(FileUtilsTests, WriteFileAtomicallyPermissions)
     ASSERT_FALSE(FileUtils::isRegularFile(output_path.c_str()));
 
     const std::string data = "#!/bin/bash";
-    ASSERT_EQ(FileUtils::writeFileAtomically(output_path, data, 0740), 0);
+    ASSERT_NO_THROW(FileUtils::writeFileAtomically(output_path, data, 0740));
 
     struct stat stat_buf;
     const int stat_status = stat(output_path.c_str(), &stat_buf);
@@ -1191,9 +1194,8 @@ TEST(FileUtilsTests, CopyFile)
     ASSERT_FALSE(FileUtils::isRegularFile(output_path.c_str()));
 
     const std::string data = "#!/bin/bash";
-    ASSERT_EQ(FileUtils::writeFileAtomically(output_path, data, 0744,
-                                             output_directory.name()),
-              0);
+    ASSERT_NO_THROW(FileUtils::writeFileAtomically(output_path, data, 0744,
+                                                   output_directory.name()));
     ASSERT_TRUE(
         buildboxcommontest::TestUtils::pathExists(output_path.c_str()));
 

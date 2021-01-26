@@ -697,17 +697,7 @@ void Client::downloadBlobs(const std::vector<Digest> &digests,
                 file_permissions |= S_IXUSR | S_IXGRP | S_IXOTH; // 0755
             }
 
-            const int write_status =
-                FileUtils::writeFileAtomically(path, data, file_permissions);
-            if (write_status != 0 && write_status != EEXIST) {
-                // `EEXIST` means someone beat us to writing the file, which is
-                // not an error assuming the contents are the same.
-                BUILDBOXCOMMON_THROW_SYSTEM_EXCEPTION(
-                    std::system_error, write_status, std::system_category,
-                    "Could not atomically write blob with digest \""
-                        << hash << "/" << data.size() << "\" to \"" << path
-                        << "\"");
-            }
+            FileUtils::writeFileAtomically(path, data, file_permissions);
         }
     };
 

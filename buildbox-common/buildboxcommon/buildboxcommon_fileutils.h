@@ -216,25 +216,22 @@ struct FileUtils {
     /**
      * Write a file atomically. Note that this only guarantees thread safety
      * if the actual contents to be written to `path` are the same across
-     * threads.
+     * threads. If the file already exists, it will be replaced atomically.
      *
-     * (To guarantee atomicity, create a temporary file, write the data to it,
-     * create a hard link from the destination to the temporary file, and
-     * `unlink()` the temporary file.)
+     * (To guarantee atomicity, create a temporary file, write the data to it
+     * and rename the temporary file to the final path.)
      *
      * `mode` allows setting the permissions for the created file; by default
      * 0600 (the default used by `mkstemp()`).
      *
      * If `intermediate_directory` is specified, the temporary file is created
      * in that location. It must be contained in the same filesystem than the
-     * output `path` in order for hard links to work.
+     * output `path` in order for `rename(2)` to work.
      *
-     * Return 0 if successful or the `errno` value as set by `link(2)` if not.
-     *
-     * On errors during writing the data, throw an `std::system_error`
-     * exception.
+     * On errors during writing the data or renaming, throw an
+     * `std::system_error` exception.
      */
-    static int writeFileAtomically(
+    static void writeFileAtomically(
         const std::string &path, const std::string &data, mode_t mode = 0600,
         const std::string &intermediate_directory = "",
         const std::string &prefix = TempDefaults::DEFAULT_TMP_PREFIX);
