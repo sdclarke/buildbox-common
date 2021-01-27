@@ -131,6 +131,8 @@ class ClientTestFixture : public StubsFixture, public Client {
                  capabilitiesClient, max_batch_size_bytes)
     {
         this->setInstanceName(client_instance_name);
+        this->d_grpcRetryLimit = 1;
+        this->d_grpcRetryDelay = 1;
     }
 };
 
@@ -207,6 +209,87 @@ TEST_F(ClientTestFixture, FetchStringServerError)
             grpc::Status(grpc::StatusCode::NOT_FOUND, "Digest not found!")));
 
     EXPECT_THROW(this->fetchString(digest), std::runtime_error);
+}
+
+TEST_F(ClientTestFixture, FetchStringServerRetryableError)
+{
+    readResponse.set_data(content);
+    digest.set_size_bytes(content.length());
+
+    ASSERT_EQ(d_grpcRetryLimit, 1);
+
+    auto bytestreamReader1 = new grpc::testing::MockClientReader<
+        google::bytestream::ReadResponse>();
+    auto bytestreamReader2 = new grpc::testing::MockClientReader<
+        google::bytestream::ReadResponse>();
+
+    EXPECT_CALL(*bytestreamClient, ReadRaw(_, _))
+        .WillOnce(Return(bytestreamReader1))
+        .WillOnce(Return(bytestreamReader2));
+
+    EXPECT_CALL(*bytestreamReader1, Read(_)).WillOnce(Return(false));
+    EXPECT_CALL(*bytestreamReader1, Finish())
+        .WillOnce(Return(grpc::Status(grpc::StatusCode::UNAVAILABLE,
+                                      "Something is wrong right now.")));
+
+    EXPECT_CALL(*bytestreamReader2, Read(_)).WillOnce(Return(false));
+    EXPECT_CALL(*bytestreamReader2, Finish())
+        .WillOnce(Return(grpc::Status(grpc::StatusCode::UNAVAILABLE,
+                                      "Something is still wrong.")));
+
+    ASSERT_THROW(this->fetchString(digest), GrpcError);
+}
+
+TEST_F(ClientTestFixture, FindMissingBlobsSuccessful)
+{
+    Digest missingDigest;
+    missingDigest.set_hash("missing-hash");
+
+    FindMissingBlobsResponse response;
+    response.add_missing_blob_digests()->CopyFrom(missingDigest);
+
+    Digest presentDigest;
+    presentDigest.set_hash("present-hash");
+
+    const std::vector<Digest> findMissingList = {missingDigest, presentDigest};
+
+    EXPECT_CALL(*casClient.get(), FindMissingBlobs(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<2>(response), Return(grpc::Status::OK)));
+
+    const auto missingBlobsResponse = findMissingBlobs(findMissingList);
+    ASSERT_EQ(missingBlobsResponse.size(), 1);
+    ASSERT_EQ(missingBlobsResponse.front(), missingDigest);
+}
+
+TEST_F(ClientTestFixture, FindMissingBlobsRetryableError)
+{
+    Digest missingDigest;
+    missingDigest.set_hash("missing-hash");
+
+    FindMissingBlobsResponse response;
+    response.add_missing_blob_digests()->CopyFrom(missingDigest);
+
+    Digest presentDigest;
+    presentDigest.set_hash("present-hash");
+
+    const std::vector<Digest> findMissingList = {missingDigest, presentDigest};
+
+    const auto errorStatus = grpc::Status(grpc::StatusCode::UNAVAILABLE,
+                                          "Something is wrong right now.");
+    EXPECT_CALL(*casClient.get(), FindMissingBlobs(_, _, _))
+        .Times(d_grpcRetryLimit + 1)
+        .WillRepeatedly(Return(errorStatus));
+
+    try {
+        findMissingBlobs(findMissingList);
+    }
+    catch (const GrpcError &e) {
+        EXPECT_EQ(e.status.error_code(), errorStatus.error_code());
+        EXPECT_EQ(e.status.error_message(), errorStatus.error_message());
+    }
+    catch (...) {
+        FAIL() << "findMissingBlobs() threw Unexpected exception type.\n";
+    }
 }
 
 TEST_F(ClientTestFixture, DownloadTest)
@@ -295,8 +378,38 @@ TEST_F(ClientTestFixture, DownloadServerError)
         .WillOnce(Return(false));
 
     EXPECT_CALL(*reader, Finish())
+        .WillOnce(Return(grpc::Status(grpc::StatusCode::NOT_FOUND,
+                                      "Do not have the digest (fatal)")));
+    EXPECT_THROW(this->download(tmpfile.fd(), digest), GrpcError);
+}
+
+TEST_F(ClientTestFixture, DownloadRetryableServerError)
+{
+
+    readResponse.set_data(content);
+    digest.set_size_bytes(content.length());
+
+    ASSERT_EQ(d_grpcRetryLimit, 1);
+
+    auto bytestreamReader1 = new grpc::testing::MockClientReader<
+        google::bytestream::ReadResponse>();
+    auto bytestreamReader2 = new grpc::testing::MockClientReader<
+        google::bytestream::ReadResponse>();
+
+    EXPECT_CALL(*bytestreamClient, ReadRaw(_, _))
+        .WillOnce(Return(bytestreamReader1))
+        .WillOnce(Return(bytestreamReader2));
+
+    EXPECT_CALL(*bytestreamReader1, Read(_)).WillOnce(Return(false));
+    EXPECT_CALL(*bytestreamReader1, Finish())
         .WillOnce(Return(grpc::Status(grpc::StatusCode::UNAVAILABLE,
-                                      "Server stopped responding")));
+                                      "Something is wrong right now.")));
+
+    EXPECT_CALL(*bytestreamReader2, Read(_)).WillOnce(Return(false));
+    EXPECT_CALL(*bytestreamReader2, Finish())
+        .WillOnce(Return(grpc::Status(grpc::StatusCode::UNAVAILABLE,
+                                      "Something is still wrong.")));
+
     EXPECT_THROW(this->download(tmpfile.fd(), digest), GrpcError);
 }
 
@@ -449,6 +562,33 @@ TEST_F(ClientTestFixture, UploadStringDidntReturnOk)
             grpc::Status(grpc::FAILED_PRECONDITION, "failing for test")));
 
     EXPECT_THROW(this->upload(content, digest), GrpcError);
+}
+
+TEST_F(ClientTestFixture, UploadStringRetriableError)
+{
+    auto *writer1 = new grpc::testing::MockClientWriter<
+        google::bytestream::WriteRequest>();
+
+    auto *writer2 = new grpc::testing::MockClientWriter<
+        google::bytestream::WriteRequest>();
+
+    EXPECT_CALL(*bytestreamClient, WriteRaw(_, _))
+        .WillOnce(Return(writer1))
+        .WillOnce(Return(writer2));
+
+    EXPECT_CALL(*writer1, Write(_, _)).WillRepeatedly(Return(true));
+    EXPECT_CALL(*writer1, WritesDone()).WillRepeatedly(Return(true));
+    EXPECT_CALL(*writer1, Finish())
+        .WillOnce(Return(
+            grpc::Status(grpc::UNAVAILABLE, "Something is wrong right now")));
+
+    EXPECT_CALL(*writer2, Write(_, _)).WillRepeatedly(Return(true));
+    EXPECT_CALL(*writer2, WritesDone()).WillRepeatedly(Return(true));
+    EXPECT_CALL(*writer2, Finish())
+        .WillOnce(Return(
+            grpc::Status(grpc::UNAVAILABLE, "Something is wrong right now")));
+
+    EXPECT_THROW(this->upload(content, CASHash::hash(content)), GrpcError);
 }
 
 TEST_F(ClientTestFixture, FileTooLargeToBatchUpload)
@@ -744,9 +884,28 @@ TEST_F(ClientTestFixture, FetchTreeFails)
 {
     FetchTreeRequest request;
     EXPECT_CALL(*localCasClient.get(), FetchTree(_, _, _))
+        .Times(2)
         .WillRepeatedly(DoAll(SaveArg<1>(&request),
                               Return(grpc::Status(grpc::StatusCode::INTERNAL,
                                                   "Something went wrong."))));
+
+    Digest digest;
+    digest.set_hash("d");
+    digest.set_size_bytes(1);
+
+    ASSERT_THROW(fetchTree(digest, false), GrpcError);
+    ASSERT_THROW(fetchTree(digest, true), GrpcError);
+}
+
+TEST_F(ClientTestFixture, FetchTreeFailsWithRetryableError)
+{
+    FetchTreeRequest request;
+    EXPECT_CALL(*localCasClient.get(), FetchTree(_, _, _))
+        .Times(2 * (d_grpcRetryLimit + 1))
+        .WillRepeatedly(
+            DoAll(SaveArg<1>(&request),
+                  Return(grpc::Status(grpc::StatusCode::UNAVAILABLE,
+                                      "Something went wrong."))));
 
     Digest digest;
     digest.set_hash("d");

@@ -36,8 +36,10 @@ LogStreamWriter::LogStreamWriter(
     const std::string &resourceName,
     std::shared_ptr<ByteStream::StubInterface> bytestreamClient,
     const int grpcRetryLimit, const int grpcRetryDelay)
-    : d_resourceName(resourceName), d_grpcRetryLimit(grpcRetryLimit),
+    : d_resourceName(resourceName),
+      d_grpcRetryLimit(static_cast<unsigned int>(grpcRetryLimit)),
       d_grpcRetryDelay(grpcRetryDelay), d_byteStreamClient(bytestreamClient),
+      d_grpcRetrierFactory(d_grpcRetryLimit, d_grpcRetryDelay),
       d_writeOffset(0), d_writeCommitted(false), d_resourceReady(false)
 {
 }
@@ -90,16 +92,14 @@ bool LogStreamWriter::write(const std::string &data)
         return grpc::Status::OK;
     };
 
-    try {
-        GrpcRetry::retry(writeLambda, "ByteStream.Write()", d_grpcRetryLimit,
-                         d_grpcRetryDelay);
-    }
-    catch (const GrpcError &) {
-        return false;
-    }
+    GrpcRetrier retrier(d_grpcRetryLimit, d_grpcRetryDelay, writeLambda,
+                        "ByteStream.Write()");
 
-    d_writeOffset += data.size();
-    return true;
+    if (retrier.issueRequest() && retrier.status().ok()) {
+        d_writeOffset += data.size();
+        return true;
+    }
+    return false;
 }
 
 bool LogStreamWriter::commit()
@@ -141,19 +141,15 @@ bool LogStreamWriter::commit()
         return status;
     };
 
-    try {
-        GrpcRetry::retry(commitWriteLambda,
-                         "ByteStream.Write(set_finish_write=True)",
-                         d_grpcRetryLimit, d_grpcRetryDelay);
-    }
-    catch (const GrpcError &e) {
-        BUILDBOX_LOG_ERROR(
-            "exception caught in `ByteStream::Write` request: " << e.what());
-        return false;
+    GrpcRetrier retrier(d_grpcRetryLimit, d_grpcRetryDelay, commitWriteLambda,
+                        "ByteStream.Write(set_finish_write=True)");
+
+    if (retrier.issueRequest() && retrier.status().ok()) {
+        d_writeCommitted = true;
+        return true;
     }
 
-    d_writeCommitted = true;
-    return true;
+    return false;
 }
 
 bool LogStreamWriter::queryStreamWriteStatus() const
@@ -171,17 +167,11 @@ bool LogStreamWriter::queryStreamWriteStatus() const
                                                     &response);
     };
 
-    try {
-        GrpcRetry::retry(queryWriteStatusLambda, "QueryWriteStatus()",
-                         d_grpcRetryLimit, d_grpcRetryDelay);
-        return true;
-    }
-    catch (const GrpcError &e) {
-        BUILDBOX_LOG_ERROR(
-            "exception caught in `ByteStream::QueryWriteStatus` request: "
-            << e.what());
-        return false;
-    }
+    GrpcRetrier retrier(d_grpcRetryLimit,
+                        std::chrono::milliseconds(d_grpcRetryDelay),
+                        queryWriteStatusLambda, "QueryWriteStatus()");
+
+    return retrier.issueRequest() && retrier.status().ok();
 }
 
 LogStreamWriter::ByteStreamClientWriter &LogStreamWriter::bytestreamWriter()
@@ -230,9 +220,17 @@ LogStream LogStreamWriter::createLogStream(
                                                 &createdLogStream);
     };
 
-    GrpcRetry::retry(createLogStreamLambda, "CreateLogStream()", retryLimit,
-                     retryDelay);
-    return createdLogStream;
+    GrpcRetrier retrier(retryLimit, std::chrono::milliseconds(retryDelay),
+                        createLogStreamLambda, "CreateLogStream()");
+
+    if (retrier.issueRequest() && retrier.status().ok()) {
+        return createdLogStream;
+    }
+
+    const auto errorMessage = "CreateLogStream() failed: [" +
+                              std::to_string(retrier.status().error_code()) +
+                              ": " + retrier.status().error_message() + "]";
+    throw GrpcError("CreateLogStream() failed", retrier.status());
 }
 
 } // namespace buildboxcommon

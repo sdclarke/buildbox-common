@@ -18,9 +18,11 @@
 #define INCLUDED_BUILDBOXCOMMON_LOGSTREAMWRITER
 
 #include <buildboxcommon_connectionoptions.h>
+#include <buildboxcommon_grpcretrier.h>
 
 #include <buildboxcommon_protos.h>
 
+#include <chrono>
 #include <memory>
 #include <string>
 
@@ -86,8 +88,8 @@ class LogStreamWriter final {
 
   private:
     const std::string d_resourceName;
-    const int d_grpcRetryLimit;
-    const int d_grpcRetryDelay;
+    const unsigned int d_grpcRetryLimit;
+    const std::chrono::milliseconds d_grpcRetryDelay;
 
     std::shared_ptr<google::bytestream::ByteStream::StubInterface>
         d_byteStreamClient;
@@ -97,6 +99,8 @@ class LogStreamWriter final {
     typedef std::unique_ptr<
         grpc::ClientWriterInterface<google::bytestream::WriteRequest>>
         ByteStreamClientWriter;
+
+    GrpcRetrierFactory d_grpcRetrierFactory;
 
     // It will use this context:
     grpc::ClientContext d_clientContext;

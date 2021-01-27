@@ -22,6 +22,7 @@
 #include <buildboxcommon_mergeutil.h>
 
 #include <algorithm>
+#include <chrono>
 #include <errno.h>
 #include <fcntl.h>
 #include <fstream>
@@ -32,6 +33,16 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <uuid/uuid.h>
+
+namespace {
+void throwGrpcErrorException(const grpc::Status &errorStatus)
+{
+    throw buildboxcommon::GrpcError(std::to_string(errorStatus.error_code()) +
+                                        ": " + errorStatus.error_message(),
+                                    errorStatus);
+}
+
+} // namespace
 
 namespace buildboxcommon {
 
@@ -114,20 +125,16 @@ void Client::init(
         return status;
     };
 
-    try {
-        GrpcRetry::retry(getCapabilitiesLambda, "GetCapabilities()",
-                         this->d_grpcRetryLimit, this->d_grpcRetryDelay,
-                         this->d_metadata_attach_function);
+    auto retrier = makeRetrier(getCapabilitiesLambda, "GetCapabilities()");
+    if (!retrier.issueRequest() ||
+        (!retrier.status().ok() &&
+         retrier.status().error_code() != grpc::StatusCode::UNIMPLEMENTED)) {
+        throwGrpcErrorException(retrier.status());
     }
-    catch (const GrpcError &e) {
-        if (e.status.error_code() == grpc::StatusCode::UNIMPLEMENTED) {
-            BUILDBOX_LOG_DEBUG(
-                "Get capabilities request failed. Using default. "
-                << e.what());
-        }
-        else {
-            throw;
-        }
+    else if (retrier.status().error_code() ==
+             grpc::StatusCode::UNIMPLEMENTED) {
+        BUILDBOX_LOG_DEBUG("Get capabilities request failed. Using default. "
+                           << retrier.status().error_message());
     }
 
     // Generate UUID to use for uploads
@@ -187,6 +194,28 @@ std::string Client::makeResourceName(const Digest &digest, bool isUpload)
     return resourceName;
 }
 
+void Client::issueRequestAndThrowOnErrors(
+    const GrpcRetrier::GrpcInvocation &invocation,
+    const std::string &invocationName) const
+{
+    auto retrier = makeRetrier(invocation, invocationName);
+
+    if (!retrier.issueRequest() || !retrier.status().ok()) {
+        throwGrpcErrorException(retrier.status());
+    }
+}
+
+GrpcRetrier Client::makeRetrier(const GrpcRetrier::GrpcInvocation &invocation,
+                                const std::string &invocationName) const
+{
+    GrpcRetrier retrier(d_grpcRetryLimit,
+                        std::chrono::milliseconds(d_grpcRetryDelay),
+                        invocation, invocationName);
+
+    retrier.setMetadataAttacher(d_metadata_attach_function);
+    return retrier;
+}
+
 std::string Client::fetchString(const Digest &digest)
 {
     BUILDBOX_LOG_TRACE("Downloading " << digest.hash() << " to string");
@@ -239,8 +268,7 @@ std::string Client::fetchString(const Digest &digest)
         return read_status;
     };
 
-    GrpcRetry::retry(fetchLambda, "ByteStream.Read()", this->d_grpcRetryLimit,
-                     this->d_grpcRetryDelay, this->d_metadata_attach_function);
+    issueRequestAndThrowOnErrors(fetchLambda, "ByteStream.Read()");
     return result;
 }
 
@@ -300,9 +328,7 @@ void Client::download(int fd, const Digest &digest)
         return read_status;
     };
 
-    GrpcRetry::retry(downloadLambda, "ByteStream.Read()",
-                     this->d_grpcRetryLimit, this->d_grpcRetryDelay,
-                     this->d_metadata_attach_function);
+    issueRequestAndThrowOnErrors(downloadLambda, "ByteStream.Read()");
 }
 
 void Client::downloadDirectory(
@@ -444,9 +470,7 @@ void Client::upload(const std::string &data, const Digest &digest)
         return status;
     };
 
-    GrpcRetry::retry(uploadLambda, "ByteStream.Write()",
-                     this->d_grpcRetryLimit, this->d_grpcRetryDelay,
-                     this->d_metadata_attach_function);
+    issueRequestAndThrowOnErrors(uploadLambda, "ByteStream.Write()");
 }
 
 void Client::upload(int fd, const Digest &digest)
@@ -516,9 +540,7 @@ void Client::upload(int fd, const Digest &digest)
         return status;
     };
 
-    GrpcRetry::retry(uploadLambda, "ByteStream.Write()",
-                     this->d_grpcRetryLimit, this->d_grpcRetryDelay,
-                     this->d_metadata_attach_function);
+    issueRequestAndThrowOnErrors(uploadLambda, "ByteStream.Write()");
 }
 
 void Client::uploadRequest(const UploadRequest &request)
@@ -914,9 +936,7 @@ FetchTreeResponse Client::fetchTree(const Digest &digest,
         return d_localCasClient->FetchTree(&context, request, &response);
     };
 
-    GrpcRetry::retry(fetchTreeLambda, "LocalCAS.FetchTree()", d_grpcRetryLimit,
-                     d_grpcRetryDelay, d_metadata_attach_function);
-
+    issueRequestAndThrowOnErrors(fetchTreeLambda, "LocalCAS.FetchTree()");
     return response;
 }
 
@@ -943,8 +963,8 @@ Client::captureTree(const std::vector<std::string> &paths,
         return d_localCasClient->CaptureTree(&context, request, &response);
     };
 
-    GrpcRetry::retry(captureLambda, "LocalCAS.CaptureTree()", d_grpcRetryLimit,
-                     d_grpcRetryDelay, d_metadata_attach_function);
+    issueRequestAndThrowOnErrors(captureLambda, "LocalCAS.CaptureTree()");
+
     return response;
 }
 
@@ -971,9 +991,7 @@ Client::captureFiles(const std::vector<std::string> &paths,
         return d_localCasClient->CaptureFiles(&context, request, &response);
     };
 
-    GrpcRetry::retry(captureLambda, "LocalCAS.CaptureFiles()",
-                     d_grpcRetryLimit, d_grpcRetryDelay,
-                     d_metadata_attach_function);
+    issueRequestAndThrowOnErrors(captureLambda, "LocalCAS.CaptureFiles()");
     return response;
 }
 
@@ -1006,9 +1024,7 @@ Client::batchUpload(const std::vector<UploadRequest> &requests,
         return status;
     };
 
-    GrpcRetry::retry(batchUploadLamda, "BatchUpdateBlobs()",
-                     this->d_grpcRetryLimit, this->d_grpcRetryDelay,
-                     this->d_metadata_attach_function);
+    issueRequestAndThrowOnErrors(batchUploadLamda, "BatchUpdateBlobs()");
 
     BUILDBOX_LOG_TRACE("BatchUpdateBlobs Response serialized message size = "
                        << response.ByteSizeLong());
@@ -1051,9 +1067,7 @@ Client::batchDownload(const std::vector<Digest> &digests,
         return status;
     };
 
-    GrpcRetry::retry(batchDownloadLamda, "BatchReadBlobs()",
-                     this->d_grpcRetryLimit, this->d_grpcRetryDelay,
-                     this->d_metadata_attach_function);
+    issueRequestAndThrowOnErrors(batchDownloadLamda, "BatchReadBlobs()");
 
     BUILDBOX_LOG_TRACE("BatchReadBlobs Response serialized message size = "
                        << response.ByteSizeLong());
@@ -1190,9 +1204,8 @@ Client::findMissingBlobs(const std::vector<Digest> &digests)
             return status;
         };
 
-        GrpcRetry::retry(findMissingBlobsLambda, "FindMissingBlobs()",
-                         this->d_grpcRetryLimit, this->d_grpcRetryDelay,
-                         this->d_metadata_attach_function);
+        issueRequestAndThrowOnErrors(findMissingBlobsLambda,
+                                     "FindMissingBlobs()");
 
         missing_blobs.insert(missing_blobs.end(),
                              response.missing_blob_digests().cbegin(),

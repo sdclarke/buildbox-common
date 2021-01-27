@@ -18,10 +18,12 @@
 #define INCLUDED_BUILDBOXCOMMON_CLIENT
 
 #include <functional>
+#include <memory>
 #include <unordered_map>
 
 #include <buildboxcommon_cashash.h>
 #include <buildboxcommon_connectionoptions.h>
+#include <buildboxcommon_grpcretrier.h>
 #include <buildboxcommon_merklize.h>
 #include <buildboxcommon_protos.h>
 #include <buildboxcommon_requestmetadata.h>
@@ -394,6 +396,12 @@ class Client {
     uploadBlobs(const std::vector<UploadRequest> &requests,
                 const bool throw_on_error);
 
+  protected:
+    // initialized here to prevent errors, in case options are not passed into
+    // init; protected to allow setting by unit tests.
+    int d_grpcRetryLimit = 0;
+    int d_grpcRetryDelay = 100;
+
   private:
     std::shared_ptr<grpc::Channel> d_channel;
     std::shared_ptr<ByteStream::StubInterface> d_bytestreamClient;
@@ -401,11 +409,6 @@ class Client {
     std::shared_ptr<LocalContentAddressableStorage::StubInterface>
         d_localCasClient;
     std::shared_ptr<Capabilities::StubInterface> d_capabilitiesClient;
-
-    // initialized here to prevent errors, in case options are not passed into
-    // init
-    int d_grpcRetryLimit = 0;
-    int d_grpcRetryDelay = 100;
 
     size_t d_maxBatchTotalSizeBytes;
 
@@ -487,6 +490,13 @@ class Client {
     std::string d_action_id;
     std::string d_tool_invocation_id;
     std::string d_correlated_invocations_id;
+
+    void issueRequestAndThrowOnErrors(
+        const buildboxcommon::GrpcRetrier::GrpcInvocation &invocation,
+        const std::string &invocationName) const;
+
+    GrpcRetrier makeRetrier(const GrpcRetrier::GrpcInvocation &invocation,
+                            const std::string &name) const;
 };
 
 } // namespace buildboxcommon
