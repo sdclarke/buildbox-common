@@ -32,7 +32,7 @@ const std::set<DigestFunction_Value>
     DigestGenerator::s_supportedDigestFunctions = {
         DigestFunction_Value_MD5, DigestFunction_Value_SHA1,
         DigestFunction_Value_SHA256, DigestFunction_Value_SHA384,
-        DigestFunction_Value_SHA512};
+        DigestFunction_Value_SHA512, DigestFunction_Value_BLAKE3ZCC};
 
 #ifndef BUILDBOXCOMMON_DIGEST_FUNCTION_VALUE
 #error "Digest function not defined"
@@ -125,6 +125,8 @@ const EVP_MD *DigestGenerator::getDigestFunctionStruct(
             return EVP_sha384();
         case DigestFunction_Value_SHA512:
             return EVP_sha512();
+        case DigestFunction_Value_BLAKE3ZCC:
+            return NULL;
 
         default:
             BUILDBOXCOMMON_THROW_EXCEPTION(
@@ -140,8 +142,12 @@ void DigestContext::update(const char *data, size_t data_size)
                                        "Cannot update finalized digest");
     }
 
-    throwIfNotSuccessful(EVP_DigestUpdate(d_context, data, data_size),
-                         "EVP_DigestUpdate()");
+    if (d_context) {
+      throwIfNotSuccessful(EVP_DigestUpdate(d_context, data, data_size),
+          "EVP_DigestUpdate()");
+    } else {
+      blake3_hasher_update(&b, data, data_size);
+    }
 
     d_data_size += data_size;
 }
@@ -153,19 +159,22 @@ Digest DigestContext::finalizeDigest()
                                        "Digest already finalized");
     }
 
-    unsigned char hash_buffer[EVP_MAX_MD_SIZE];
-
-    unsigned int message_length;
-    throwIfNotSuccessful(
-        EVP_DigestFinal_ex(d_context, hash_buffer, &message_length),
-        "EVP_DigestFinal_ex()");
-
-    d_finalized = true;
-
-    const std::string hash = hashToHex(hash_buffer, message_length);
-
     Digest digest;
-    digest.set_hash(hash);
+    if (d_context) {
+      unsigned char hash_buffer[EVP_MAX_MD_SIZE];
+
+      unsigned int message_length;
+      throwIfNotSuccessful(
+          EVP_DigestFinal_ex(d_context, hash_buffer, &message_length),
+          "EVP_DigestFinal_ex()");
+      const std::string hash = hashToHex(hash_buffer, message_length);
+      digest.set_hash_other(hash);
+    } else {
+      unsigned char hash_buffer[BLAKE3_OUT_LEN];
+      blake3_hasher_finalize(&b, hash_buffer, BLAKE3_OUT_LEN);
+      digest.set_hash_blake3zcc((const void *)&hash_buffer, BLAKE3_OUT_LEN);
+    }
+    d_finalized = true;
     digest.set_size_bytes(static_cast<google::protobuf::int64>(d_data_size));
     return digest;
 }
@@ -234,9 +243,15 @@ DigestContext::DigestContext()
 
 void DigestContext::init(const EVP_MD *digestFunctionStruct)
 {
-    throwIfNotSuccessful(
-        EVP_DigestInit_ex(d_context, digestFunctionStruct, nullptr),
-        "EVP_DigestInit_ex()");
+    if (digestFunctionStruct) {
+      throwIfNotSuccessful(
+          EVP_DigestInit_ex(d_context, digestFunctionStruct, nullptr),
+          "EVP_DigestInit_ex()");
+    } else {
+      // Using NULL to signify BLAKE3ZCC
+      d_context = NULL;
+      blake3_hasher_init(&b);
+    }
 }
 
 DigestContext::~DigestContext()

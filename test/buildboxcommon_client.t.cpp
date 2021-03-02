@@ -243,13 +243,13 @@ TEST_F(ClientTestFixture, FetchStringServerRetryableError)
 TEST_F(ClientTestFixture, FindMissingBlobsSuccessful)
 {
     Digest missingDigest;
-    missingDigest.set_hash("missing-hash");
+    missingDigest.set_hash_other("missing-hash");
 
     FindMissingBlobsResponse response;
     response.add_missing_blob_digests()->CopyFrom(missingDigest);
 
     Digest presentDigest;
-    presentDigest.set_hash("present-hash");
+    presentDigest.set_hash_other("present-hash");
 
     const std::vector<Digest> findMissingList = {missingDigest, presentDigest};
 
@@ -264,13 +264,13 @@ TEST_F(ClientTestFixture, FindMissingBlobsSuccessful)
 TEST_F(ClientTestFixture, FindMissingBlobsRetryableError)
 {
     Digest missingDigest;
-    missingDigest.set_hash("missing-hash");
+    missingDigest.set_hash_other("missing-hash");
 
     FindMissingBlobsResponse response;
     response.add_missing_blob_digests()->CopyFrom(missingDigest);
 
     Digest presentDigest;
-    presentDigest.set_hash("present-hash");
+    presentDigest.set_hash_other("present-hash");
 
     const std::vector<Digest> findMissingList = {missingDigest, presentDigest};
 
@@ -352,7 +352,7 @@ TEST_F(ClientTestFixture, DownloadSizeMismatch)
 TEST_F(ClientTestFixture, DownloadHashMismatch)
 {
     readResponse.set_data(content);
-    digest.set_hash("invalid-hash");
+    digest.set_hash_other("invalid-hash");
     digest.set_size_bytes(content.length());
 
     EXPECT_CALL(*bytestreamClient, ReadRaw(_, _)).WillOnce(Return(reader));
@@ -416,7 +416,7 @@ TEST_F(ClientTestFixture, DownloadRetryableServerError)
 TEST_F(ClientTestFixture, UploadStringTest)
 {
     digest.set_size_bytes(content.length());
-    digest.set_hash("fakehash");
+    digest.set_hash_other("fakehash");
 
     writeResponse.set_committed_size(digest.size_bytes());
     EXPECT_CALL(*bytestreamClient, WriteRaw(_, _))
@@ -436,7 +436,7 @@ TEST_F(ClientTestFixture, UploadStringTest)
 TEST_F(ClientTestFixture, UploadStringCommittedSizeMismatch)
 {
     digest.set_size_bytes(content.length());
-    digest.set_hash("fakehash");
+    digest.set_hash_other("fakehash");
 
     writeResponse.set_committed_size(digest.size_bytes() - 1);
     EXPECT_CALL(*bytestreamClient, WriteRaw(_, _))
@@ -456,7 +456,7 @@ TEST_F(ClientTestFixture, UploadLargeStringTest)
     int contentLength = 3 * 1024 * 1024;
     std::string content = std::string(contentLength, 'f');
     digest.set_size_bytes(contentLength);
-    digest.set_hash("fakehash");
+    digest.set_hash_other("fakehash");
 
     writeResponse.set_committed_size(digest.size_bytes());
     EXPECT_CALL(*bytestreamClient, WriteRaw(_, _))
@@ -474,7 +474,7 @@ TEST_F(ClientTestFixture, UploadExactStringTest)
     int contentLength = 1024 * 1024;
     std::string content = std::string(contentLength, 'f');
     digest.set_size_bytes(contentLength);
-    digest.set_hash("fakehash");
+    digest.set_hash_other("fakehash");
 
     writeResponse.set_committed_size(digest.size_bytes());
     EXPECT_CALL(*bytestreamClient, WriteRaw(_, _))
@@ -492,7 +492,7 @@ TEST_F(ClientTestFixture, UploadJustLargerThanExactStringTest)
     int contentLength = 1024 * 1024 + 1;
     std::string content = std::string(contentLength, 'f');
     digest.set_size_bytes(contentLength);
-    digest.set_hash("fakehash");
+    digest.set_hash_other("fakehash");
 
     writeResponse.set_committed_size(digest.size_bytes());
     EXPECT_CALL(*bytestreamClient, WriteRaw(_, _))
@@ -510,7 +510,7 @@ TEST_F(ClientTestFixture, UploadJustSmallerThanExactStringTest)
     int contentLength = 1024 * 1024 - 1;
     std::string content = std::string(contentLength, 'f');
     digest.set_size_bytes(contentLength);
-    digest.set_hash("fakehash");
+    digest.set_hash_other("fakehash");
 
     writeResponse.set_committed_size(digest.size_bytes());
     EXPECT_CALL(*bytestreamClient, WriteRaw(_, _))
@@ -526,7 +526,7 @@ TEST_F(ClientTestFixture, UploadJustSmallerThanExactStringTest)
 TEST_F(ClientTestFixture, UploadStringSizeMismatch)
 {
     digest.set_size_bytes(9999999999999999);
-    digest.set_hash("fakehash");
+    digest.set_hash_other("fakehash");
 
     EXPECT_THROW(this->upload(content, digest), std::logic_error);
 }
@@ -551,7 +551,7 @@ TEST_F(ClientTestFixture, UploadAlreadyExistingString)
 TEST_F(ClientTestFixture, UploadStringDidntReturnOk)
 {
     digest.set_size_bytes(content.length());
-    digest.set_hash("fakehash");
+    digest.set_hash_other("fakehash");
 
     EXPECT_CALL(*bytestreamClient, WriteRaw(_, _)).WillOnce(Return(writer));
 
@@ -619,7 +619,7 @@ TEST_F(ClientTestFixture, UploadBlobs)
     std::vector<Client::UploadRequest> requests;
     for (unsigned i = 0; i < payload.size(); i++) {
         Digest digest;
-        digest.set_hash(hashes[i]);
+        digest.set_hash_other(hashes[i]);
         digest.set_size_bytes(payload[i].size());
 
         Client::UploadRequest request(digest, payload[i]);
@@ -667,7 +667,7 @@ TEST_F(ClientTestFixture, UploadBlobsReturnsFailures)
     std::vector<Client::UploadRequest> requests;
     for (unsigned i = 0; i < payload.size(); i++) {
         Digest digest;
-        digest.set_hash(hashes[i]);
+        digest.set_hash_other(hashes[i]);
         digest.set_size_bytes(payload[i].size());
 
         Client::UploadRequest request(digest, payload[i]);
@@ -698,10 +698,10 @@ TEST_F(ClientTestFixture, UploadBlobsReturnsFailures)
 
     ASSERT_EQ(failed_uploads.size(), 2);
     ASSERT_EQ(std::count(hashes.cbegin(), hashes.cend(),
-                         failed_uploads[0].digest.hash()),
+                         failed_uploads[0].digest.hash_other()),
               1);
     ASSERT_EQ(std::count(hashes.cbegin(), hashes.cend(),
-                         failed_uploads[1].digest.hash()),
+                         failed_uploads[1].digest.hash_other()),
               1);
 }
 
@@ -853,7 +853,7 @@ TEST_F(ClientTestFixture, FetchTree)
         .WillOnce(DoAll(SaveArg<1>(&request), Return(grpc::Status::OK)));
 
     Digest digest;
-    digest.set_hash("treeHash");
+    digest.set_hash_other("treeHash");
     digest.set_size_bytes(1234);
 
     ASSERT_NO_THROW(fetchTree(digest, false));
@@ -870,7 +870,7 @@ TEST_F(ClientTestFixture, FetchTreeWithFiles)
         .WillOnce(DoAll(SaveArg<1>(&request), Return(grpc::Status::OK)));
 
     Digest digest;
-    digest.set_hash("treeHash");
+    digest.set_hash_other("treeHash");
     digest.set_size_bytes(1234);
 
     ASSERT_NO_THROW(fetchTree(digest, true));
@@ -890,7 +890,7 @@ TEST_F(ClientTestFixture, FetchTreeFails)
                                                   "Something went wrong."))));
 
     Digest digest;
-    digest.set_hash("d");
+    digest.set_hash_other("d");
     digest.set_size_bytes(1);
 
     ASSERT_THROW(fetchTree(digest, false), GrpcError);
@@ -908,7 +908,7 @@ TEST_F(ClientTestFixture, FetchTreeFailsWithRetryableError)
                                       "Something went wrong."))));
 
     Digest digest;
-    digest.set_hash("d");
+    digest.set_hash_other("d");
     digest.set_size_bytes(1);
 
     ASSERT_THROW(fetchTree(digest, false), GrpcError);
@@ -1055,7 +1055,7 @@ class UploadFileFixture : public ClientTestFixture {
 TEST_F(UploadFileFixture, UploadFileTest)
 {
     digest.set_size_bytes(content.length());
-    digest.set_hash("fakehash");
+    digest.set_hash_other("fakehash");
 
     writeResponse.set_committed_size(digest.size_bytes());
     EXPECT_CALL(*bytestreamClient, WriteRaw(_, _))
@@ -1075,7 +1075,7 @@ TEST_F(UploadFileFixture, UploadFileTest)
 TEST_F(UploadFileFixture, UploadFileCommittedSizeMismatch)
 {
     digest.set_size_bytes(content.length());
-    digest.set_hash("fakehash");
+    digest.set_hash_other("fakehash");
 
     writeResponse.set_committed_size(digest.size_bytes() - 1);
     EXPECT_CALL(*bytestreamClient, WriteRaw(_, _))
@@ -1100,7 +1100,7 @@ TEST_F(UploadFileFixture, UploadLargeFileTest)
     write(tmpfile.fd(), content.c_str(), contentLength);
 
     digest.set_size_bytes(contentLength);
-    digest.set_hash("fakehash");
+    digest.set_hash_other("fakehash");
 
     writeResponse.set_committed_size(digest.size_bytes());
     EXPECT_CALL(*bytestreamClient, WriteRaw(_, _))
@@ -1123,7 +1123,7 @@ TEST_F(UploadFileFixture, UploadExactFileTest)
     write(tmpfile.fd(), content.c_str(), contentLength);
 
     digest.set_size_bytes(contentLength);
-    digest.set_hash("fakehash");
+    digest.set_hash_other("fakehash");
 
     writeResponse.set_committed_size(digest.size_bytes());
     EXPECT_CALL(*bytestreamClient, WriteRaw(_, _))
@@ -1146,7 +1146,7 @@ TEST_F(UploadFileFixture, UploadJustLargerThanExactFileTest)
     write(tmpfile.fd(), content.c_str(), contentLength);
 
     digest.set_size_bytes(contentLength);
-    digest.set_hash("fakehash");
+    digest.set_hash_other("fakehash");
 
     writeResponse.set_committed_size(digest.size_bytes());
     EXPECT_CALL(*bytestreamClient, WriteRaw(_, _))
@@ -1169,7 +1169,7 @@ TEST_F(UploadFileFixture, UploadJustSmallerThanExactFileTest)
     write(tmpfile.fd(), content.c_str(), contentLength);
 
     digest.set_size_bytes(contentLength);
-    digest.set_hash("fakehash");
+    digest.set_hash_other("fakehash");
 
     writeResponse.set_committed_size(digest.size_bytes());
     EXPECT_CALL(*bytestreamClient, WriteRaw(_, _))
@@ -1185,7 +1185,7 @@ TEST_F(UploadFileFixture, UploadJustSmallerThanExactFileTest)
 TEST_F(UploadFileFixture, UploadFileReadFailure)
 {
     digest.set_size_bytes(content.length());
-    digest.set_hash("fakehash");
+    digest.set_hash_other("fakehash");
 
     EXPECT_CALL(*bytestreamClient, WriteRaw(_, _)).WillOnce(Return(writer));
 
@@ -1195,7 +1195,7 @@ TEST_F(UploadFileFixture, UploadFileReadFailure)
 TEST_F(UploadFileFixture, UploadFileWriteFailure)
 {
     digest.set_size_bytes(content.length());
-    digest.set_hash("fakehash");
+    digest.set_hash_other("fakehash");
 
     EXPECT_CALL(*bytestreamClient, WriteRaw(_, _)).WillOnce(Return(writer));
 
@@ -1207,7 +1207,7 @@ TEST_F(UploadFileFixture, UploadFileWriteFailure)
 TEST_F(UploadFileFixture, UploadAlreadyExistingFile)
 {
     digest.set_size_bytes(content.length());
-    digest.set_hash("fakehash");
+    digest.set_hash_other("fakehash");
 
     writeResponse.set_committed_size(digest.size_bytes());
     EXPECT_CALL(*bytestreamClient, WriteRaw(_, _))
@@ -1224,7 +1224,7 @@ TEST_F(UploadFileFixture, UploadAlreadyExistingFile)
 TEST_F(UploadFileFixture, UploadFileDidntReturnOk)
 {
     digest.set_size_bytes(content.length());
-    digest.set_hash("fakehash");
+    digest.set_hash_other("fakehash");
 
     EXPECT_CALL(*bytestreamClient, WriteRaw(_, _)).WillOnce(Return(writer));
 
@@ -1445,7 +1445,7 @@ TEST_F(ClientTestFixture, DownloadDirectoryTestActualDownload)
 TEST_F(TransferDirectoryFixture, DownloadDirectoryMissingDigestThrows)
 {
     Digest digest;
-    digest.set_hash("ThisDoesNotExist");
+    digest.set_hash_other("ThisDoesNotExist");
     digest.set_size_bytes(1234);
 
     EXPECT_CALL(*bytestreamClient, ReadRaw(_, _)).WillOnce(Return(reader));
@@ -1540,7 +1540,7 @@ TEST_P(DownloadBlobsFixture, FileTooLargeToBatchDownload)
 
     auto write_blob = [&](const std::string &downloaded_hash,
                           const std::string &downloaded_data) {
-        ASSERT_EQ(downloaded_hash, digest.hash());
+        ASSERT_EQ(downloaded_hash, digest.hash_other());
         ASSERT_EQ(downloaded_data, data);
     };
 
@@ -1561,7 +1561,7 @@ TEST_P(DownloadBlobsFixture, DownloadBlobs)
     std::vector<Digest> requests;
     for (unsigned i = 0; i < payload.size(); i++) {
         const Digest digest = CASHash::hash(payload[i]);
-        hashes.push_back(digest.hash());
+        hashes.push_back(digest.hash_other());
         requests.push_back(digest);
     }
     ASSERT_EQ(requests.size(), payload.size());
@@ -1644,7 +1644,7 @@ TEST_P(DownloadBlobsFixture, DownloadBlobsBatchWithMissingBlob)
 
     unsigned int written_blobs = 0;
     const auto write_blob = [&](const std::string &hash, const std::string &) {
-        ASSERT_EQ(hash, existing_digest.hash());
+        ASSERT_EQ(hash, existing_digest.hash_other());
         written_blobs++;
     };
 
@@ -1678,7 +1678,7 @@ TEST_P(DownloadBlobsFixture, DownloadBlobsBatchWithMissingBlob)
 TEST_P(DownloadBlobsFixture, DownloadBlobsHelperFails)
 {
     Digest digest;
-    digest.set_hash("hash0");
+    digest.set_hash_other("hash0");
     digest.set_size_bytes(3 * MAX_BATCH_SIZE_BYTES);
 
     unsigned int written_blobs = 0;
@@ -1734,10 +1734,10 @@ TEST_F(DownloadBlobsFixture, DownloadBlobsResultSuccessfulStatusAndData)
 
     const Client::DownloadBlobsResult download_results =
         this->downloadBlobs({digest});
-    ASSERT_EQ(download_results.count(digest.hash()), 1);
+    ASSERT_EQ(download_results.count(digest.hash_other()), 1);
     ASSERT_EQ(download_results.size(), 1);
 
-    const auto &result = download_results.at(digest.hash());
+    const auto &result = download_results.at(digest.hash_other());
     const auto &result_status = result.first;
     const auto &result_data = result.second;
 
@@ -1750,7 +1750,7 @@ TEST_F(DownloadBlobsFixture, DownloadBlobsResultErrorCode)
     // Test the public `downloadBlobs()` method to check that the returned map
     // is correct.
     Digest digest;
-    digest.set_hash("hash0");
+    digest.set_hash_other("hash0");
     digest.set_size_bytes(3 * MAX_BATCH_SIZE_BYTES);
 
     const auto errorStatus =
@@ -1763,9 +1763,9 @@ TEST_F(DownloadBlobsFixture, DownloadBlobsResultErrorCode)
     ASSERT_NO_THROW(download_results = this->downloadBlobs({digest}));
 
     ASSERT_EQ(download_results.size(), 1);
-    ASSERT_EQ(download_results.count(digest.hash()), 1);
+    ASSERT_EQ(download_results.count(digest.hash_other()), 1);
 
-    const auto result = download_results.at(digest.hash());
+    const auto result = download_results.at(digest.hash_other());
     ASSERT_EQ(result.first.code(), errorStatus.error_code());
     ASSERT_EQ(result.second, "");
 }
@@ -1790,10 +1790,10 @@ TEST_F(DownloadBlobsFixture,
 
     const Client::DownloadBlobsResult download_results =
         this->downloadBlobsToDirectory({digest}, directory.name());
-    ASSERT_EQ(download_results.count(digest.hash()), 1);
+    ASSERT_EQ(download_results.count(digest.hash_other()), 1);
     ASSERT_EQ(download_results.size(), 1);
 
-    const auto &result = download_results.at(digest.hash());
+    const auto &result = download_results.at(digest.hash_other());
     const auto &result_status = result.first;
     const auto &result_path = result.second;
 

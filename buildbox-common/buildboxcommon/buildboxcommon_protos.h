@@ -90,7 +90,7 @@ namespace std {
 template <> struct hash<buildboxcommon::Digest> {
     std::size_t operator()(const buildboxcommon::Digest &digest) const noexcept
     {
-        return std::hash<std::string>{}(digest.hash());
+        return std::hash<std::string>{}(digest.hash_other());
     }
 };
 } // namespace std
@@ -103,7 +103,7 @@ namespace v2 {
 inline bool operator==(const buildboxcommon::Digest &a,
                        const buildboxcommon::Digest &b)
 {
-    return a.hash() == b.hash() && a.size_bytes() == b.size_bytes();
+    return a.hash_other() == b.hash_other() && a.size_bytes() == b.size_bytes();
 }
 
 inline bool operator!=(const buildboxcommon::Digest &a,
@@ -115,8 +115,8 @@ inline bool operator!=(const buildboxcommon::Digest &a,
 inline bool operator<(const buildboxcommon::Digest &a,
                       const buildboxcommon::Digest &b)
 {
-    if (a.hash() != b.hash()) {
-        return a.hash() < b.hash();
+    if (a.hash_other() != b.hash_other()) {
+        return a.hash_other() < b.hash_other();
     }
 
     return a.size_bytes() < b.size_bytes();
@@ -124,7 +124,7 @@ inline bool operator<(const buildboxcommon::Digest &a,
 
 inline std::string toString(const buildboxcommon::Digest &digest)
 {
-    return digest.hash() + "/" + std::to_string(digest.size_bytes());
+    return digest.hash_other() + "/" + std::to_string(digest.size_bytes());
 }
 
 inline std::ostream &operator<<(std::ostream &os,

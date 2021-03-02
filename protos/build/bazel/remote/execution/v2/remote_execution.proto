@@ -850,10 +850,14 @@ message SymlinkNode {
 message Digest {
   // The hash. In the case of SHA-256, it will always be a lowercase hex string
   // exactly 64 characters long.
-  string hash = 1;
+  string hash_other = 1;
 
   // The size of the blob, in bytes.
   int64 size_bytes = 2;
+
+  bytes hash_blake3zcc = 3;
+
+  //bytes hash_blake3zcc_manifest = 4;
 }
 
 // ExecutedActionMetadata contains details about a completed execution.
@@ -1573,6 +1577,8 @@ message DigestFunction {
     // cryptographic hash function and its collision properties are not strongly guaranteed.
     // See https://github.com/aappleby/smhasher/wiki/MurmurHash3 .
     MURMUR3 = 7;
+
+    BLAKE3ZCC = 8;
   }
 }
 

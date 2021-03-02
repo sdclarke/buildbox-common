@@ -99,7 +99,7 @@ TEST(DigestGeneratorTest, TestStringMD5)
 
     const std::string expected_md5_string = "c1ad80398f865c700449c073bd0a8358";
 
-    EXPECT_EQ(d.hash(), expected_md5_string);
+    EXPECT_EQ(d.hash_other(), expected_md5_string);
     EXPECT_EQ(d.size_bytes(), TEST_STRING.size());
 }
 
@@ -112,7 +112,7 @@ TEST(DigestGeneratorTest, TestStringSha1)
     const std::string expected_sha1_hash =
         "716e65700ad0e969cca29ec2259fa526e4bdb129";
 
-    EXPECT_EQ(d.hash(), expected_sha1_hash);
+    EXPECT_EQ(d.hash_other(), expected_sha1_hash);
     EXPECT_EQ(d.size_bytes(), TEST_STRING.size());
 }
 
@@ -125,7 +125,7 @@ TEST(DigestGeneratorTest, TestStringSha256)
     const std::string expected_sha256_hash =
         "b1c4daf6e3812505064c07f1ad0b1d6693d93b1b28c452e55ad17e38c30e89aa";
 
-    EXPECT_EQ(d.hash(), expected_sha256_hash);
+    EXPECT_EQ(d.hash_other(), expected_sha256_hash);
     EXPECT_EQ(d.size_bytes(), TEST_STRING.size());
 }
 
@@ -139,7 +139,7 @@ TEST(DigestGeneratorTest, TestStringSha384)
         "614589fe6e8bfd0e5a78e6819e439965364ec3af3a7482b69dd62e4ba47d82b5e305c"
         "b609d529164c794ba2b98e0279b";
 
-    EXPECT_EQ(d.hash(), expected_sha384_hash);
+    EXPECT_EQ(d.hash_other(), expected_sha384_hash);
     EXPECT_EQ(d.size_bytes(), TEST_STRING.size());
 }
 
@@ -153,7 +153,7 @@ TEST(DigestGeneratorTest, TestStringSha512)
         "0e2c5c04c391ca0b8ca5fd9f6707bcddd53e8b7245c59331590d1c5490ffab7d505db"
         "0ba9b70a0f48e0f26ab6afeb84f600a7501a5fb1958f82f8623a7a1f692";
 
-    EXPECT_EQ(d.hash(), expected_sha512_hash);
+    EXPECT_EQ(d.hash_other(), expected_sha512_hash);
     EXPECT_EQ(d.size_bytes(), TEST_STRING.size());
 }
 
@@ -162,7 +162,7 @@ TEST(DigestGeneratorTest, File)
     int fd = open("test.txt", O_RDONLY);
     const Digest d = DigestGenerator().hash(fd);
     EXPECT_EQ(
-        d.hash(),
+        d.hash_other(),
         "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08");
     EXPECT_EQ(d.size_bytes(), 4);
     close(fd);
@@ -201,7 +201,7 @@ TEST(DigestContextTest, TestStringSha256)
     const std::string expected_sha256_hash =
         "b1c4daf6e3812505064c07f1ad0b1d6693d93b1b28c452e55ad17e38c30e89aa";
 
-    EXPECT_EQ(d.hash(), expected_sha256_hash);
+    EXPECT_EQ(d.hash_other(), expected_sha256_hash);
     EXPECT_EQ(d.size_bytes(), TEST_STRING.size());
 }
 

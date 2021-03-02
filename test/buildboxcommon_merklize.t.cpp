@@ -21,14 +21,14 @@ using namespace buildboxcommon;
 TEST(FileTest, ToFilenode)
 {
     File file;
-    file.d_digest.set_hash("HASH HERE");
+    file.d_digest.set_hash_other("HASH HERE");
     file.d_digest.set_size_bytes(123);
     file.d_executable = true;
 
     auto fileNode = file.to_filenode(std::string("file.name"));
 
     EXPECT_EQ(fileNode.name(), "file.name");
-    EXPECT_EQ(fileNode.digest().hash(), "HASH HERE");
+    EXPECT_EQ(fileNode.digest().hash_other(), "HASH HERE");
     EXPECT_EQ(fileNode.digest().size_bytes(), 123);
     EXPECT_TRUE(fileNode.is_executable());
     EXPECT_FALSE(fileNode.has_node_properties());
@@ -50,7 +50,7 @@ TEST(NestedDirectoryTest, EmptyNestedDirectory)
 TEST(NestedDirectoryTest, TrivialNestedDirectory)
 {
     File file;
-    file.d_digest.set_hash("DIGESTHERE");
+    file.d_digest.set_hash_other("DIGESTHERE");
 
     NestedDirectory directory;
     directory.add(file, "sample");
@@ -65,16 +65,16 @@ TEST(NestedDirectoryTest, TrivialNestedDirectory)
     EXPECT_EQ(0, message.directories_size());
     ASSERT_EQ(1, message.files_size());
     EXPECT_EQ("sample", message.files(0).name());
-    EXPECT_EQ("DIGESTHERE", message.files(0).digest().hash());
+    EXPECT_EQ("DIGESTHERE", message.files(0).digest().hash_other());
 }
 
 TEST(NestedDirectoryTest, Subdirectories)
 {
     File file;
-    file.d_digest.set_hash("HASH1");
+    file.d_digest.set_hash_other("HASH1");
 
     File file2;
-    file2.d_digest.set_hash("HASH2");
+    file2.d_digest.set_hash_other("HASH2");
 
     NestedDirectory directory;
     directory.add(file, "sample");
@@ -90,7 +90,7 @@ TEST(NestedDirectoryTest, Subdirectories)
 
     EXPECT_EQ(1, message.files_size());
     EXPECT_EQ("sample", message.files(0).name());
-    EXPECT_EQ("HASH1", message.files(0).digest().hash());
+    EXPECT_EQ("HASH1", message.files(0).digest().hash_other());
     ASSERT_EQ(1, message.directories_size());
     EXPECT_EQ("subdir", message.directories(0).name());
 
@@ -107,7 +107,7 @@ TEST(NestedDirectoryTest, Subdirectories)
     EXPECT_EQ(0, subdir2.directories_size());
     ASSERT_EQ(1, subdir2.files_size());
     EXPECT_EQ("sample2", subdir2.files(0).name());
-    EXPECT_EQ("HASH2", subdir2.files(0).digest().hash());
+    EXPECT_EQ("HASH2", subdir2.files(0).digest().hash_other());
 }
 
 TEST(NestedDirectoryTest, AddSingleDirectory)
@@ -185,7 +185,7 @@ TEST(NestedDirectoryTest, EmptySubdirectories)
 TEST(NestedDirectoryTest, AddDirsToExistingNestedDirectory)
 {
     File file;
-    file.d_digest.set_hash("DIGESTHERE");
+    file.d_digest.set_hash_other("DIGESTHERE");
 
     NestedDirectory directory;
     directory.add(file, "directory/file");
@@ -213,10 +213,10 @@ TEST(NestedDirectoryTest, AddDirsToExistingNestedDirectory)
 TEST(NestedDirectoryTest, SubdirectoriesToTree)
 {
     File file;
-    file.d_digest.set_hash("HASH1");
+    file.d_digest.set_hash_other("HASH1");
 
     File file2;
-    file2.d_digest.set_hash("HASH2");
+    file2.d_digest.set_hash_other("HASH2");
 
     NestedDirectory directory;
     directory.add(file, "sample");
@@ -235,7 +235,7 @@ TEST(NestedDirectoryTest, SubdirectoriesToTree)
 
     EXPECT_EQ(1, root.files_size());
     EXPECT_EQ("sample", root.files(0).name());
-    EXPECT_EQ("HASH1", root.files(0).digest().hash());
+    EXPECT_EQ("HASH1", root.files(0).digest().hash_other());
     ASSERT_EQ(1, root.directories_size());
     EXPECT_EQ("subdir", root.directories(0).name());
 
@@ -252,7 +252,7 @@ TEST(NestedDirectoryTest, SubdirectoriesToTree)
     EXPECT_EQ(0, subdir2.directories_size());
     ASSERT_EQ(1, subdir2.files_size());
     EXPECT_EQ("sample2", subdir2.files(0).name());
-    EXPECT_EQ("HASH2", subdir2.files(0).digest().hash());
+    EXPECT_EQ("HASH2", subdir2.files(0).digest().hash_other());
 }
 
 TEST(NestedDirectoryTest, MakeNestedDirectory)
@@ -320,7 +320,7 @@ TEST(NestedDirectoryTest, ConsistentDigestRegardlessOfFileOrder)
     // Get us some mock files
     File files[N];
     for (int i = 0; i < N; i++) {
-        files[i].d_digest.set_hash("HASH_" + std::to_string(i));
+        files[i].d_digest.set_hash_other("HASH_" + std::to_string(i));
     }
 
     // Create Nested Directory and add everything in-order
@@ -340,7 +340,7 @@ TEST(NestedDirectoryTest, ConsistentDigestRegardlessOfFileOrder)
     }
 
     // Make sure the actual digests of those two directories are identical
-    EXPECT_EQ(directory1.to_digest().hash(), directory2.to_digest().hash());
+    EXPECT_EQ(directory1.to_digest().hash_other(), directory2.to_digest().hash_other());
 }
 
 // Make sure digests of directories containing different files are different
@@ -351,8 +351,8 @@ TEST(NestedDirectoryTest, NestedDirectoryDigestsReallyBasedOnFiles)
     File files_dir1[N]; // Files to add in the first directory
     File files_dir2[N]; // Files to add in the second directory
     for (int i = 0; i < N; i++) {
-        files_dir1[i].d_digest.set_hash("HASH_DIR1_" + std::to_string(i));
-        files_dir2[i].d_digest.set_hash("HASH_DIR2_" + std::to_string(i));
+        files_dir1[i].d_digest.set_hash_other("HASH_DIR1_" + std::to_string(i));
+        files_dir2[i].d_digest.set_hash_other("HASH_DIR2_" + std::to_string(i));
     }
 
     // Create Nested Directories and add everything in-order
@@ -365,5 +365,5 @@ TEST(NestedDirectoryTest, NestedDirectoryDigestsReallyBasedOnFiles)
     }
 
     // Make sure the digests are different
-    EXPECT_NE(directory1.to_digest().hash(), directory2.to_digest().hash());
+    EXPECT_NE(directory1.to_digest().hash_other(), directory2.to_digest().hash_other());
 }

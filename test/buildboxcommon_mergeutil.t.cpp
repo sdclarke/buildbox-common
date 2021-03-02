@@ -614,7 +614,7 @@ class MergeFixture : public ::testing::Test {
         ASSERT_NE(index, end) << "Reached end of expected output early";
         auto current_blob = blobs.find(digest);
         ASSERT_NE(current_blob, blobs.end())
-            << "No blob found for digest " << digest.hash();
+            << "No blob found for digest " << digest.hash_other();
 
         Directory directory;
         directory.ParseFromString(current_blob->second);

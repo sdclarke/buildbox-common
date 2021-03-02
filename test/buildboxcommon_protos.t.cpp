@@ -29,7 +29,7 @@ TEST(ProtosHeaderTest, DigestComparisonEqual)
 {
     Digest d1, d2;
 
-    d1.set_hash("hash");
+    d1.set_hash_other("hash");
     d1.set_size_bytes(1024);
 
     d2.CopyFrom(d1);
@@ -42,8 +42,8 @@ TEST(ProtosHeaderTest, DigestComparisonDifferentHash)
 {
     Digest d1, d2;
 
-    d1.set_hash("hash1");
-    d2.set_hash("hash2");
+    d1.set_hash_other("hash1");
+    d2.set_hash_other("hash2");
 
     d1.set_size_bytes(1024);
     d2.set_size_bytes(1024);
@@ -56,8 +56,8 @@ TEST(ProtosHeaderTest, DigestComparisonDifferentSize)
 {
     Digest d1, d2;
 
-    d1.set_hash("hash");
-    d2.set_hash("hash");
+    d1.set_hash_other("hash");
+    d2.set_hash_other("hash");
 
     d1.set_size_bytes(100);
     d2.set_size_bytes(1024);
@@ -70,8 +70,8 @@ TEST(ProtosHeaderTest, DigestComparisonDifferent)
 {
     Digest d1, d2;
 
-    d1.set_hash("hash1");
-    d2.set_hash("hash2");
+    d1.set_hash_other("hash1");
+    d2.set_hash_other("hash2");
 
     d1.set_size_bytes(100);
     d2.set_size_bytes(1024);
@@ -83,13 +83,13 @@ TEST(ProtosHeaderTest, DigestComparisonDifferent)
 TEST(ProtosHeaderTest, DigestComparisonLt)
 {
     Digest d1, d2, d3;
-    d1.set_hash("hash1");
+    d1.set_hash_other("hash1");
     d1.set_size_bytes(10);
 
-    d2.set_hash("hash1");
+    d2.set_hash_other("hash1");
     d2.set_size_bytes(20);
 
-    d3.set_hash("hash2");
+    d3.set_hash_other("hash2");
     d3.set_size_bytes(1);
 
     ASSERT_LT(d1, d2);
@@ -107,7 +107,7 @@ TEST(ProtosHeaderTest, DigestToString)
     const Digest digest = buildboxcommon::CASHash::hash(data);
 
     std::string expected_output =
-        digest.hash() + "/" + std::to_string(digest.size_bytes());
+        digest.hash_other() + "/" + std::to_string(digest.size_bytes());
 
     // toString():
     ASSERT_EQ(toString(digest), expected_output);

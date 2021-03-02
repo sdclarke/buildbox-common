@@ -188,7 +188,7 @@ std::string Client::makeResourceName(const Digest &digest, bool isUpload)
     }
 
     resourceName.append("blobs/");
-    resourceName.append(digest.hash());
+    resourceName.append(digest.hash_other());
     resourceName.append("/");
     resourceName.append(std::to_string(digest.size_bytes()));
     return resourceName;
@@ -218,7 +218,7 @@ GrpcRetrier Client::makeRetrier(const GrpcRetrier::GrpcInvocation &invocation,
 
 std::string Client::fetchString(const Digest &digest)
 {
-    BUILDBOX_LOG_TRACE("Downloading " << digest.hash() << " to string");
+    BUILDBOX_LOG_TRACE("Downloading " << digest.hash_other() << " to string");
     const std::string resourceName = this->makeResourceName(digest, false);
 
     std::string result;
@@ -274,7 +274,7 @@ std::string Client::fetchString(const Digest &digest)
 
 void Client::download(int fd, const Digest &digest)
 {
-    BUILDBOX_LOG_TRACE("Downloading " << digest.hash() << " to file");
+    BUILDBOX_LOG_TRACE("Downloading " << digest.hash_other() << " to file");
     const std::string resourceName = this->makeResourceName(digest, false);
 
     size_t bytesDownloaded = 0;
@@ -348,7 +348,7 @@ void Client::downloadDirectory(
 
         const std::string file_path = path + "/" + file.name();
         outputs.emplace(
-            file.digest().hash(),
+            file.digest().hash_other(),
             std::pair<std::string, bool>(file_path, file.is_executable()));
     }
     download_callback(file_digests, outputs);
@@ -408,14 +408,14 @@ void Client::downloadDirectory(const Digest &digest, const std::string &path)
 
 void Client::upload(const std::string &data, const Digest &digest)
 {
-    BUILDBOX_LOG_DEBUG("Uploading " << digest.hash() << " from string");
+    BUILDBOX_LOG_DEBUG("Uploading " << digest.hash_other() << " from string");
     const auto data_size = static_cast<google::protobuf::int64>(data.size());
 
     if (data_size != digest.size_bytes()) {
         BUILDBOXCOMMON_THROW_EXCEPTION(
             std::logic_error, "Digest length of "
                                   << digest.size_bytes() << " bytes for "
-                                  << digest.hash()
+                                  << digest.hash_other()
                                   << " does not match string length of "
                                   << data_size << " bytes");
     }
@@ -459,7 +459,7 @@ void Client::upload(const std::string &data, const Digest &digest)
                     std::runtime_error,
                     "Expected to upload "
                         << digest.size_bytes() << " bytes for "
-                        << digest.hash() << ", but server reports "
+                        << digest.hash_other() << ", but server reports "
                         << response.committed_size() << " bytes committed");
             }
 
@@ -476,7 +476,7 @@ void Client::upload(const std::string &data, const Digest &digest)
 void Client::upload(int fd, const Digest &digest)
 {
     std::vector<char> buffer(bytestreamChunkSizeBytes());
-    BUILDBOX_LOG_DEBUG("Uploading " << digest.hash() << " from file");
+    BUILDBOX_LOG_DEBUG("Uploading " << digest.hash_other() << " from file");
 
     const std::string resourceName = this->makeResourceName(digest, true);
 
@@ -506,7 +506,7 @@ void Client::upload(int fd, const Digest &digest)
                 if (bytesRead == 0) {
                     BUILDBOXCOMMON_THROW_EXCEPTION(
                         std::runtime_error,
-                        "Upload of " << digest.hash()
+                        "Upload of " << digest.hash_other()
                                      << " failed: unexpected end of file");
                 }
             }
@@ -530,7 +530,7 @@ void Client::upload(int fd, const Digest &digest)
                     std::runtime_error,
                     "Expected to upload "
                         << digest.size_bytes() << " bytes for "
-                        << digest.hash() << ", but server reports "
+                        << digest.hash_other() << ", but server reports "
                         << response.committed_size() << " bytes committed");
             }
 
@@ -681,7 +681,7 @@ Client::downloadBlobs(const std::vector<Digest> &digests,
         const google::rpc::Status &status = entry.second;
 
         if (status.code() != grpc::StatusCode::OK) {
-            downloaded_data.emplace(digest.hash(), std::make_pair(status, ""));
+            downloaded_data.emplace(digest.hash_other(), std::make_pair(status, ""));
         }
     }
 
@@ -798,12 +798,12 @@ Client::downloadBlobs(const std::vector<Digest> &digests,
         try {
             if (!temp_directory) {
                 const auto data = fetchString(digest);
-                write_blob(digest.hash(), data);
+                write_blob(digest.hash_other(), data);
             }
             else {
                 // Download blob directly into a file to avoid excessive
                 // memory usage for large files.
-                const auto path = *temp_directory + "/" + digest.hash();
+                const auto path = *temp_directory + "/" + digest.hash_other();
                 int fd =
                     open(path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0600);
                 if (fd < 0) {
@@ -821,7 +821,7 @@ Client::downloadBlobs(const std::vector<Digest> &digests,
                 }
                 close(fd);
 
-                write_blob(digest.hash(), path);
+                write_blob(digest.hash_other(), path);
             }
             download_status.set_code(grpc::StatusCode::OK);
         }
@@ -1094,12 +1094,12 @@ Client::batchDownload(const std::vector<Digest> &digests,
             }
 
             if (!temp_directory) {
-                write_blob_function(downloadResponse.digest().hash(),
+                write_blob_function(downloadResponse.digest().hash_other(),
                                     downloadResponse.data());
             }
             else {
                 const auto path =
-                    *temp_directory + "/" + downloadResponse.digest().hash();
+                    *temp_directory + "/" + downloadResponse.digest().hash_other();
                 std::ofstream f(path, std::ofstream::binary);
                 f << downloadResponse.data();
                 f.close();
@@ -1109,7 +1109,7 @@ Client::batchDownload(const std::vector<Digest> &digests,
                         "Client::batchDownload: Failed to write file \""
                             << path << "\"");
                 }
-                write_blob_function(downloadResponse.digest().hash(), path);
+                write_blob_function(downloadResponse.digest().hash_other(), path);
             }
         }
 

@@ -17,6 +17,7 @@
 #ifndef INCLUDED_BUILDBOXCOMMON_CASHASH
 #define INCLUDED_BUILDBOXCOMMON_CASHASH
 
+#include <blake3.h>
 #include <buildboxcommon_protos.h>
 
 #include <iomanip>
@@ -77,9 +78,10 @@ class DigestContext {
     EVP_MD_CTX *d_context;
     size_t d_data_size = 0;
     bool d_finalized = false;
+    blake3_hasher b;
 
     // Create and initialize an OpenSSL digest context to be used during a
-    // call to `hash()`.
+    // call to `hash_other()`.
     DigestContext();
     void init(const EVP_MD *digestFunctionStruct);
 

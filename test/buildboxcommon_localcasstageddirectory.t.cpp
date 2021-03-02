@@ -98,7 +98,7 @@ class LocalCasStagedDirectoryFixture : public ::testing::Test {
             .WillOnce(DoAll(SetArgPointee<0>(response), Return(true)));
 
         Digest digest;
-        digest.set_hash("has12345");
+        digest.set_hash_other("has12345");
         digest.set_size_bytes(1024);
 
         return std::make_unique<LocalCasStagedDirectory>(digest, path, client);
